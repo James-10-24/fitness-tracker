@@ -1,4 +1,4 @@
-const CACHE_NAME = "nutrilog-shell-v1";
+const CACHE_NAME = "nutrilog-shell-v3";
 const ASSETS = [
   "./",
   "./index.html",

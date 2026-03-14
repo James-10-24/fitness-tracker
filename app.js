@@ -1,25 +1,19 @@
 let state = {
   foods: [],
   logs: [],
-  goals: { cal: 2000, pro: 150 }
+  waterLogs: [],
+  stepLogs: [],
+  goals: { cal: 2000, pro: 150, carb: 220, fat: 65, water: 2.5, steps: 8000 }
 };
 
-const STORAGE_KEY = "nutrilog_v1";
-const APP_FILES = [
-  "./",
-  "./index.html",
-  "./styles.css",
-  "./app.js",
-  "./manifest.webmanifest",
-  "./icons/icon.svg",
-  "./icons/icon-192.svg",
-  "./icons/icon-512.svg"
-];
+const STORAGE_KEY = "nutrilog_v2";
+const LEGACY_STORAGE_KEY = "nutrilog_v1";
+const AI_ESTIMATE_ENDPOINT = "/api/estimate-food";
 
 let currentPage = "today";
 let selectedFoodId = null;
 let toastTimer;
-let deferredInstallPrompt = null;
+let activeAiEstimate = null;
 
 function saveState() {
   try {
@@ -31,9 +25,13 @@ function saveState() {
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
     if (raw) {
       state = { ...state, ...JSON.parse(raw) };
+      state.waterLogs = Array.isArray(state.waterLogs) ? state.waterLogs : [];
+      state.stepLogs = Array.isArray(state.stepLogs) ? state.stepLogs : [];
+      state.foods = Array.isArray(state.foods) ? state.foods.map(normalizeFoodRecord) : [];
+      state.goals = { cal: 2000, pro: 150, carb: 220, fat: 65, water: 2.5, steps: 8000, ...(state.goals || {}) };
     }
   } catch (error) {
     console.error("Failed to load state", error);
@@ -50,8 +48,52 @@ function todayLogs() {
   return state.logs.filter((entry) => entry.date === todayStr());
 }
 
+function todayWaterTotal() {
+  return state.waterLogs
+    .filter((entry) => entry.date === todayStr())
+    .reduce((sum, entry) => sum + (entry.amount || 0), 0);
+}
+
+function todayStepsTotal() {
+  return state.stepLogs
+    .filter((entry) => entry.date === todayStr())
+    .reduce((sum, entry) => sum + (entry.amount || 0), 0);
+}
+
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function normalizeFoodRecord(food) {
+  const grams = Math.max(1, normalizePositiveNumber(food.grams, 0) || inferGramsFromServing(food.serving) || 100);
+  const cal = normalizePositiveNumber(food.cal, 0);
+  const pro = normalizePositiveNumber(food.pro, 0);
+  return {
+    ...food,
+    grams,
+    cal,
+    pro,
+    calPerGram: cal / grams,
+    proPerGram: pro / grams,
+    serving: food.serving || `${Math.round(grams)} g`
+  };
+}
+
+function inferGramsFromServing(serving) {
+  if (!serving) {
+    return 0;
+  }
+  const match = String(serving).match(/(\d+(?:\.\d+)?)\s*g\b/i);
+  return match ? Number(match[1]) : 0;
+}
+
+function roundNutrient(value) {
+  return Math.round(Number(value) * 10) / 10;
+}
+
+function normalizePositiveNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
 function showPage(page) {
@@ -73,6 +115,7 @@ function showPage(page) {
   if (page === "history") {
     renderHistory();
   }
+
   updateFab();
 }
 
@@ -112,26 +155,44 @@ function renderToday() {
   const logs = todayLogs();
   const totalCal = logs.reduce((sum, log) => sum + (log.cal || 0), 0);
   const totalPro = logs.reduce((sum, log) => sum + (log.pro || 0), 0);
+  const totalWater = todayWaterTotal();
+  const totalSteps = todayStepsTotal();
   const goalCal = state.goals.cal;
   const goalPro = state.goals.pro;
+  const goalWater = state.goals.water;
+  const goalSteps = state.goals.steps;
 
   document.getElementById("today-cal-val").textContent = Math.round(totalCal);
   document.getElementById("today-pro-val").textContent = Math.round(totalPro);
   document.getElementById("today-cal-goal").textContent = goalCal;
   document.getElementById("today-pro-goal").textContent = goalPro;
+  document.getElementById("today-carb-goal").textContent = Math.round(state.goals.carb);
+  document.getElementById("today-fat-goal").textContent = Math.round(state.goals.fat);
+  document.getElementById("today-water-goal").textContent = roundNutrient(state.goals.water);
+  document.getElementById("today-steps-goal").textContent = Math.round(state.goals.steps);
 
   document.getElementById("prog-cal-curr").textContent = Math.round(totalCal);
   document.getElementById("prog-cal-goal").textContent = goalCal;
   document.getElementById("prog-pro-curr").textContent = Math.round(totalPro);
   document.getElementById("prog-pro-goal").textContent = goalPro;
+  document.getElementById("prog-water-curr").textContent = roundNutrient(totalWater);
+  document.getElementById("prog-water-goal").textContent = roundNutrient(goalWater);
+  document.getElementById("prog-steps-curr").textContent = Math.round(totalSteps);
+  document.getElementById("prog-steps-goal").textContent = Math.round(goalSteps);
 
   const pCal = goalCal > 0 ? Math.min((totalCal / goalCal) * 100, 100) : 0;
   const pPro = goalPro > 0 ? Math.min((totalPro / goalPro) * 100, 100) : 0;
+  const pWater = goalWater > 0 ? Math.min((totalWater / goalWater) * 100, 100) : 0;
+  const pSteps = goalSteps > 0 ? Math.min((totalSteps / goalSteps) * 100, 100) : 0;
   document.getElementById("prog-cal-bar").style.width = `${pCal}%`;
   document.getElementById("prog-pro-bar").style.width = `${pPro}%`;
+  document.getElementById("prog-water-bar").style.width = `${pWater}%`;
+  document.getElementById("prog-steps-bar").style.width = `${pSteps}%`;
 
   document.getElementById("cal-progress-wrap").classList.toggle("progress-over", totalCal > goalCal);
   document.getElementById("pro-progress-wrap").classList.toggle("progress-over", totalPro > goalPro);
+  document.getElementById("water-progress-wrap").classList.toggle("progress-over", totalWater > goalWater);
+  document.getElementById("steps-progress-wrap").classList.toggle("progress-over", totalSteps > goalSteps);
 
   const list = document.getElementById("today-meal-list");
   if (!logs.length) {
@@ -143,7 +204,7 @@ function renderToday() {
     <div class="meal-item">
       <div>
         <div class="meal-name">${escHtml(log.name)}</div>
-        <div class="meal-meta">${Math.round(log.cal)} kcal · ${Math.round(log.pro)}g protein</div>
+        <div class="meal-meta">${Math.round(log.cal)} kcal · ${roundNutrient(log.pro)}g protein</div>
       </div>
       <div class="meal-right">
         <span class="meal-cals">${Math.round(log.cal)}</span>
@@ -157,16 +218,53 @@ function deleteLog(id) {
   state.logs = state.logs.filter((entry) => entry.id !== id);
   saveState();
   renderToday();
+  renderHistory();
   showToast("Meal removed");
 }
 
-function switchLogTab(tab) {
-  document.querySelectorAll(".tab-pill").forEach((pill, index) => {
-    const active = (index === 0 && tab === "from-foods") || (index === 1 && tab === "custom");
-    pill.classList.toggle("active", active);
+function addWater() {
+  const amount = normalizePositiveNumber(document.getElementById("quick-water-input").value, 0);
+  if (amount <= 0) {
+    showToast("Enter a valid water amount");
+    return;
+  }
+
+  state.waterLogs.push({
+    id: uid(),
+    date: todayStr(),
+    amount: roundNutrient(amount)
   });
-  document.getElementById("tab-from-foods").classList.toggle("active", tab === "from-foods");
-  document.getElementById("tab-custom").classList.toggle("active", tab === "custom");
+  saveState();
+  renderToday();
+  document.getElementById("quick-water-input").value = "0.5";
+  showToast("Water added");
+}
+
+function addSteps() {
+  const amount = Math.round(normalizePositiveNumber(document.getElementById("quick-steps-input").value, 0));
+  if (amount <= 0) {
+    showToast("Enter a valid step amount");
+    return;
+  }
+
+  state.stepLogs.push({
+    id: uid(),
+    date: todayStr(),
+    amount
+  });
+  saveState();
+  renderToday();
+  document.getElementById("quick-steps-input").value = "1000";
+  showToast("Steps added");
+}
+
+function switchLogTab(tab) {
+  document.querySelectorAll(".tab-pill").forEach((pill) => {
+    pill.classList.toggle("active", pill.dataset.tab === tab);
+  });
+  document.querySelectorAll(".tab-content").forEach((content) => {
+    content.classList.toggle("active", content.id === `tab-${tab}`);
+  });
 }
 
 function renderFoodPicker() {
@@ -175,7 +273,7 @@ function renderFoodPicker() {
   const foods = state.foods.filter((food) => !query || food.name.toLowerCase().includes(query));
 
   if (!foods.length) {
-    list.innerHTML = "<div class=\"empty-state\" style=\"padding:16px 0\">No foods found.<br>Add foods in the Foods tab first.</div>";
+    list.innerHTML = "<div class=\"empty-state\" style=\"padding:16px 0\">No foods found.<br>Use AI Estimate or add foods manually first.</div>";
     return;
   }
 
@@ -183,9 +281,9 @@ function renderFoodPicker() {
     <div class="food-option ${selectedFoodId === food.id ? "selected" : ""}" onclick="selectFood('${food.id}')">
       <div>
         <div class="food-option-name">${escHtml(food.name)}</div>
-        <div class="food-option-meta">${food.cal} kcal · ${food.pro}g protein${food.serving ? ` · ${escHtml(food.serving)}` : ""}</div>
+        <div class="food-option-meta">${Math.round(food.cal)} kcal · ${roundNutrient(food.pro)}g protein per ${escHtml(food.serving || `${Math.round(food.grams)} g`)}</div>
       </div>
-      <span class="food-option-badge">${food.cal} cal</span>
+      <span class="food-option-badge">${Math.round(food.grams)} g base</span>
     </div>
   `).join("");
 }
@@ -206,28 +304,166 @@ function logFromFood() {
     return;
   }
 
-  const servings = parseFloat(document.getElementById("log-servings").value) || 1;
+  const grams = normalizePositiveNumber(document.getElementById("log-grams").value, 0);
+  if (grams <= 0) {
+    showToast("Enter grams greater than 0");
+    return;
+  }
+
+  const calPerGram = normalizePositiveNumber(food.calPerGram, 0) || (food.grams > 0 ? food.cal / food.grams : 0);
+  const proPerGram = normalizePositiveNumber(food.proPerGram, 0) || (food.grams > 0 ? food.pro / food.grams : 0);
   state.logs.push({
     id: uid(),
     date: todayStr(),
     name: food.name,
-    cal: food.cal * servings,
-    pro: food.pro * servings
+    cal: roundNutrient(calPerGram * grams),
+    pro: roundNutrient(proPerGram * grams)
   });
 
   saveState();
   selectedFoodId = null;
-  document.getElementById("log-servings").value = "1";
+  document.getElementById("log-grams").value = "100";
   document.getElementById("food-search").value = "";
   renderFoodPicker();
+  renderToday();
+  renderHistory();
   showToast("Meal logged");
   setTimeout(() => showPage("today"), 400);
 }
 
+async function requestAiEstimate() {
+  const query = document.getElementById("ai-food-input").value.trim();
+  const statusNode = document.getElementById("ai-estimate-status");
+  const button = document.getElementById("ai-estimate-btn");
+
+  if (!query) {
+    statusNode.textContent = "Enter a food description first.";
+    return;
+  }
+
+  button.disabled = true;
+  statusNode.textContent = "Estimating calories and protein...";
+
+  try {
+    const response = await fetch(AI_ESTIMATE_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query })
+    });
+
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || "Estimate failed");
+    }
+
+    activeAiEstimate = {
+      baseGrams: normalizePositiveNumber(payload.estimated_grams, 100),
+      baseCalories: normalizePositiveNumber(payload.calories, 0),
+      baseProtein: normalizePositiveNumber(payload.protein_g, 0),
+      confidence: payload.confidence || "medium",
+      note: payload.note || ""
+    };
+
+    document.getElementById("ai-name").value = payload.food_name || query;
+    document.getElementById("ai-grams").value = Math.round(activeAiEstimate.baseGrams);
+    document.getElementById("ai-calories").value = Math.round(activeAiEstimate.baseCalories);
+    document.getElementById("ai-protein").value = roundNutrient(activeAiEstimate.baseProtein);
+    document.getElementById("ai-serving-label").value = `${Math.round(activeAiEstimate.baseGrams)} g portion`;
+    document.getElementById("ai-estimate-note").textContent = `AI estimate (${activeAiEstimate.confidence} confidence): ${payload.note}`;
+    document.getElementById("ai-estimate-editor").classList.remove("hidden");
+    statusNode.textContent = "Estimate ready. Adjust any values before saving.";
+  } catch (error) {
+    console.error("AI estimate failed", error);
+    statusNode.textContent = error.message || "Estimate failed";
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function syncEstimateFromGrams() {
+  if (!activeAiEstimate) {
+    return;
+  }
+
+  const grams = normalizePositiveNumber(document.getElementById("ai-grams").value, activeAiEstimate.baseGrams);
+  const ratio = activeAiEstimate.baseGrams > 0 ? grams / activeAiEstimate.baseGrams : 1;
+  document.getElementById("ai-calories").value = Math.round(activeAiEstimate.baseCalories * ratio);
+  document.getElementById("ai-protein").value = roundNutrient(activeAiEstimate.baseProtein * ratio);
+  document.getElementById("ai-serving-label").value = `${Math.round(grams)} g portion`;
+}
+
+function readAiEditorValues() {
+  const name = document.getElementById("ai-name").value.trim();
+  const grams = normalizePositiveNumber(document.getElementById("ai-grams").value, 0);
+  const calories = normalizePositiveNumber(document.getElementById("ai-calories").value, 0);
+  const protein = normalizePositiveNumber(document.getElementById("ai-protein").value, 0);
+  const serving = document.getElementById("ai-serving-label").value.trim() || `${Math.round(grams)} g portion`;
+
+  return { name, grams, calories, protein, serving };
+}
+
+function validateAiEditorValues(values) {
+  if (!values.name) {
+    showToast("Enter a food name");
+    return false;
+  }
+  if (values.grams <= 0) {
+    showToast("Grams must be greater than 0");
+    return false;
+  }
+  if (values.calories < 0 || values.protein < 0) {
+    showToast("Calories and protein must be valid numbers");
+    return false;
+  }
+  return true;
+}
+
+function logAiEstimate() {
+  const values = readAiEditorValues();
+  if (!validateAiEditorValues(values)) {
+    return;
+  }
+
+  state.logs.push({
+    id: uid(),
+    date: todayStr(),
+    name: values.name,
+    cal: roundNutrient(values.calories),
+    pro: roundNutrient(values.protein)
+  });
+
+  saveState();
+  renderToday();
+  renderHistory();
+  showToast("AI estimate logged");
+  setTimeout(() => showPage("today"), 400);
+}
+
+function saveAiEstimateToFoods() {
+  const values = readAiEditorValues();
+  if (!validateAiEditorValues(values)) {
+    return;
+  }
+
+  state.foods.push(normalizeFoodRecord({
+    id: uid(),
+    name: values.name,
+    grams: values.grams,
+    cal: roundNutrient(values.calories),
+    pro: roundNutrient(values.protein),
+    serving: values.serving
+  }));
+
+  saveState();
+  renderFoodsDB();
+  renderFoodPicker();
+  showToast("Food saved from AI estimate");
+}
+
 function logCustom() {
   const name = document.getElementById("custom-name").value.trim();
-  const cal = parseFloat(document.getElementById("custom-cal").value) || 0;
-  const pro = parseFloat(document.getElementById("custom-pro").value) || 0;
+  const cal = normalizePositiveNumber(document.getElementById("custom-cal").value, 0);
+  const pro = normalizePositiveNumber(document.getElementById("custom-pro").value, 0);
 
   if (!name) {
     showToast("Please enter a meal name");
@@ -239,19 +475,16 @@ function logCustom() {
   document.getElementById("custom-name").value = "";
   document.getElementById("custom-cal").value = "";
   document.getElementById("custom-pro").value = "";
+  renderToday();
+  renderHistory();
   showToast("Meal logged");
   setTimeout(() => showPage("today"), 400);
-}
-
-function goToFoodsAndAdd() {
-  showPage("foods");
-  setTimeout(() => openFoodModal(), 200);
 }
 
 function renderFoodsDB() {
   const list = document.getElementById("foods-list");
   if (!state.foods.length) {
-    list.innerHTML = "<div class=\"empty-state\"><div class=\"empty-icon\">Food</div>No foods yet.<br>Tap + to add your first food.</div>";
+    list.innerHTML = "<div class=\"empty-state\"><div class=\"empty-icon\">Food</div>No foods yet.<br>Use AI Estimate or tap + to add one manually.</div>";
     return;
   }
 
@@ -259,7 +492,7 @@ function renderFoodsDB() {
     <div class="food-row">
       <div class="food-row-info">
         <div class="food-row-name">${escHtml(food.name)}</div>
-        <div class="food-row-meta">${food.cal} kcal · ${food.pro}g protein${food.serving ? ` · ${escHtml(food.serving)}` : ""}</div>
+        <div class="food-row-meta">${Math.round(food.cal)} kcal · ${roundNutrient(food.pro)}g protein per ${escHtml(food.serving || `${Math.round(food.grams)} g`)}</div>
       </div>
       <div class="food-row-actions">
         <button class="icon-btn" onclick="openFoodModal('${food.id}')" title="Edit">Edit</button>
@@ -280,6 +513,7 @@ function openFoodModal(editId) {
     }
     document.getElementById("food-modal-title").textContent = "Edit Food";
     document.getElementById("food-name-input").value = food.name;
+    document.getElementById("food-grams-input").value = food.grams;
     document.getElementById("food-cal-input").value = food.cal;
     document.getElementById("food-pro-input").value = food.pro;
     document.getElementById("food-serving-input").value = food.serving || "";
@@ -287,6 +521,7 @@ function openFoodModal(editId) {
   } else {
     document.getElementById("food-modal-title").textContent = "Add Food";
     document.getElementById("food-name-input").value = "";
+    document.getElementById("food-grams-input").value = "100";
     document.getElementById("food-cal-input").value = "";
     document.getElementById("food-pro-input").value = "";
     document.getElementById("food-serving-input").value = "";
@@ -298,9 +533,10 @@ function openFoodModal(editId) {
 
 function saveFood() {
   const name = document.getElementById("food-name-input").value.trim();
-  const cal = parseFloat(document.getElementById("food-cal-input").value) || 0;
-  const pro = parseFloat(document.getElementById("food-pro-input").value) || 0;
-  const serving = document.getElementById("food-serving-input").value.trim();
+  const grams = Math.max(1, normalizePositiveNumber(document.getElementById("food-grams-input").value, 100) || 100);
+  const cal = normalizePositiveNumber(document.getElementById("food-cal-input").value, 0);
+  const pro = normalizePositiveNumber(document.getElementById("food-pro-input").value, 0);
+  const serving = document.getElementById("food-serving-input").value.trim() || `${Math.round(grams)} g`;
 
   if (!name) {
     showToast("Please enter a food name");
@@ -311,10 +547,10 @@ function saveFood() {
   if (editId) {
     const index = state.foods.findIndex((food) => food.id === editId);
     if (index >= 0) {
-      state.foods[index] = { ...state.foods[index], name, cal, pro, serving };
+      state.foods[index] = normalizeFoodRecord({ ...state.foods[index], name, grams, cal, pro, serving });
     }
   } else {
-    state.foods.push({ id: uid(), name, cal, pro, serving });
+    state.foods.push(normalizeFoodRecord({ id: uid(), name, grams, cal, pro, serving }));
   }
 
   saveState();
@@ -371,7 +607,7 @@ function renderHistory() {
         <div class="history-card">
           <div class="history-row">
             <div class="history-stat"><div class="hval">${Math.round(totalCal)}</div><div class="hunit">kcal</div></div>
-            <div class="history-stat"><div class="hval">${Math.round(totalPro)}g</div><div class="hunit">protein</div></div>
+            <div class="history-stat"><div class="hval">${roundNutrient(totalPro)}g</div><div class="hunit">protein</div></div>
             <div class="history-stat"><div class="hval">${logs.length}</div><div class="hunit">meals</div></div>
           </div>
           <div class="progress-wrap" style="margin-bottom:8px">
@@ -391,17 +627,140 @@ function renderHistory() {
 function showGoalsModal() {
   document.getElementById("goal-cal-input").value = state.goals.cal;
   document.getElementById("goal-pro-input").value = state.goals.pro;
+  document.getElementById("goal-carb-input").value = state.goals.carb;
+  document.getElementById("goal-fat-input").value = state.goals.fat;
+  document.getElementById("goal-water-input").value = state.goals.water;
+  document.getElementById("goal-steps-input").value = state.goals.steps;
+  document.getElementById("goal-suggest-status").textContent = "";
   document.getElementById("overlay-goals").classList.add("open");
 }
 
 function saveGoals() {
-  state.goals.cal = parseFloat(document.getElementById("goal-cal-input").value) || 2000;
-  state.goals.pro = parseFloat(document.getElementById("goal-pro-input").value) || 150;
+  state.goals.cal = normalizePositiveNumber(document.getElementById("goal-cal-input").value, 2000) || 2000;
+  state.goals.pro = normalizePositiveNumber(document.getElementById("goal-pro-input").value, 150) || 150;
+  state.goals.carb = normalizePositiveNumber(document.getElementById("goal-carb-input").value, 220) || 220;
+  state.goals.fat = normalizePositiveNumber(document.getElementById("goal-fat-input").value, 65) || 65;
+  state.goals.water = normalizePositiveNumber(document.getElementById("goal-water-input").value, 2.5) || 2.5;
+  state.goals.steps = normalizePositiveNumber(document.getElementById("goal-steps-input").value, 8000) || 8000;
   saveState();
   closeModal("goals");
   renderToday();
   renderHistory();
   showToast("Goals updated");
+}
+
+function toggleHeightInputs() {
+  const isImperial = document.getElementById("goal-height-unit").value === "ft";
+  document.getElementById("goal-height-input").parentElement.classList.toggle("hidden", isImperial);
+  document.getElementById("goal-height-imperial-row").classList.toggle("hidden", !isImperial);
+}
+
+function heightToCm() {
+  const unit = document.getElementById("goal-height-unit").value;
+  if (unit === "ft") {
+    const feet = normalizePositiveNumber(document.getElementById("goal-height-ft-input").value, 0);
+    const inches = normalizePositiveNumber(document.getElementById("goal-height-in-input").value, 0);
+    return ((feet * 12) + inches) * 2.54;
+  }
+  return normalizePositiveNumber(document.getElementById("goal-height-input").value, 0);
+}
+
+function weightToKg() {
+  const unit = document.getElementById("goal-weight-unit").value;
+  const value = normalizePositiveNumber(document.getElementById("goal-weight-input").value, 0);
+  return unit === "lb" ? value * 0.45359237 : value;
+}
+
+function suggestGoals() {
+  const gender = document.getElementById("goal-gender-input").value;
+  const age = normalizePositiveNumber(document.getElementById("goal-age-input").value, 0);
+  const heightCm = heightToCm();
+  const weightKg = weightToKg();
+  const fitnessGoal = document.getElementById("goal-main-goal-input").value;
+  const activity = document.getElementById("goal-activity-input").value;
+  const status = document.getElementById("goal-suggest-status");
+
+  if (age < 13 || heightCm <= 0 || weightKg <= 0) {
+    status.textContent = "Enter valid age, height, and weight first.";
+    return;
+  }
+
+  const recommendation = calculateGoalRecommendation({
+    gender,
+    age,
+    heightCm,
+    weightKg,
+    fitnessGoal,
+    activity
+  });
+
+  document.getElementById("goal-cal-input").value = recommendation.cal;
+  document.getElementById("goal-pro-input").value = recommendation.pro;
+  document.getElementById("goal-carb-input").value = recommendation.carb;
+  document.getElementById("goal-fat-input").value = recommendation.fat;
+  document.getElementById("goal-water-input").value = recommendation.water;
+  document.getElementById("goal-steps-input").value = recommendation.steps;
+  status.textContent = recommendation.note;
+}
+
+function calculateGoalRecommendation({ gender, age, heightCm, weightKg, fitnessGoal, activity }) {
+  const activityMultiplier = {
+    sedentary: 1.2,
+    light: 1.375,
+    moderate: 1.55,
+    very: 1.725
+  }[activity] || 1.55;
+
+  const baseBmr = gender === "female"
+    ? (10 * weightKg) + (6.25 * heightCm) - (5 * age) - 161
+    : (10 * weightKg) + (6.25 * heightCm) - (5 * age) + 5;
+
+  const tdee = baseBmr * activityMultiplier;
+  const calorieAdjustment = {
+    lose: -450,
+    maintain: 0,
+    build: 250,
+    health: -150
+  }[fitnessGoal] ?? 0;
+  const calorieGoal = Math.max(1200, Math.round(tdee + calorieAdjustment));
+
+  const proteinPerKg = {
+    lose: 2,
+    maintain: 1.6,
+    build: 2,
+    health: 1.4
+  }[fitnessGoal] || 1.6;
+  const fatPerKg = {
+    lose: 0.8,
+    maintain: 0.9,
+    build: 1,
+    health: 0.9
+  }[fitnessGoal] || 0.9;
+
+  const pro = Math.round(weightKg * proteinPerKg);
+  const fat = Math.round(weightKg * fatPerKg);
+  const remainingCalories = calorieGoal - (pro * 4) - (fat * 9);
+  const carb = Math.max(130, Math.round(remainingCalories / 4));
+  const waterBase = weightKg * (activity === "very" ? 0.04 : activity === "moderate" ? 0.037 : 0.035);
+  const water = roundNutrient(waterBase);
+
+  const activitySteps = {
+    sedentary: 6500,
+    light: 8000,
+    moderate: 10000,
+    very: 12000
+  }[activity] || 8000;
+  const steps = Math.round((activitySteps + (fitnessGoal === "lose" ? 1500 : fitnessGoal === "build" ? -500 : 0)) / 500) * 500;
+
+  return {
+    cal: calorieGoal,
+    pro,
+    carb,
+    fat,
+    water,
+    steps: Math.max(4000, steps),
+    note: `Suggested from your profile using estimated maintenance calories and macro targets for ${fitnessGoal === "lose" ? "fat loss" : fitnessGoal === "build" ? "muscle gain" : fitnessGoal === "health" ? "general health" : "maintenance"}.`
+  };
 }
 
 function closeModal(name) {
@@ -440,13 +799,6 @@ function registerServiceWorker() {
   });
 }
 
-function setupInstallPrompt() {
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    deferredInstallPrompt = event;
-  });
-}
-
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     document.querySelectorAll(".overlay.open").forEach((overlay) => overlay.classList.remove("open"));
@@ -461,5 +813,15 @@ document.addEventListener("DOMContentLoaded", () => {
   renderHistory();
   updateFab();
   registerServiceWorker();
-  setupInstallPrompt();
+
+  document.getElementById("ai-food-input")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      requestAiEstimate();
+    }
+  });
+
+  document.getElementById("ai-grams")?.addEventListener("input", syncEstimateFromGrams);
+  document.getElementById("goal-height-unit")?.addEventListener("change", toggleHeightInputs);
+  toggleHeightInputs();
 });
