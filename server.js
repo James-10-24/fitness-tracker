@@ -51,7 +51,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Nutri.AI running at http://localhost:${PORT}`);
+  console.log(`Viva.AI running at http://localhost:${PORT}`);
 });
 
 server.on("error", (error) => {

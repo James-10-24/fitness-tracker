@@ -1,17 +1,18 @@
 :root {
-  --bg: #f5f2ec;
+  --bg: #fdf6f0;
   --bg2: #ffffff;
-  --bg3: #e7e1d7;
+  --bg3: #f3e4d9;
   --surface: rgba(255, 255, 255, 0.72);
   --surface-strong: rgba(255, 255, 255, 0.88);
-  --text: #1e2822;
-  --text2: #5f6b64;
-  --accent: #1a5c3a;
-  --accent-light: rgba(94, 201, 139, 0.16);
-  --accent2: #2b7a52;
-  --border: rgba(30, 40, 34, 0.12);
+  --text: #1a1a2e;
+  --text2: #6f6674;
+  --accent: #ff6b35;
+  --accent-light: rgba(255, 107, 53, 0.16);
+  --accent2: #ff8c5a;
+  --ai-accent: #7b5ea7;
+  --border: rgba(26, 26, 46, 0.12);
   --white: #ffffff;
-  --success: #5ec98b;
+  --success: #ff8c5a;
   --danger: #d95f45;
   --radius: 24px;
   --radius-sm: 14px;
@@ -27,15 +28,15 @@
 }
 
 html {
-  background: #e7ede6;
+  background: #fae7dd;
 }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(94, 201, 139, 0.16), transparent 24%),
-    radial-gradient(circle at top right, rgba(43, 122, 82, 0.18), transparent 22%),
-    linear-gradient(180deg, #faf8f3 0%, #f5f2ec 42%, #eef2ea 100%);
+    radial-gradient(circle at top left, rgba(255, 107, 53, 0.16), transparent 24%),
+    radial-gradient(circle at top right, rgba(123, 94, 167, 0.16), transparent 22%),
+    linear-gradient(180deg, #fff9f5 0%, #fdf6f0 42%, #f7eee7 100%);
   color: var(--text);
   min-height: 100vh;
   max-width: 430px;
@@ -53,8 +54,8 @@ body {
   justify-content: center;
   padding: 24px;
   background:
-    linear-gradient(180deg, rgba(245, 242, 236, 0.98), rgba(238, 242, 234, 0.98)),
-    rgba(245, 242, 236, 0.96);
+    linear-gradient(180deg, rgba(253, 246, 240, 0.98), rgba(247, 238, 231, 0.98)),
+    rgba(253, 246, 240, 0.96);
 }
 
 .auth-card {
@@ -98,11 +99,75 @@ body {
   margin-bottom: 16px;
 }
 
+.account-helper {
+  margin-bottom: 12px;
+}
+
 .auth-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 6px;
+}
+
+.auth-guest-btn {
+  margin-top: 10px;
+}
+
+.password-input-wrap {
+  position: relative;
+}
+
+.password-input {
+  padding-right: 54px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.password-toggle[aria-pressed="true"] {
+  color: var(--accent);
+}
+
+.auth-links {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -2px;
+  margin-bottom: 8px;
+}
+
+.auth-link-btn {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.auth-recovery {
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid rgba(30, 40, 34, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.auth-recovery .btn {
+  margin-top: 4px;
 }
 
 .auth-note {
@@ -1050,7 +1115,7 @@ h2,
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 18px 30px rgba(26, 92, 58, 0.28);
+  box-shadow: 0 18px 30px rgba(255, 107, 53, 0.28);
   z-index: 99;
   transition: transform 0.15s, box-shadow 0.15s;
 }
@@ -1312,7 +1377,7 @@ h2,
 .btn-primary {
   background: var(--accent);
   color: #fff;
-  box-shadow: 0 12px 22px rgba(26, 92, 58, 0.22);
+  box-shadow: 0 12px 22px rgba(255, 107, 53, 0.22);
 }
 
 .btn-secondary {
@@ -1669,14 +1734,14 @@ h2,
   margin-bottom: 14px;
   padding: 12px 13px;
   border-radius: 12px;
-  background: rgba(26, 92, 58, 0.07);
-  border: 1px solid rgba(26, 92, 58, 0.12);
+  background: rgba(123, 94, 167, 0.08);
+  border: 1px solid rgba(123, 94, 167, 0.16);
 }
 
 .goal-sources-title {
   font-size: 12px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--ai-accent);
   margin-bottom: 6px;
 }
 

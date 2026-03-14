@@ -3,6 +3,7 @@ const SUPABASE_URL = "https://fqylcprwmpgqenhlvfdj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vst5ttBTskmLEFK-iKar5A_8qttx1eO";
 const STORAGE_KEY = "nutrilog_v3";
 const LEGACY_STORAGE_KEY = "nutrilog_v1";
+const AUTH_PREFERENCE_KEY = "viva_ai_auth_pref";
 const AI_ESTIMATE_ENDPOINT = "/api/estimate-food";
 const OUNCES_TO_GRAMS = 28.3495;
 const CUP_TO_ML = 240;
@@ -17,6 +18,9 @@ let currentUser = null;
 let hasLoadedUserState = false;
 let cloudSyncTimer = null;
 let isApplyingRemoteState = false;
+let isRecoveryMode = false;
+let isGuestMode = !currentUser;
+let authScreenForced = false;
 
 function createInitialState() {
   return {
@@ -62,6 +66,18 @@ function readCachedState(userId = null) {
 
 function getStorageKey(userId = null) {
   return userId ? `${STORAGE_KEY}:${userId}` : STORAGE_KEY;
+}
+
+function getSavedAuthPreference() {
+  return localStorage.getItem(AUTH_PREFERENCE_KEY) || "";
+}
+
+function setSavedAuthPreference(value) {
+  if (value) {
+    localStorage.setItem(AUTH_PREFERENCE_KEY, value);
+    return;
+  }
+  localStorage.removeItem(AUTH_PREFERENCE_KEY);
 }
 
 function normalizeAppState(rawState) {
@@ -308,31 +324,88 @@ function updateAuthUi() {
   const authScreen = document.getElementById("auth-screen");
   const accountButton = document.getElementById("account-btn");
   const accountEmail = document.getElementById("account-email-display");
+  const accountNameInput = document.getElementById("account-name-input");
+  const accountSignedOut = document.getElementById("account-signed-out");
+  const accountSignedIn = document.getElementById("account-signed-in");
+  const accountStatus = document.getElementById("account-status");
+  const recoveryPanel = document.getElementById("auth-recovery");
+  const authActions = document.querySelector(".auth-actions");
+  const authLinks = document.querySelector(".auth-links");
+  const authGuestButton = document.getElementById("auth-guest-btn");
   if (!authScreen || !accountButton || !accountEmail) {
     return;
   }
 
   const signedIn = !!currentUser;
-  authScreen.classList.toggle("hidden", signedIn);
-  accountButton.classList.toggle("hidden", !signedIn);
-  accountButton.textContent = signedIn ? (currentUser.email || "Account") : "Account";
+  const shouldShowAuthScreen = isRecoveryMode || (!signedIn && !isGuestMode) || authScreenForced;
+  authScreen.classList.toggle("hidden", !shouldShowAuthScreen);
+  accountButton.classList.toggle("hidden", isRecoveryMode || (shouldShowAuthScreen && !signedIn));
+  accountButton.textContent = signedIn ? getUserDisplayName() : "Sign In";
   accountEmail.textContent = signedIn ? (currentUser.email || "") : "";
+  if (accountNameInput) {
+    accountNameInput.value = signedIn ? getCurrentUserName() : "";
+  }
+  accountSignedOut?.classList.toggle("hidden", signedIn);
+  accountSignedIn?.classList.toggle("hidden", !signedIn);
+  if (accountStatus && !signedIn) {
+    accountStatus.textContent = "";
+  }
+  recoveryPanel?.classList.toggle("hidden", !isRecoveryMode);
+  authActions?.classList.toggle("hidden", isRecoveryMode);
+  authLinks?.classList.toggle("hidden", isRecoveryMode);
+  authGuestButton?.classList.toggle("hidden", isRecoveryMode);
+}
+
+function setRecoveryMode(active) {
+  isRecoveryMode = !!active;
+  if (active) {
+    authScreenForced = true;
+  }
+  updateAuthUi();
+}
+
+function getCurrentUserName() {
+  const raw = currentUser?.user_metadata?.display_name;
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
+function getUserDisplayName() {
+  return getCurrentUserName() || currentUser?.email || "Account";
+}
+
+function togglePasswordVisibility(inputId, toggleId) {
+  const input = document.getElementById(inputId);
+  const toggle = document.getElementById(toggleId);
+  if (!input || !toggle) {
+    return;
+  }
+  const visible = input.type === "text";
+  input.type = visible ? "password" : "text";
+  toggle.setAttribute("aria-pressed", String(!visible));
+  toggle.setAttribute("aria-label", visible ? "Show password" : "Hide password");
+  toggle.textContent = visible ? "👁" : "🙈";
 }
 
 async function applySession(session) {
   const nextUser = session?.user || null;
   if (nextUser && currentUser?.id === nextUser.id && hasLoadedUserState) {
+    isGuestMode = false;
     updateAuthUi();
     return;
   }
 
   currentUser = nextUser;
+  isGuestMode = !currentUser;
+  if (currentUser) {
+    authScreenForced = false;
+    setSavedAuthPreference("account");
+  }
   updateAuthUi();
 
   if (!currentUser) {
     hasLoadedUserState = false;
     clearTimeout(cloudSyncTimer);
-    state = createInitialState();
+    loadState();
     renderApp();
     return;
   }
@@ -362,7 +435,11 @@ async function initializeSupabase() {
   }
   await applySession(sessionResult.data.session);
 
-  supabaseClient.auth.onAuthStateChange((_event, session) => {
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY") {
+      setRecoveryMode(true);
+      document.getElementById("auth-status").textContent = "Set a new password to finish recovery.";
+    }
     Promise.resolve(applySession(session)).catch((error) => {
       console.error("Failed to apply auth session", error);
       document.getElementById("auth-status").textContent = error.message || "Auth session failed";
@@ -399,15 +476,141 @@ async function submitAuth(mode) {
       return;
     }
 
+    isGuestMode = false;
+    authScreenForced = false;
+    setSavedAuthPreference("account");
     status.textContent = "";
+    closeModal("account");
   } catch (error) {
     console.error("Auth request failed", error);
     status.textContent = error.message || "Authentication failed.";
   }
 }
 
+async function startPasswordReset() {
+  const email = document.getElementById("auth-email").value.trim();
+  const status = document.getElementById("auth-status");
+  if (!supabaseClient) {
+    status.textContent = "Supabase is not ready yet.";
+    return;
+  }
+  if (!email) {
+    status.textContent = "Enter your email first.";
+    return;
+  }
+
+  status.textContent = "Sending reset email...";
+  try {
+    const result = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}${window.location.pathname}`
+    });
+    if (result.error) {
+      throw result.error;
+    }
+    status.textContent = "Reset email sent. Open the link, then set your new password here.";
+  } catch (error) {
+    console.error("Password reset request failed", error);
+    status.textContent = error.message || "Password reset failed.";
+  }
+}
+
+async function completePasswordReset() {
+  const password = document.getElementById("auth-reset-password").value;
+  const confirm = document.getElementById("auth-reset-password-confirm").value;
+  const status = document.getElementById("auth-status");
+  if (!supabaseClient) {
+    status.textContent = "Supabase is not ready yet.";
+    return;
+  }
+  if (!isRecoveryMode) {
+    status.textContent = "Open your recovery email link first.";
+    return;
+  }
+  if (!password || !confirm) {
+    status.textContent = "Enter and confirm your new password.";
+    return;
+  }
+  if (password.length < 6) {
+    status.textContent = "Password must be at least 6 characters.";
+    return;
+  }
+  if (password !== confirm) {
+    status.textContent = "Passwords do not match.";
+    return;
+  }
+
+  status.textContent = "Updating password...";
+  try {
+    const result = await supabaseClient.auth.updateUser({ password });
+    if (result.error) {
+      throw result.error;
+    }
+    document.getElementById("auth-password").value = "";
+    document.getElementById("auth-reset-password").value = "";
+    document.getElementById("auth-reset-password-confirm").value = "";
+    setRecoveryMode(false);
+    status.textContent = "Password updated. You can continue in the app now.";
+  } catch (error) {
+    console.error("Password update failed", error);
+    status.textContent = error.message || "Password update failed.";
+  }
+}
+
 function openAccountModal() {
+  if (!currentUser) {
+    openAuthFromAccount("signin");
+    return;
+  }
+  document.getElementById("account-status").textContent = "";
   document.getElementById("overlay-account").classList.add("open");
+}
+
+function openAuthFromAccount(mode = "signin") {
+  authScreenForced = true;
+  isGuestMode = false;
+  setSavedAuthPreference("");
+  updateAuthUi();
+  document.getElementById("overlay-account").classList.remove("open");
+  document.getElementById("auth-status").textContent = "";
+  const emailInput = document.getElementById("auth-email");
+  const passwordInput = document.getElementById("auth-password");
+  (emailInput?.value ? passwordInput : emailInput)?.focus();
+  if (mode === "signup") {
+    document.getElementById("auth-status").textContent = "Create an account to sync your current local data.";
+  }
+}
+
+function continueAsGuest() {
+  isGuestMode = true;
+  authScreenForced = false;
+  setSavedAuthPreference("guest");
+  document.getElementById("auth-status").textContent = "";
+  updateAuthUi();
+}
+
+async function saveDisplayName() {
+  const input = document.getElementById("account-name-input");
+  const status = document.getElementById("account-status");
+  if (!supabaseClient || !currentUser || !input || !status) {
+    return;
+  }
+  const nextName = input.value.trim().slice(0, 100);
+  input.value = nextName;
+  status.textContent = "Saving name...";
+  try {
+    const result = await supabaseClient.auth.updateUser({
+      data: { display_name: nextName }
+    });
+    if (result.error) {
+      throw result.error;
+    }
+    currentUser = result.data.user || currentUser;
+    updateAuthUi();
+    status.textContent = "Name saved.";
+  } catch (error) {
+    console.error("Display name update failed", error);
+    status.textContent = error.message || "Failed to save name.";
+  }
 }
 
 async function logout() {
@@ -422,7 +625,14 @@ async function logout() {
   closeModal("account");
   document.getElementById("auth-email").value = "";
   document.getElementById("auth-password").value = "";
+  document.getElementById("auth-reset-password").value = "";
+  document.getElementById("auth-reset-password-confirm").value = "";
   document.getElementById("auth-status").textContent = "";
+  document.getElementById("account-status").textContent = "";
+  isGuestMode = true;
+  authScreenForced = false;
+  setSavedAuthPreference("guest");
+  setRecoveryMode(false);
 }
 
 function todayStr() {
@@ -2097,6 +2307,8 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
+  isGuestMode = getSavedAuthPreference() === "guest";
+  loadState();
   renderApp();
   updateAuthUi();
   registerServiceWorker();
@@ -2123,6 +2335,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if (event.key === "Enter") {
       event.preventDefault();
       submitAuth("signin");
+    }
+  });
+
+  document.getElementById("auth-reset-password")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      completePasswordReset();
+    }
+  });
+
+  document.getElementById("auth-reset-password-confirm")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      completePasswordReset();
     }
   });
 

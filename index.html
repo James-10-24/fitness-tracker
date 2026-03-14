@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Nutri.AI">
-  <meta name="theme-color" content="#F5F2EC">
-  <title>Nutri.AI</title>
+  <meta name="apple-mobile-web-app-title" content="Viva.AI">
+  <meta name="theme-color" content="#FDF6F0">
+  <title>Viva.AI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -17,13 +17,13 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="auth-screen" id="auth-screen">
+  <div class="auth-screen hidden" id="auth-screen">
     <div class="auth-card">
       <div class="auth-brand">
-        <img class="auth-logo" src="icons/icon.svg" alt="Nutri.AI logo">
+        <img class="auth-logo" src="icons/icon.svg" alt="Viva.AI logo">
         <div>
-          <div class="auth-title">Nutri.AI</div>
-          <div class="auth-subtitle">Sign in to keep your meals, goals, and tracking private to your account.</div>
+          <div class="auth-title">Viva.AI</div>
+          <div class="auth-subtitle">Live. Move. Thrive. Sign in to keep your meals, goals, and tracking private to your account.</div>
         </div>
       </div>
       <div class="form-group">
@@ -32,18 +32,42 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="auth-password">Password</label>
-        <input class="form-input" id="auth-password" type="password" autocomplete="current-password" placeholder="Minimum 6 characters">
+        <div class="password-input-wrap">
+          <input class="form-input password-input" id="auth-password" type="password" autocomplete="current-password" placeholder="Minimum 6 characters">
+            <button class="password-toggle" id="auth-password-toggle" type="button" aria-label="Show password" aria-pressed="false" onclick="togglePasswordVisibility('auth-password', 'auth-password-toggle')">👁</button>
+        </div>
+      </div>
+      <div class="auth-links">
+        <button class="auth-link-btn" id="forgot-password-btn" type="button" onclick="startPasswordReset()">Forgot Password?</button>
+      </div>
+      <div class="auth-recovery hidden" id="auth-recovery">
+        <div class="auth-note">Reset your password here after opening the recovery email link.</div>
+        <div class="form-group">
+          <label class="form-label" for="auth-reset-password">New Password</label>
+          <div class="password-input-wrap">
+            <input class="form-input password-input" id="auth-reset-password" type="password" autocomplete="new-password" placeholder="Minimum 6 characters">
+            <button class="password-toggle" id="auth-reset-password-toggle" type="button" aria-label="Show password" aria-pressed="false" onclick="togglePasswordVisibility('auth-reset-password', 'auth-reset-password-toggle')">👁</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="auth-reset-password-confirm">Confirm New Password</label>
+          <div class="password-input-wrap">
+            <input class="form-input password-input" id="auth-reset-password-confirm" type="password" autocomplete="new-password" placeholder="Re-enter new password">
+            <button class="password-toggle" id="auth-reset-password-confirm-toggle" type="button" aria-label="Show password" aria-pressed="false" onclick="togglePasswordVisibility('auth-reset-password-confirm', 'auth-reset-password-confirm-toggle')">👁</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" type="button" onclick="completePasswordReset()">Update Password</button>
       </div>
       <div class="auth-actions">
         <button class="btn btn-primary" type="button" onclick="submitAuth('signin')">Sign In</button>
         <button class="btn btn-secondary" type="button" onclick="submitAuth('signup')">Create Account</button>
       </div>
-      <div class="auth-note">Simple auth only: email and password. If email confirmation is enabled in Supabase, new users may need to verify first.</div>
+      <button class="btn btn-secondary auth-guest-btn" id="auth-guest-btn" type="button" onclick="continueAsGuest()">Continue Without Account</button>
       <div class="api-status auth-status" id="auth-status" aria-live="polite"></div>
     </div>
   </div>
 
-  <button class="account-chip hidden" id="account-btn" type="button" onclick="openAccountModal()">Account</button>
+  <button class="account-chip" id="account-btn" type="button" onclick="openAccountModal()">Sign In</button>
 
   <div class="page active" id="page-today">
     <div class="page-header">
@@ -468,8 +492,21 @@
     <div class="sheet" onclick="event.stopPropagation()">
       <div class="sheet-handle"></div>
       <div class="sheet-title">Account</div>
-      <div class="account-email" id="account-email-display"></div>
-      <button class="btn btn-primary" type="button" onclick="logout()">Log Out</button>
+      <div class="account-view hidden" id="account-signed-out">
+        <div class="account-email">Use an account to sync your local data across devices and keep it private to you.</div>
+        <button class="btn btn-primary" type="button" onclick="openAuthFromAccount('signin')">Sign In or Register</button>
+      </div>
+      <div class="account-view hidden" id="account-signed-in">
+        <div class="account-email" id="account-email-display"></div>
+        <div class="form-group">
+          <label class="form-label" for="account-name-input">Display Name</label>
+          <input class="form-input" id="account-name-input" type="text" maxlength="100" placeholder="Your name">
+        </div>
+        <div class="helper-text helper-left account-helper">Shown in the app instead of your email address. Max 100 characters.</div>
+        <button class="btn btn-primary" type="button" onclick="saveDisplayName()">Save Name</button>
+        <div class="api-status" id="account-status" aria-live="polite"></div>
+        <button class="btn btn-secondary" type="button" onclick="logout()">Log Out</button>
+      </div>
       <button class="btn btn-secondary" type="button" onclick="closeModal('account')">Close</button>
     </div>
   </div>

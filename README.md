@@ -1,6 +1,6 @@
-# Nutri.AI PWA
+# Viva.AI PWA
 
-Nutri.AI is a mobile-first progressive web app for logging meals, calories, and macros. This version uses Supabase for simple email/password authentication and per-user data storage, plus a Node backend that calls the OpenAI API for nutrition estimates.
+Viva.AI is a mobile-first progressive web app for logging meals, movement, water, and macros. Live. Move. Thrive. The app works in guest mode with local storage, and optionally uses Supabase for simple email/password accounts and per-user data sync, plus a Node backend that calls the OpenAI API for nutrition estimates.
 
 ## Files
 

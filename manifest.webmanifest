@@ -1,11 +1,11 @@
 {
-  "name": "Nutri.AI",
-  "short_name": "Nutri.AI",
-  "description": "Smart nutrition tracking with AI-powered meal estimates and reusable food logging.",
+  "name": "Viva.AI",
+  "short_name": "Viva.AI",
+  "description": "Live. Move. Thrive. Smart nutrition and fitness tracking with AI-powered meal estimates.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#F5F2EC",
-  "theme_color": "#F5F2EC",
+  "background_color": "#FDF6F0",
+  "theme_color": "#FDF6F0",
   "icons": [
     {
       "src": "./icons/icon-192.svg",
