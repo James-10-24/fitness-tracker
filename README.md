@@ -17,7 +17,8 @@ Viva.AI is a mobile-first progressive web app for logging meals, movement, water
 1. In Supabase, open the SQL Editor and run [`supabase/schema.sql`](supabase/schema.sql).
 2. In `Authentication -> Providers -> Email`, keep email/password enabled.
 3. If you want instant sign-up without email confirmation during development, disable email confirmation in Supabase Auth settings.
-4. Create a `.env` file in the project root.
+4. For Vercel deployment, add `OPENAI_API_KEY` and optionally `OPENAI_MODEL` in the Vercel project environment variables so `/api/estimate-food` works in production.
+5. Create a `.env` file in the project root for local development.
 5. Add your OpenAI API key:
 
 ```bash
@@ -26,7 +27,7 @@ OPENAI_MODEL=gpt-4.1-mini
 PORT=8080
 ```
 
-`OPENAI_MODEL` and `PORT` are optional.
+`OPENAI_MODEL` and `PORT` are optional locally.
 
 ## Run locally
 

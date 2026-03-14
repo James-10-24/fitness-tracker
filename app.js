@@ -1748,7 +1748,23 @@ async function requestAiEstimate() {
       body: JSON.stringify({ query })
     });
 
-    const payload = await response.json();
+    const contentType = response.headers.get("content-type") || "";
+    const rawBody = await response.text();
+    let payload = null;
+    if (contentType.includes("application/json")) {
+      try {
+        payload = JSON.parse(rawBody);
+      } catch (error) {
+        throw new Error("AI endpoint returned invalid JSON.");
+      }
+    } else {
+      const trimmed = rawBody.trim();
+      if (!response.ok && /The page could not be found|Cannot\s+POST|<!doctype html|<html/i.test(trimmed)) {
+        throw new Error("AI backend is not available on this deployment. /api/estimate-food is returning a page instead of JSON.");
+      }
+      throw new Error(trimmed || "AI endpoint returned a non-JSON response.");
+    }
+
     if (!response.ok) {
       throw new Error(payload.error || "Estimate failed");
     }
