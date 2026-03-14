@@ -74,7 +74,103 @@ async function handleEstimateFood(req, res) {
     return;
   }
 
-  const payload = {
+  try {
+    const normalized = await requestEstimateWithRetry(query);
+    if (!normalized) {
+      sendJson(res, 502, { error: "AI estimate was missing required nutrition values." });
+      return;
+    }
+
+    sendJson(res, 200, normalized);
+  } catch (error) {
+    sendJson(res, 502, { error: error.message || "AI estimate request failed." });
+  }
+}
+
+async function requestEstimateWithRetry(query) {
+  const firstPass = await requestOpenAiEstimate(query);
+  const firstIssues = validateEstimateAgainstQuery(query, firstPass);
+  if (!firstIssues.length) {
+    return firstPass;
+  }
+
+  const retryInstruction = [
+    "The previous estimate failed a nutrition sanity check.",
+    `Issues: ${firstIssues.join("; ")}.`,
+    "Retry using the exact described quantity, not a generic serving.",
+    "Make calories roughly consistent with the macros using 4 kcal/g for protein and carbs, and 9 kcal/g for fat.",
+    "Only use zero for a macro when it is truly negligible for the described food."
+  ].join(" ");
+
+  const secondPass = await requestOpenAiEstimate(query, retryInstruction);
+  const secondIssues = validateEstimateAgainstQuery(query, secondPass);
+  if (secondIssues.length) {
+    console.warn("Estimate retry still failed sanity checks", { query, issues: secondIssues, estimate: secondPass });
+  }
+  return secondPass;
+}
+
+async function requestOpenAiEstimate(query, retryInstruction = "") {
+  const payload = buildEstimatePayload(query, retryInstruction);
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENAI_API_KEY}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenAI request failed", response.status, errorText);
+    let openAiMessage = "AI estimate request failed.";
+    try {
+      const parsedError = JSON.parse(errorText);
+      openAiMessage = parsedError?.error?.message || openAiMessage;
+    } catch (error) {
+      openAiMessage = errorText || openAiMessage;
+    }
+    throw new Error(openAiMessage);
+  }
+
+  const result = await response.json();
+  const outputText = extractOutputText(result);
+
+  if (!outputText) {
+    console.error("OpenAI response missing output text", JSON.stringify(result));
+    throw new Error("AI estimate response was incomplete.");
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(outputText);
+  } catch (error) {
+    console.error("Failed to parse OpenAI JSON output", outputText);
+    throw new Error("AI estimate format was invalid.");
+  }
+
+  return normalizeEstimate(parsed);
+}
+
+function buildEstimatePayload(query, retryInstruction = "") {
+  const systemText = [
+    "You estimate calories, protein, carbs, and fat for a described food item.",
+    "Estimate the exact described quantity first. If the user says 4 eggs, estimate 4 eggs, not 1 egg.",
+    "Return realistic nutrition estimates for that exact described amount, not a generic serving.",
+    "Use common prepared-food assumptions only when the user is vague.",
+    "Sanity-check the macros before answering. Do not return obviously impossible zeros for major macros when the food normally contains them.",
+    "Examples: eggs should include meaningful fat, oils should include fat, rice and bread should include carbs, meat and fish should include protein.",
+    "If the food is mixed, estimate all four macros realistically rather than leaving one at zero unless that macro is truly negligible.",
+    "Make calories roughly consistent with the macros using 4 kcal/g for protein and carbs, and 9 kcal/g for fat.",
+    "Keep the note short and practical.",
+    "The output must follow the provided JSON schema exactly."
+  ];
+  if (retryInstruction) {
+    systemText.push(retryInstruction);
+  }
+
+  return {
     model: OPENAI_MODEL,
     input: [
       {
@@ -82,14 +178,7 @@ async function handleEstimateFood(req, res) {
         content: [
           {
             type: "input_text",
-            text: [
-              "You estimate calories, protein, carbs, and fat for a described food item.",
-              "Return realistic nutrition estimates for a single likely serving.",
-              "Use common prepared-food assumptions when the user is vague.",
-              "Do not refuse just because the estimate is approximate.",
-              "Keep the note short and practical.",
-              "The output must follow the provided JSON schema exactly."
-            ].join(" ")
+            text: systemText.join(" ")
           }
         ]
       },
@@ -128,55 +217,37 @@ async function handleEstimateFood(req, res) {
       }
     }
   };
+}
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_API_KEY}`
-    },
-    body: JSON.stringify(payload)
-  });
+function validateEstimateAgainstQuery(query, estimate) {
+  if (!estimate) {
+    return ["response was empty or invalid"];
+  }
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("OpenAI request failed", response.status, errorText);
-    let openAiMessage = "AI estimate request failed.";
-    try {
-      const parsedError = JSON.parse(errorText);
-      openAiMessage = parsedError?.error?.message || openAiMessage;
-    } catch (error) {
-      openAiMessage = errorText || openAiMessage;
+  const issues = [];
+  const text = String(query || "").toLowerCase();
+  const caloriesFromMacros = (estimate.protein_g * 4) + (estimate.carb_g * 4) + (estimate.fat_g * 9);
+  if (estimate.calories > 0) {
+    const calorieDelta = Math.abs(caloriesFromMacros - estimate.calories) / estimate.calories;
+    if (calorieDelta > 0.35) {
+      issues.push("calories are not consistent with protein, carbs, and fat");
     }
-    sendJson(res, 502, { error: openAiMessage });
-    return;
   }
 
-  const result = await response.json();
-  const outputText = extractOutputText(result);
-
-  if (!outputText) {
-    console.error("OpenAI response missing output text", JSON.stringify(result));
-    sendJson(res, 502, { error: "AI estimate response was incomplete." });
-    return;
+  if (/\begg|omelet|omelette\b/.test(text) && estimate.fat_g <= 1) {
+    issues.push("egg-based foods should not have near-zero fat");
+  }
+  if (/\boil|butter|avocado|peanut butter|almond butter|mayo|mayonnaise|cheese|salmon|nuts?\b/.test(text) && estimate.fat_g <= 1) {
+    issues.push("fat-rich foods should not have near-zero fat");
+  }
+  if (/\brice|bread|toast|pasta|noodle|oat|oatmeal|potato|coffee\b/.test(text) && estimate.carb_g <= 1 && !/\bblack coffee|americano|espresso\b/.test(text)) {
+    issues.push("carb-containing foods should not have near-zero carbs");
+  }
+  if (/\bmeat|beef|chicken|pork|fish|tuna|salmon|egg|eggs|tofu|protein\b/.test(text) && estimate.protein_g <= 1) {
+    issues.push("protein-containing foods should not have near-zero protein");
   }
 
-  let parsed;
-  try {
-    parsed = JSON.parse(outputText);
-  } catch (error) {
-    console.error("Failed to parse OpenAI JSON output", outputText);
-    sendJson(res, 502, { error: "AI estimate format was invalid." });
-    return;
-  }
-
-  const normalized = normalizeEstimate(parsed);
-  if (!normalized) {
-    sendJson(res, 502, { error: "AI estimate was missing required nutrition values." });
-    return;
-  }
-
-  sendJson(res, 200, normalized);
+  return issues;
 }
 
 function normalizeEstimate(value) {

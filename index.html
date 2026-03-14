@@ -75,6 +75,7 @@
           <span class="progress-nums"><span id="prog-water-curr">0</span> / <span id="prog-water-goal">2.5</span> L</span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-water" id="prog-water-bar" style="width: 0%"></div></div>
+        <div class="progress-success hidden" id="prog-water-success">Hydration goal crushed! Your body thanks you.</div>
       </div>
       <div class="progress-wrap" id="steps-progress-wrap" style="margin-bottom: 0">
         <div class="progress-top">
@@ -85,6 +86,7 @@
           <span class="progress-nums"><span id="prog-steps-curr">0</span> / <span id="prog-steps-goal">8000</span></span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-steps" id="prog-steps-bar" style="width: 0%"></div></div>
+        <div class="progress-success hidden" id="prog-steps-success">Step goal done! You've earned that rest.</div>
       </div>
     </div>
 
@@ -119,17 +121,17 @@
         <input class="search-input" id="food-search" placeholder="Search your foods..." oninput="renderFoodPicker()">
       </div>
       <div id="food-picker-list"></div>
-      <div class="form-group hidden" id="log-quantity-group" style="margin-top: 16px;">
-        <label class="form-label" for="log-quantity" id="log-quantity-label">Quantity</label>
-        <input class="form-input" id="log-quantity" type="number" min="0.1" step="0.1" value="1" placeholder="1">
+      <div class="form-group" id="log-amount-group" style="margin-top: 16px;">
+        <label class="form-label" for="log-amount" id="log-amount-label">Amount</label>
+        <div class="amount-input-row">
+          <input class="form-input amount-input" id="log-amount" type="number" min="0.1" step="0.1" value="100" placeholder="100">
+          <select class="form-input amount-unit-pill" id="log-unit" onchange="handleLogUnitChange()"></select>
+        </div>
       </div>
-      <div class="form-group" id="log-grams-group" style="margin-top: 16px;">
-        <label class="form-label" for="log-grams">Grams</label>
-        <input class="form-input" id="log-grams" type="number" min="1" step="1" value="100" placeholder="100">
-      </div>
+      <div class="helper-text helper-left" id="log-input-helper">Foods saved with units like egg, cup, or bottle will log by quantity. Weight-based foods will log by grams.</div>
       <button class="btn btn-primary" onclick="logFromFood()">Add to Today</button>
       <div class="helper-text">
-        Need a new item? <span class="helper-link" onclick="switchLogTab('ai-estimate')">Estimate it with AI</span>. Saved foods can be logged by grams or by quantity without another API call.
+        Missing a food item? <span class="helper-link" onclick="switchLogTab('ai-estimate')">Let AI take a guess for you</span>. After saving it, you can log it by grams or quantity in just a tap.
       </div>
     </div>
 
@@ -180,15 +182,15 @@
               <input class="form-input" id="ai-fat" type="number" min="0" step="0.1" placeholder="0">
             </div>
             <div class="form-group">
-              <label class="form-label" for="ai-serving-label">Serving Label</label>
+              <label class="form-label" for="ai-serving-label">Portion Name</label>
               <input class="form-input" id="ai-serving-label" placeholder="e.g. 180 g portion">
             </div>
           </div>
           <div class="estimate-actions">
-            <button class="btn btn-primary estimate-action" onclick="logAiEstimate()">Log Today</button>
+            <button class="btn btn-primary estimate-action" onclick="logAiEstimate()">Add to Today</button>
             <button class="btn btn-secondary estimate-action" onclick="saveAiEstimateToFoods()">Save to My Foods</button>
           </div>
-          <div class="helper-text">Adjust quantity, grams, or any macro before saving. Changing grams or quantity recalculates from the AI baseline.</div>
+          <div class="helper-text">Change any value if it looks off. Editing grams will auto-update the rest.</div>
         </div>
       </div>
     </div>
@@ -253,13 +255,13 @@
     </button>
     <button class="nav-btn" id="nav-log" onclick="showPage('log')">
       <div class="nav-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h8l3 3V20a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5.5a2 2 0 0 1 2-2Z"/><path d="M15 3.5V7h3"/><path d="M8.5 11h7"/><path d="M8.5 14.5h7"/><path d="M8.5 18h4.5"/></svg>
       </div>
       Log
     </button>
     <button class="nav-btn" id="nav-foods" onclick="showPage('foods')">
       <div class="nav-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10a3 3 0 0 0 3-3v-4.2a4.8 4.8 0 0 0-4.8-4.8c-.6 0-1.2.1-1.7.3A5.2 5.2 0 0 0 4 11.7V17a3 3 0 0 0 3 3Z"/><path d="M8.5 11.2c.5-.9 1.3-1.7 2.4-2.2"/><path d="M15.5 11.2c-.5-.9-1.3-1.7-2.4-2.2"/></svg>
       </div>
       Foods
     </button>
@@ -428,6 +430,20 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <div class="food-cheer hidden" id="food-cheer" aria-hidden="true">
+    <div class="food-cheer-scene">
+      <div class="food-plate"></div>
+      <div class="food-person">
+        <div class="food-head"></div>
+        <div class="food-mouth"></div>
+        <div class="food-body"></div>
+        <div class="food-arm"></div>
+        <div class="food-hand"></div>
+      </div>
+      <div class="food-bread"></div>
+    </div>
+  </div>
 
   <div class="water-cheer hidden" id="water-cheer" aria-hidden="true">
     <div class="water-cheer-scene">

@@ -10,6 +10,8 @@ let state = {
 const STORAGE_KEY = "nutrilog_v2";
 const LEGACY_STORAGE_KEY = "nutrilog_v1";
 const AI_ESTIMATE_ENDPOINT = "/api/estimate-food";
+const OUNCES_TO_GRAMS = 28.3495;
+const CUP_TO_ML = 240;
 
 let currentPage = "today";
 let selectedFoodId = null;
@@ -130,20 +132,20 @@ function inferQuantityFromServing(serving) {
     return { baseQuantity: 0, quantityUnit: "" };
   }
 
-  const unit = match[2].trim().toLowerCase();
-  if (/\b(g|gram|grams|kg|ml|l|oz)\b/i.test(unit)) {
+  const unit = normalizeFoodUnit(match[2].trim());
+  if (isWeightUnit(unit)) {
     return { baseQuantity: 0, quantityUnit: "" };
   }
 
   return {
     baseQuantity: Number(match[1]),
-    quantityUnit: unit.replace(/\s+/g, " ")
+    quantityUnit: unit
   };
 }
 
 function formatFoodBaseLabel(food) {
   if (food.quantityUnit && food.baseQuantity > 0) {
-    return `${roundNutrient(food.baseQuantity)} ${food.quantityUnit}`;
+    return `${roundNutrient(food.baseQuantity)} ${formatFoodUnitLabel(food.quantityUnit, getFoodUnitKind(food.quantityUnit), food.baseQuantity)}`;
   }
   return food.serving || `${Math.round(food.grams)} g`;
 }
@@ -155,21 +157,194 @@ function singularizeUnit(unit) {
   return unit.replace(/\bpieces\b/i, "piece").replace(/\beggs\b/i, "egg").replace(/s$/i, "");
 }
 
-function updateFoodLogInputMode() {
-  const quantityGroup = document.getElementById("log-quantity-group");
-  const gramsGroup = document.getElementById("log-grams-group");
-  const quantityLabel = document.getElementById("log-quantity-label");
-  const food = state.foods.find((entry) => entry.id === selectedFoodId);
+function normalizeFoodUnit(unit) {
+  const cleaned = singularizeUnit(String(unit || "").trim().toLowerCase()).replace(/\s+/g, " ");
+  if (!cleaned) {
+    return "";
+  }
+  if (["g", "gram"].includes(cleaned)) return "g";
+  if (["kg", "kilogram"].includes(cleaned)) return "kg";
+  if (["oz", "ounce"].includes(cleaned)) return "oz";
+  if (["lb", "pound"].includes(cleaned)) return "lb";
+  if (["ml", "milliliter"].includes(cleaned)) return "ml";
+  if (["l", "liter"].includes(cleaned)) return "l";
+  if (["cup"].includes(cleaned)) return "cup";
+  return cleaned;
+}
 
+function isWeightUnit(unit) {
+  return ["g", "kg", "oz", "lb"].includes(normalizeFoodUnit(unit));
+}
+
+function isVolumeUnit(unit) {
+  return ["ml", "l", "cup"].includes(normalizeFoodUnit(unit));
+}
+
+function getFoodUnitKind(unit) {
+  const normalized = normalizeFoodUnit(unit);
+  if (isWeightUnit(normalized)) return "weight";
+  if (isVolumeUnit(normalized)) return "volume";
+  if (normalized) return "piece";
+  return "weight";
+}
+
+function formatFoodUnitLabel(unit, kind, amount = 2) {
+  const normalized = normalizeFoodUnit(unit);
+  if (kind === "weight") {
+    if (normalized === "g") return "g";
+    if (normalized === "oz") return "oz";
+    if (normalized === "kg") return "kg";
+    if (normalized === "lb") return "lb";
+  }
+  if (kind === "volume") {
+    if (normalized === "ml") return "ml";
+    if (normalized === "l") return "L";
+    if (normalized === "cup") return amount === 1 ? "cup" : "cups";
+  }
+  if (kind === "piece") {
+    if (normalized === "piece") return amount === 1 ? "piece" : "pieces";
+    if (!normalized || normalized === "qty") return "qty";
+    return amount === 1 ? normalized : `${normalized}s`;
+  }
+  return normalized || "qty";
+}
+
+function convertToCanonicalFoodAmount(value, unit, kind) {
+  const amount = normalizePositiveNumber(value, 0);
+  const normalized = normalizeFoodUnit(unit);
+  if (kind === "weight") {
+    if (normalized === "oz") return amount * OUNCES_TO_GRAMS;
+    if (normalized === "kg") return amount * 1000;
+    if (normalized === "lb") return amount * 453.592;
+    return amount;
+  }
+  if (kind === "volume") {
+    if (normalized === "cup") return amount * CUP_TO_ML;
+    if (normalized === "l") return amount * 1000;
+    return amount;
+  }
+  return amount;
+}
+
+function convertFromCanonicalFoodAmount(value, unit, kind) {
+  const amount = normalizePositiveNumber(value, 0);
+  const normalized = normalizeFoodUnit(unit);
+  if (kind === "weight") {
+    if (normalized === "oz") return amount / OUNCES_TO_GRAMS;
+    if (normalized === "kg") return amount / 1000;
+    if (normalized === "lb") return amount / 453.592;
+    return amount;
+  }
+  if (kind === "volume") {
+    if (normalized === "cup") return amount / CUP_TO_ML;
+    if (normalized === "l") return amount / 1000;
+    return amount;
+  }
+  return amount;
+}
+
+function getFoodLogConfig(food) {
   if (food && food.quantityUnit && food.baseQuantity > 0) {
-    quantityGroup.classList.remove("hidden");
-    gramsGroup.classList.add("hidden");
-    quantityLabel.textContent = `Quantity (${food.quantityUnit})`;
-    document.getElementById("log-quantity").value = String(roundNutrient(food.baseQuantity));
-  } else {
-    quantityGroup.classList.add("hidden");
-    gramsGroup.classList.remove("hidden");
-    document.getElementById("log-grams").value = food ? String(Math.round(food.grams)) : "100";
+    const unitKind = getFoodUnitKind(food.quantityUnit);
+    if (unitKind === "volume") {
+      const baseUnit = normalizeFoodUnit(food.quantityUnit);
+      const selectedUnit = baseUnit === "l" ? "l" : baseUnit === "cup" ? "cup" : "ml";
+      const units = baseUnit === "l"
+        ? ["l", "ml", "cup"]
+        : baseUnit === "cup"
+          ? ["cup", "ml"]
+          : ["ml", "cup"];
+      const baseCanonical = convertToCanonicalFoodAmount(food.baseQuantity, baseUnit, "volume");
+      return {
+        kind: "volume",
+        label: "Amount",
+        helper: selectedUnit === "cup" ? "Enter the amount in cups" : selectedUnit === "l" ? "Enter the amount in L" : "Enter the amount in ml",
+        selectedUnit,
+        options: units.map((unit) => ({ value: unit, label: formatFoodUnitLabel(unit, "volume", unit === "cup" ? 2 : 1) })),
+        amount: roundNutrient(convertFromCanonicalFoodAmount(baseCanonical, selectedUnit, "volume")),
+        min: "0.1",
+        step: "0.1"
+      };
+    }
+    return {
+      kind: "piece",
+      label: `Quantity (${formatFoodUnitLabel(food.quantityUnit, "piece", 2)})`,
+      helper: "Enter how many you had",
+      selectedUnit: normalizeFoodUnit(food.quantityUnit) || "qty",
+      options: [{ value: normalizeFoodUnit(food.quantityUnit) || "qty", label: formatFoodUnitLabel(food.quantityUnit, "piece", 2) }],
+      amount: roundNutrient(food.baseQuantity),
+      min: "0.1",
+      step: "0.1"
+    };
+  }
+
+  return {
+    kind: "weight",
+    label: "Amount",
+    helper: "Enter how many grams you had",
+    selectedUnit: "g",
+    options: [
+      { value: "g", label: "g" },
+      { value: "oz", label: "oz" }
+    ],
+    amount: food ? Math.round(food.grams) : 100,
+    min: "1",
+    step: "1"
+  };
+}
+
+function updateFoodLogInputMode() {
+  const amountLabel = document.getElementById("log-amount-label");
+  const amountInput = document.getElementById("log-amount");
+  const unitSelect = document.getElementById("log-unit");
+  const helper = document.getElementById("log-input-helper");
+  const food = state.foods.find((entry) => entry.id === selectedFoodId);
+  const config = getFoodLogConfig(food);
+  if (!amountLabel || !amountInput || !unitSelect) {
+    return;
+  }
+
+  amountLabel.textContent = config.label;
+  amountInput.min = config.min;
+  amountInput.step = config.step;
+  amountInput.value = String(config.amount);
+  amountInput.placeholder = String(config.amount);
+  unitSelect.innerHTML = config.options.map((option) => `
+    <option value="${escHtml(option.value)}" ${option.value === config.selectedUnit ? "selected" : ""}>${escHtml(option.label)}</option>
+  `).join("");
+  unitSelect.disabled = config.options.length === 1;
+  unitSelect.dataset.prevUnit = config.selectedUnit;
+  if (helper) {
+    helper.textContent = config.helper;
+  }
+}
+
+function handleLogUnitChange() {
+  const amountInput = document.getElementById("log-amount");
+  const unitSelect = document.getElementById("log-unit");
+  const helper = document.getElementById("log-input-helper");
+  const food = state.foods.find((entry) => entry.id === selectedFoodId);
+  if (!amountInput || !unitSelect || !food) {
+    return;
+  }
+
+  const config = getFoodLogConfig(food);
+  const prevUnit = unitSelect.dataset.prevUnit || config.selectedUnit;
+  const nextUnit = unitSelect.value;
+  const currentValue = normalizePositiveNumber(amountInput.value, config.amount);
+  const canonical = convertToCanonicalFoodAmount(currentValue, prevUnit, config.kind);
+  const converted = convertFromCanonicalFoodAmount(canonical, nextUnit, config.kind);
+  amountInput.value = config.kind === "weight" && nextUnit === "g"
+    ? String(Math.round(converted))
+    : String(roundNutrient(converted));
+  unitSelect.dataset.prevUnit = nextUnit;
+
+  if (helper) {
+    if (config.kind === "weight") {
+      helper.textContent = nextUnit === "oz" ? "Enter how many ounces you had" : "Enter how many grams you had";
+    } else if (config.kind === "volume") {
+      helper.textContent = nextUnit === "cup" ? "Enter the amount in cups" : nextUnit === "l" ? "Enter the amount in L" : "Enter the amount in ml";
+    }
   }
 }
 
@@ -327,6 +502,8 @@ function renderToday() {
   document.getElementById("prog-pro-warning").classList.toggle("hidden", totalPro <= goalPro);
   document.getElementById("prog-carb-warning").classList.toggle("hidden", totalCarb <= goalCarb);
   document.getElementById("prog-fat-warning").classList.toggle("hidden", totalFat <= goalFat);
+  document.getElementById("prog-water-success").classList.toggle("hidden", !(goalWater > 0 && totalWater >= goalWater));
+  document.getElementById("prog-steps-success").classList.toggle("hidden", !(goalSteps > 0 && totalSteps >= goalSteps));
 
   const list = document.getElementById("today-meal-list");
   if (!logs.length) {
@@ -341,7 +518,6 @@ function renderToday() {
         <div class="meal-meta">${Math.round(log.cal)} kcal · ${roundNutrient(log.pro)}g protein · ${roundNutrient(log.carb || 0)}g carbs · ${roundNutrient(log.fat || 0)}g fat</div>
       </div>
       <div class="meal-right">
-        <span class="meal-cals">${Math.round(log.cal)}</span>
         <button class="meal-del" onclick="deleteLog('${log.id}')" title="Remove">x</button>
       </div>
     </div>
@@ -539,6 +715,21 @@ function triggerStepCelebration() {
   }, 1100);
 }
 
+function triggerFoodCelebration() {
+  const cheer = document.getElementById("food-cheer");
+  if (!cheer) {
+    return;
+  }
+  cheer.classList.remove("hidden");
+  void cheer.offsetWidth;
+  cheer.classList.add("showing");
+  window.clearTimeout(triggerFoodCelebration.timer);
+  triggerFoodCelebration.timer = window.setTimeout(() => {
+    cheer.classList.add("hidden");
+    cheer.classList.remove("showing");
+  }, 1100);
+}
+
 function switchLogTab(tab) {
   document.querySelectorAll(".tab-pill").forEach((pill) => {
     pill.classList.toggle("active", pill.dataset.tab === tab);
@@ -586,45 +777,50 @@ function logFromFood() {
     return;
   }
 
-  let grams = 0;
-  if (food.quantityUnit && food.baseQuantity > 0) {
-    const quantity = normalizePositiveNumber(document.getElementById("log-quantity").value, 0);
-    if (quantity <= 0) {
-      showToast("Enter quantity greater than 0");
-      return;
-    }
-    grams = (food.grams / food.baseQuantity) * quantity;
-  } else {
-    grams = normalizePositiveNumber(document.getElementById("log-grams").value, 0);
-  }
-  if (grams <= 0) {
-    showToast("Enter grams greater than 0");
+  const config = getFoodLogConfig(food);
+  const amountInput = document.getElementById("log-amount");
+  const unitSelect = document.getElementById("log-unit");
+  const amount = normalizePositiveNumber(amountInput?.value, 0);
+  const selectedUnit = unitSelect?.value || config.selectedUnit;
+  if (amount <= 0) {
+    showToast(config.kind === "piece" ? "Enter quantity greater than 0" : "Enter amount greater than 0");
     return;
   }
 
-  const calPerGram = normalizePositiveNumber(food.calPerGram, 0) || (food.grams > 0 ? food.cal / food.grams : 0);
-  const proPerGram = normalizePositiveNumber(food.proPerGram, 0) || (food.grams > 0 ? food.pro / food.grams : 0);
-  const carbPerGram = normalizePositiveNumber(food.carbPerGram, 0) || (food.grams > 0 ? food.carb / food.grams : 0);
-  const fatPerGram = normalizePositiveNumber(food.fatPerGram, 0) || (food.grams > 0 ? food.fat / food.grams : 0);
+  let ratio = 1;
+  if (config.kind === "weight") {
+    const inputGrams = convertToCanonicalFoodAmount(amount, selectedUnit, "weight");
+    ratio = food.grams > 0 ? inputGrams / food.grams : 0;
+  } else if (config.kind === "volume") {
+    const baseCanonical = convertToCanonicalFoodAmount(food.baseQuantity, food.quantityUnit, "volume");
+    const inputCanonical = convertToCanonicalFoodAmount(amount, selectedUnit, "volume");
+    ratio = baseCanonical > 0 ? inputCanonical / baseCanonical : 0;
+  } else {
+    ratio = food.baseQuantity > 0 ? amount / food.baseQuantity : 0;
+  }
+  if (ratio <= 0) {
+    showToast("Enter a valid amount");
+    return;
+  }
+
   state.logs.push({
     id: uid(),
     date: todayStr(),
     name: food.name,
-    cal: roundNutrient(calPerGram * grams),
-    pro: roundNutrient(proPerGram * grams),
-    carb: roundNutrient(carbPerGram * grams),
-    fat: roundNutrient(fatPerGram * grams)
+    cal: roundNutrient(food.cal * ratio),
+    pro: roundNutrient(food.pro * ratio),
+    carb: roundNutrient((food.carb || 0) * ratio),
+    fat: roundNutrient((food.fat || 0) * ratio)
   });
 
   saveState();
   selectedFoodId = null;
-  document.getElementById("log-quantity").value = "1";
-  document.getElementById("log-grams").value = "100";
   document.getElementById("food-search").value = "";
   renderFoodPicker();
   updateFoodLogInputMode();
   renderToday();
   renderHistory();
+  triggerFoodCelebration();
   showToast("Meal logged");
   setTimeout(() => showPage("today"), 400);
 }
@@ -784,6 +980,7 @@ function logAiEstimate() {
   saveState();
   renderToday();
   renderHistory();
+  triggerFoodCelebration();
   showToast("AI estimate logged");
   setTimeout(() => showPage("today"), 400);
 }
@@ -834,6 +1031,7 @@ function logCustom() {
   document.getElementById("custom-fat").value = "";
   renderToday();
   renderHistory();
+  triggerFoodCelebration();
   showToast("Meal logged");
   setTimeout(() => showPage("today"), 400);
 }
