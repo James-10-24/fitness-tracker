@@ -18,6 +18,9 @@
   --radius-sm: 14px;
   --nav-h: 80px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-max-width: 430px;
+  --app-gutter: 12px;
+  --app-width: min(var(--app-max-width), calc(100vw - (var(--app-gutter) * 2)));
 }
 
 * {
@@ -39,10 +42,12 @@ body {
     linear-gradient(180deg, #fff9f5 0%, #fdf6f0 42%, #f7eee7 100%);
   color: var(--text);
   min-height: 100vh;
-  max-width: 430px;
+  width: var(--app-width);
+  max-width: var(--app-max-width);
   margin: 0 auto;
   position: relative;
   overflow-x: hidden;
+  border-radius: 28px 28px 0 0;
 }
 
 .auth-screen {
@@ -210,7 +215,7 @@ body {
 .account-chip {
   position: fixed;
   top: 18px;
-  right: max(16px, calc((100vw - 430px) / 2 + 16px));
+  right: max(var(--app-gutter), calc((100vw - var(--app-width)) / 2 + 16px));
   z-index: 210;
   border: 1px solid rgba(255, 255, 255, 0.68);
   background: rgba(255, 255, 255, 0.82);
@@ -236,8 +241,8 @@ h2,
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 100%;
-  max-width: 430px;
+  width: var(--app-width);
+  max-width: var(--app-max-width);
   height: calc(var(--nav-h) + var(--safe-bottom));
   background: rgba(248, 248, 248, 0.82);
   backdrop-filter: blur(28px) saturate(1.2);
@@ -1131,7 +1136,7 @@ h2,
 .fab {
   position: fixed;
   bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px);
-  right: max(16px, calc((100vw - 430px) / 2 + 16px));
+  right: max(var(--app-gutter), calc((100vw - var(--app-width)) / 2 + 16px));
   width: 52px;
   height: 52px;
   border-radius: 50%;
@@ -1168,9 +1173,9 @@ h2,
 
 .fab-menu {
   position: fixed;
-  right: max(16px, calc((100vw - 430px) / 2 + 16px));
+  right: max(var(--app-gutter), calc((100vw - var(--app-width)) / 2 + 16px));
   bottom: calc(var(--nav-h) + var(--safe-bottom) + 80px);
-  width: min(360px, calc(100vw - 32px));
+  width: min(360px, calc(var(--app-width) - 24px));
   max-height: min(70vh, 620px);
   overflow-y: auto;
   background: rgba(255, 255, 255, 0.82);
@@ -1258,6 +1263,7 @@ h2,
   z-index: 200;
   align-items: flex-end;
   justify-content: center;
+  padding: 0 var(--app-gutter);
 }
 
 .overlay.open {
@@ -1267,8 +1273,8 @@ h2,
 .sheet {
   background: rgba(248, 248, 248, 0.92);
   width: 100%;
-  max-width: 430px;
-  border-radius: 28px 28px 0 0;
+  max-width: var(--app-width);
+  border-radius: 28px 28px 20px 20px;
   padding: 24px 20px calc(24px + var(--safe-bottom));
   max-height: 90vh;
   overflow-y: auto;
@@ -1843,7 +1849,6 @@ h2,
 
 @media (max-width: 460px) {
   .fab {
-    right: 16px;
     transform: none;
   }
 
