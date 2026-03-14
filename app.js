@@ -136,10 +136,13 @@ function isStandaloneMode() {
 }
 
 function shouldShowInstallEntry() {
+  if (isStandaloneMode()) {
+    return false;
+  }
   if (isIosDevice()) {
     return true;
   }
-  return isMobileDevice() && !isStandaloneMode();
+  return isMobileDevice();
 }
 
 function updateInstallUi() {
