@@ -21,6 +21,7 @@ let isApplyingRemoteState = false;
 let isRecoveryMode = false;
 let isGuestMode = !currentUser;
 let authScreenForced = false;
+let deferredInstallPrompt = null;
 
 function createInitialState() {
   return {
@@ -112,6 +113,31 @@ function renderApp() {
   updateFoodLogInputMode();
   renderHistory();
   updateFab();
+}
+
+function isMobileDevice() {
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || "")
+    || (window.matchMedia && window.matchMedia("(max-width: 768px)").matches);
+}
+
+function isIosDevice() {
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+}
+
+function isStandaloneMode() {
+  return window.matchMedia?.("(display-mode: standalone)")?.matches || window.navigator.standalone === true;
+}
+
+function shouldShowInstallEntry() {
+  return isMobileDevice() && !isStandaloneMode();
+}
+
+function updateInstallUi() {
+  const button = document.getElementById("account-install-btn");
+  if (!button) {
+    return;
+  }
+  button.classList.toggle("hidden", !shouldShowInstallEntry());
 }
 
 function scheduleCloudSync() {
@@ -354,6 +380,7 @@ function updateAuthUi() {
   authActions?.classList.toggle("hidden", isRecoveryMode);
   authLinks?.classList.toggle("hidden", isRecoveryMode);
   authGuestButton?.classList.toggle("hidden", isRecoveryMode);
+  updateInstallUi();
 }
 
 function setRecoveryMode(active) {
@@ -563,6 +590,51 @@ function openAccountModal() {
   }
   document.getElementById("account-status").textContent = "";
   document.getElementById("overlay-account").classList.add("open");
+}
+
+function openInstallModal() {
+  const title = document.getElementById("install-title");
+  const copy = document.getElementById("install-copy");
+  const steps = document.getElementById("install-steps");
+  const actionButton = document.getElementById("install-action-btn");
+  if (!title || !copy || !steps || !actionButton) {
+    return;
+  }
+
+  title.textContent = "Install Viva.AI";
+
+  if (deferredInstallPrompt) {
+    copy.textContent = "Add Viva.AI to your home screen so it feels like a real app and opens faster next time.";
+    steps.classList.add("hidden");
+    actionButton.classList.remove("hidden");
+  } else if (isIosDevice()) {
+    copy.textContent = "Safari on iPhone does not allow one-tap install prompts, but you can still add Viva.AI in a few seconds.";
+    steps.classList.remove("hidden");
+    actionButton.classList.add("hidden");
+  } else {
+    copy.textContent = "Your browser does not expose the install prompt right now. Open the browser menu and use Add to Home Screen if it is available.";
+    steps.classList.add("hidden");
+    actionButton.classList.add("hidden");
+  }
+
+  document.getElementById("overlay-install").classList.add("open");
+}
+
+async function promptPwaInstall() {
+  if (!deferredInstallPrompt) {
+    openInstallModal();
+    return;
+  }
+  try {
+    await deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+  } catch (error) {
+    console.error("PWA install prompt failed", error);
+  } finally {
+    deferredInstallPrompt = null;
+    updateInstallUi();
+    closeModal("install");
+  }
 }
 
 function openAuthFromAccount(mode = "signin") {
@@ -2306,12 +2378,25 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  updateInstallUi();
+});
+
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  updateInstallUi();
+  closeModal("install");
+});
+
 document.addEventListener("DOMContentLoaded", () => {
   isGuestMode = getSavedAuthPreference() === "guest";
   loadState();
   renderApp();
   updateAuthUi();
   registerServiceWorker();
+  updateInstallUi();
   initializeSupabase().catch((error) => {
     console.error("Supabase initialization failed", error);
     document.getElementById("auth-status").textContent = error.message || "Failed to initialize authentication.";

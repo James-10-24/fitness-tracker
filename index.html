@@ -504,10 +504,26 @@
         </div>
         <div class="helper-text helper-left account-helper">Shown in the app instead of your email address. Max 100 characters.</div>
         <button class="btn btn-primary" type="button" onclick="saveDisplayName()">Save Name</button>
+        <button class="btn btn-secondary hidden" id="account-install-btn" type="button" onclick="openInstallModal()">Install Viva.AI App</button>
         <div class="api-status" id="account-status" aria-live="polite"></div>
         <button class="btn btn-secondary" type="button" onclick="logout()">Log Out</button>
       </div>
       <button class="btn btn-secondary" type="button" onclick="closeModal('account')">Close</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay-install" onclick="closeModal('install')">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="install-title">Install Viva.AI</div>
+      <div class="account-email" id="install-copy"></div>
+      <div class="install-steps hidden" id="install-steps">
+        <div class="install-step"><span class="install-step-num">1</span><span>Tap the browser share button.</span></div>
+        <div class="install-step"><span class="install-step-num">2</span><span>Select <strong>Add to Home Screen</strong>.</span></div>
+        <div class="install-step"><span class="install-step-num">3</span><span>Confirm to install Viva.AI like a normal app.</span></div>
+      </div>
+      <button class="btn btn-primary hidden" id="install-action-btn" type="button" onclick="promptPwaInstall()">Add to Home Screen</button>
+      <button class="btn btn-secondary" type="button" onclick="closeModal('install')">Close</button>
     </div>
   </div>
 
