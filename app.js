@@ -22,6 +22,13 @@ let isRecoveryMode = false;
 let isGuestMode = !currentUser;
 let authScreenForced = false;
 let deferredInstallPrompt = null;
+let pullRefreshStartY = 0;
+let pullRefreshDistance = 0;
+let isPullRefreshing = false;
+let isPullTracking = false;
+
+const PULL_REFRESH_TRIGGER = 84;
+const PULL_REFRESH_MAX = 132;
 
 function createInitialState() {
   return {
@@ -139,6 +146,137 @@ function updateInstallUi() {
       button.classList.toggle("hidden", !shouldShowInstallEntry());
     }
   });
+}
+
+function isAtTopOfPage() {
+  const scrollTop = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+  return scrollTop <= 0;
+}
+
+function hasOpenOverlay() {
+  return !!document.querySelector(".overlay.open");
+}
+
+function isAuthScreenVisible() {
+  const authScreen = document.getElementById("auth-screen");
+  return !!authScreen && !authScreen.classList.contains("hidden");
+}
+
+function updatePullRefreshUi(distance = 0, refreshing = false) {
+  const indicator = document.getElementById("pull-refresh-indicator");
+  const text = document.getElementById("pull-refresh-text");
+  const icon = document.getElementById("pull-refresh-icon");
+  if (!indicator || !text || !icon) {
+    return;
+  }
+
+  if (!distance && !refreshing) {
+    indicator.classList.remove("visible", "ready", "refreshing");
+    indicator.style.transform = "translate(-50%, -72px)";
+    text.textContent = "Pull to refresh";
+    icon.textContent = "↓";
+    return;
+  }
+
+  const capped = Math.min(distance, PULL_REFRESH_MAX);
+  indicator.classList.add("visible");
+  indicator.classList.toggle("ready", capped >= PULL_REFRESH_TRIGGER && !refreshing);
+  indicator.classList.toggle("refreshing", refreshing);
+  indicator.style.transform = `translate(-50%, ${Math.min(capped - 64, 18)}px)`;
+  text.textContent = refreshing
+    ? "Refreshing..."
+    : capped >= PULL_REFRESH_TRIGGER
+      ? "Release to refresh"
+      : "Pull to refresh";
+  icon.textContent = refreshing ? "↻" : "↓";
+}
+
+async function refreshCurrentView() {
+  if (isPullRefreshing) {
+    return;
+  }
+
+  isPullRefreshing = true;
+  updatePullRefreshUi(PULL_REFRESH_TRIGGER, true);
+
+  try {
+    if (currentUser && supabaseClient) {
+      await loadUserState(currentUser.id);
+    } else {
+      loadState();
+      renderApp();
+    }
+    showToast("Updated");
+  } catch (error) {
+    console.error("Pull refresh failed", error);
+    showToast("Refresh failed");
+  } finally {
+    setTimeout(() => {
+      isPullRefreshing = false;
+      updatePullRefreshUi(0, false);
+    }, 280);
+  }
+}
+
+function handlePullTouchStart(event) {
+  if (!isMobileDevice() || isPullRefreshing || hasOpenOverlay() || isAuthScreenVisible() || !isAtTopOfPage()) {
+    isPullTracking = false;
+    return;
+  }
+
+  const target = event.target;
+  if (target && typeof target.closest === "function" && target.closest("input, textarea, select, button")) {
+    isPullTracking = false;
+    return;
+  }
+
+  pullRefreshStartY = event.touches[0]?.clientY || 0;
+  pullRefreshDistance = 0;
+  isPullTracking = true;
+}
+
+function handlePullTouchMove(event) {
+  if (!isPullTracking || isPullRefreshing) {
+    return;
+  }
+
+  const currentY = event.touches[0]?.clientY || 0;
+  const rawDistance = currentY - pullRefreshStartY;
+  if (rawDistance <= 0) {
+    updatePullRefreshUi(0, false);
+    return;
+  }
+  if (!isAtTopOfPage()) {
+    isPullTracking = false;
+    updatePullRefreshUi(0, false);
+    return;
+  }
+
+  pullRefreshDistance = Math.min(rawDistance * 0.6, PULL_REFRESH_MAX);
+  if (pullRefreshDistance > 6) {
+    event.preventDefault();
+    updatePullRefreshUi(pullRefreshDistance, false);
+  }
+}
+
+function handlePullTouchEnd() {
+  if (!isPullTracking) {
+    return;
+  }
+
+  const shouldRefresh = pullRefreshDistance >= PULL_REFRESH_TRIGGER;
+  isPullTracking = false;
+  const finalDistance = pullRefreshDistance;
+  pullRefreshDistance = 0;
+
+  if (shouldRefresh) {
+    refreshCurrentView();
+    return;
+  }
+
+  if (finalDistance > 0) {
+    updatePullRefreshUi(0, false);
+  }
 }
 
 function scheduleCloudSync() {
@@ -2440,4 +2578,9 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("ai-grams")?.addEventListener("input", syncEstimateFromGrams);
   document.getElementById("goal-height-unit")?.addEventListener("change", toggleHeightInputs);
   toggleHeightInputs();
+
+  document.addEventListener("touchstart", handlePullTouchStart, { passive: true });
+  document.addEventListener("touchmove", handlePullTouchMove, { passive: false });
+  document.addEventListener("touchend", handlePullTouchEnd, { passive: true });
+  document.addEventListener("touchcancel", handlePullTouchEnd, { passive: true });
 });

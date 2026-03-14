@@ -230,6 +230,62 @@ body {
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
 }
 
+.pull-refresh-indicator {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  left: 50%;
+  transform: translate(-50%, -72px);
+  z-index: 205;
+  pointer-events: none;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+  opacity: 0;
+}
+
+.pull-refresh-indicator.visible {
+  opacity: 1;
+}
+
+.pull-refresh-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.1);
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 600;
+  backdrop-filter: blur(20px) saturate(1.1);
+  -webkit-backdrop-filter: blur(20px) saturate(1.1);
+}
+
+.pull-refresh-icon {
+  color: var(--accent);
+  font-size: 16px;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+
+.pull-refresh-indicator.ready .pull-refresh-icon {
+  transform: rotate(180deg);
+}
+
+.pull-refresh-indicator.refreshing .pull-refresh-icon {
+  animation: pullRefreshSpin 0.9s linear infinite;
+}
+
+@keyframes pullRefreshSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 h1,
 h2,
 .serif {
