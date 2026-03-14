@@ -356,6 +356,10 @@ h2,
   padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 112px);
 }
 
+.page#page-log {
+  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 136px);
+}
+
 .page.active {
   display: block;
 }
@@ -1881,6 +1885,24 @@ h2,
   display: flex;
   gap: 8px;
   margin-top: 16px;
+}
+
+.sticky-meal-action {
+  position: sticky;
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px);
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin-top: 14px;
+  background: rgba(253, 246, 240, 0.98);
+  border: 1px solid rgba(26, 26, 46, 0.08);
+  border-radius: 20px;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+  z-index: 6;
+}
+
+.sticky-meal-action .form-group {
+  margin-bottom: 0;
 }
 
 .estimate-action {

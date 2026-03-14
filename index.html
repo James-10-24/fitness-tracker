@@ -183,16 +183,18 @@
         <input class="search-input" id="food-search" placeholder="Search your foods..." oninput="renderFoodPicker()">
       </div>
       <div id="food-picker-list"></div>
-      <div class="form-group hidden" id="log-amount-group" style="margin-top: 16px;">
-        <label class="form-label" for="log-amount" id="log-amount-label">Enter how many you had</label>
-        <div class="amount-input-row">
-          <input class="form-input amount-input" id="log-amount" type="number" min="0.1" step="0.1" value="100" placeholder="100">
-          <select class="form-input amount-unit-pill" id="log-unit" onchange="handleLogUnitChange()"></select>
-        </div>
-      </div>
-      <button class="btn btn-primary" onclick="logFromFood()">Add to Today</button>
       <div class="helper-text">
         Missing a food item? <span class="helper-link" onclick="switchLogTab('ai-estimate')">Let AI take a guess for you</span>. After saving it, you can log it by grams or quantity in just a tap.
+      </div>
+      <div class="sticky-meal-action">
+        <div class="form-group hidden" id="log-amount-group">
+          <label class="form-label" for="log-amount" id="log-amount-label">Enter how many you had</label>
+          <div class="amount-input-row">
+            <input class="form-input amount-input" id="log-amount" type="number" min="0.1" step="0.1" value="100" placeholder="100">
+            <select class="form-input amount-unit-pill" id="log-unit" onchange="handleLogUnitChange()"></select>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="logFromFood()">Add to Today</button>
       </div>
     </div>
 
@@ -248,7 +250,7 @@
             <input class="form-input" id="ai-grams" type="number" min="1" step="1" placeholder="0">
           </div>
           <div class="helper-text helper-left" id="ai-estimate-helper" style="margin-top: -4px;">Change any value if it looks off. Editing quantity will auto-update the rest.</div>
-          <div class="estimate-actions">
+          <div class="estimate-actions sticky-meal-action">
             <button class="btn btn-primary estimate-action" onclick="logAiEstimate()">Add to Today</button>
           </div>
           <label class="checkbox-row" for="ai-save-to-foods">
@@ -294,7 +296,7 @@
           <input class="form-input" id="custom-portion-name" placeholder="e.g. cups, pcs, oz">
         </div>
       </div>
-      <div class="estimate-actions">
+      <div class="estimate-actions sticky-meal-action">
         <button class="btn btn-primary estimate-action" onclick="logCustom()">Add to Today</button>
       </div>
       <label class="checkbox-row" for="custom-save-to-foods">
@@ -318,6 +320,12 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       </div>
       Today
+    </button>
+    <button class="nav-btn" id="nav-log" onclick="showPage('log')">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12c1.7-3.3 5-6 7-7 2 1 5.3 3.7 7 7-1.7 3.3-5 6-7 7-2-1-5.3-3.7-7-7Z"/><path d="M9.5 12h5"/><path d="M8 9.5h8"/><path d="M8 14.5h8"/></svg>
+      </div>
+      Meals
     </button>
     <button class="nav-btn" id="nav-history" onclick="showPage('history')">
       <div class="nav-icon">

@@ -961,6 +961,43 @@ function formatFoodBaseLabel(food) {
   return food.serving || `${Math.round(food.grams)} g`;
 }
 
+function normalizeFoodForLibrary({ name, grams, cal, pro, carb, fat, baseQuantity = 0, quantityUnit = "" }) {
+  const normalizedUnit = normalizeFoodUnit(quantityUnit);
+  const normalizedBaseQuantity = normalizePositiveNumber(baseQuantity, 0);
+  const normalizedGrams = Math.max(1, normalizePositiveNumber(grams, 0) || 1);
+  const normalizedCal = normalizePositiveNumber(cal, 0);
+  const normalizedPro = normalizePositiveNumber(pro, 0);
+  const normalizedCarb = normalizePositiveNumber(carb, 0);
+  const normalizedFat = normalizePositiveNumber(fat, 0);
+
+  if (normalizedUnit && normalizedBaseQuantity > 0 && !isWeightUnit(normalizedUnit)) {
+    const divisor = normalizedBaseQuantity;
+    return {
+      name,
+      grams: Math.max(0.1, roundNutrient(normalizedGrams / divisor)),
+      baseQuantity: 1,
+      quantityUnit: normalizedUnit,
+      cal: roundNutrient(normalizedCal / divisor),
+      pro: roundNutrient(normalizedPro / divisor),
+      carb: roundNutrient(normalizedCarb / divisor),
+      fat: roundNutrient(normalizedFat / divisor),
+      serving: `1 ${formatFoodUnitLabel(normalizedUnit, getFoodUnitKind(normalizedUnit), 1)}`
+    };
+  }
+
+  return {
+    name,
+    grams: 1,
+    baseQuantity: 0,
+    quantityUnit: "",
+    cal: roundNutrient(normalizedCal / normalizedGrams),
+    pro: roundNutrient(normalizedPro / normalizedGrams),
+    carb: roundNutrient(normalizedCarb / normalizedGrams),
+    fat: roundNutrient(normalizedFat / normalizedGrams),
+    serving: "1 g"
+  };
+}
+
 function singularizeUnit(unit) {
   if (!unit) {
     return "";
@@ -1970,7 +2007,7 @@ function saveAiEstimateToFoods() {
 function upsertAiEstimateFood(values) {
   const baseQuantity = activeAiEstimate?.baseQuantity || inferQuantityFromServing(values.serving).baseQuantity || 0;
   const quantityUnit = activeAiEstimate?.quantityUnit || inferQuantityFromServing(values.serving).quantityUnit || "";
-  upsertFoodRecord({
+  upsertFoodRecord(normalizeFoodForLibrary({
     name: values.name,
     grams: values.grams,
     baseQuantity,
@@ -1978,9 +2015,8 @@ function upsertAiEstimateFood(values) {
     cal: roundNutrient(values.calories),
     pro: roundNutrient(values.protein),
     carb: roundNutrient(values.carb),
-    fat: roundNutrient(values.fat),
-    serving: values.serving
-  });
+    fat: roundNutrient(values.fat)
+  }));
   renderFoodsDB();
   updateLogTabs();
   renderFoodPicker();
@@ -2088,7 +2124,7 @@ function saveCustomValuesToFoods(values) {
   }
 
   const quantityMeta = inferQuantityFromServing(serving);
-  upsertFoodRecord({
+  upsertFoodRecord(normalizeFoodForLibrary({
     name: values.name,
     grams: Math.max(1, roundNutrient(grams)),
     baseQuantity: quantityMeta.baseQuantity || 0,
@@ -2096,9 +2132,8 @@ function saveCustomValuesToFoods(values) {
     cal: roundNutrient(values.cal),
     pro: roundNutrient(values.pro),
     carb: roundNutrient(values.carb),
-    fat: roundNutrient(values.fat),
-    serving
-  });
+    fat: roundNutrient(values.fat)
+  }));
   renderFoodsDB();
   updateLogTabs();
   renderFoodPicker();
