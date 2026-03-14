@@ -16,8 +16,9 @@
   --danger: #d95f45;
   --radius: 24px;
   --radius-sm: 14px;
-  --nav-h: 80px;
+  --nav-h: 68px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --nav-total-h: calc(var(--nav-h) + var(--safe-bottom));
   --app-max-width: 430px;
   --app-gutter: 12px;
   --app-width: min(var(--app-max-width), calc(100vw - (var(--app-gutter) * 2)));
@@ -41,7 +42,7 @@ body {
     radial-gradient(circle at top right, rgba(123, 94, 167, 0.16), transparent 22%),
     linear-gradient(180deg, #fff9f5 0%, #fdf6f0 42%, #f7eee7 100%);
   color: var(--text);
-  min-height: 100vh;
+  min-height: 100dvh;
   width: var(--app-width);
   max-width: var(--app-max-width);
   margin: 0 auto;
@@ -305,14 +306,14 @@ h2,
   transform: translateX(-50%);
   width: var(--app-width);
   max-width: var(--app-max-width);
-  height: calc(var(--nav-h) + var(--safe-bottom));
+  min-height: var(--nav-total-h);
   background: rgba(248, 248, 248, 0.82);
   backdrop-filter: blur(28px) saturate(1.2);
   -webkit-backdrop-filter: blur(28px) saturate(1.2);
   border-top: 1px solid rgba(60, 60, 67, 0.12);
   display: flex;
-  align-items: flex-start;
-  padding-top: 10px;
+  align-items: center;
+  padding: 10px 0 calc(10px + var(--safe-bottom));
   z-index: 100;
 }
 
@@ -348,16 +349,16 @@ h2,
 
 .page {
   display: none;
-  padding: 0 0 calc(var(--nav-h) + var(--safe-bottom) + 16px);
-  min-height: 100vh;
+  padding: 0 0 calc(var(--nav-total-h) + 16px);
+  min-height: 100dvh;
 }
 
 .page#page-today {
-  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 112px);
+  padding-bottom: calc(var(--nav-total-h) + 112px);
 }
 
 .page#page-log {
-  padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 136px);
+  padding-bottom: calc(var(--nav-total-h) + 136px);
 }
 
 .page.active {
@@ -1201,7 +1202,7 @@ h2,
 
 .fab {
   position: fixed;
-  bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px);
+  bottom: calc(var(--nav-total-h) + 16px);
   right: max(var(--app-gutter), calc((100vw - var(--app-width)) / 2 + 16px));
   width: 52px;
   height: 52px;
@@ -1240,7 +1241,7 @@ h2,
 .fab-menu {
   position: fixed;
   right: max(var(--app-gutter), calc((100vw - var(--app-width)) / 2 + 16px));
-  bottom: calc(var(--nav-h) + var(--safe-bottom) + 80px);
+  bottom: calc(var(--nav-total-h) + 80px);
   width: min(360px, calc(var(--app-width) - 24px));
   max-height: min(70vh, 620px);
   overflow-y: auto;
@@ -1889,7 +1890,7 @@ h2,
 
 .sticky-meal-action {
   position: sticky;
-  bottom: calc(var(--nav-h) + var(--safe-bottom) + 12px);
+  bottom: calc(var(--nav-total-h) + 12px);
   display: grid;
   gap: 10px;
   padding: 14px;
