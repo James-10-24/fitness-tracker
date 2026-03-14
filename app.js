@@ -136,6 +136,9 @@ function isStandaloneMode() {
 }
 
 function shouldShowInstallEntry() {
+  if (isIosDevice()) {
+    return true;
+  }
   return isMobileDevice() && !isStandaloneMode();
 }
 
@@ -792,9 +795,6 @@ function openAuthFromAccount(mode = "signin") {
   updateAuthUi();
   document.getElementById("overlay-account").classList.remove("open");
   document.getElementById("auth-status").textContent = "";
-  const emailInput = document.getElementById("auth-email");
-  const passwordInput = document.getElementById("auth-password");
-  (emailInput?.value ? passwordInput : emailInput)?.focus();
   if (mode === "signup") {
     document.getElementById("auth-status").textContent = "Create an account to sync your current local data.";
   }
