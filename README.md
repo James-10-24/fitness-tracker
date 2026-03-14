@@ -1,6 +1,6 @@
-# NutriLog PWA
+# Nutri.AI PWA
 
-NutriLog is a mobile-first progressive web app for logging meals, calories, and protein. This version includes a Node backend that calls the OpenAI API to estimate nutrition for free-text food descriptions.
+Nutri.AI is a mobile-first progressive web app for logging meals, calories, and protein. This version includes a Node backend that calls the OpenAI API to estimate nutrition for free-text food descriptions.
 
 ## Files
 

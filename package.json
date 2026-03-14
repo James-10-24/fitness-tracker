@@ -1,8 +1,8 @@
 {
-  "name": "nutrilog-pwa",
+  "name": "nutri-ai-pwa",
   "private": true,
   "version": "1.0.0",
-  "description": "NutriLog PWA with an AI-backed nutrition estimate endpoint",
+  "description": "Nutri.AI PWA with an AI-backed nutrition estimate endpoint",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"

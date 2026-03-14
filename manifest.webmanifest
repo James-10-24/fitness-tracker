@@ -1,11 +1,11 @@
 {
-  "name": "NutriLog",
-  "short_name": "NutriLog",
-  "description": "Track your meals, calories, and protein from your phone home screen.",
+  "name": "Nutri.AI",
+  "short_name": "Nutri.AI",
+  "description": "Smart nutrition tracking with AI-powered meal estimates and reusable food logging.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#FAFAF8",
-  "theme_color": "#FAFAF8",
+  "background_color": "#F5F2EC",
+  "theme_color": "#F5F2EC",
   "icons": [
     {
       "src": "./icons/icon-192.svg",
