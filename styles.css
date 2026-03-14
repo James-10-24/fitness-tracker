@@ -1273,6 +1273,7 @@ h2,
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 12px 14px;
   background: rgba(255, 255, 255, 0.72);
   border-radius: var(--radius-sm);
@@ -1290,6 +1291,11 @@ h2,
 
 .food-option:active {
   transform: scale(0.99);
+}
+
+.food-option-main {
+  flex: 1;
+  min-width: 0;
 }
 
 .food-option-name {
@@ -1310,6 +1316,30 @@ h2,
   padding: 3px 8px;
   border-radius: 99px;
   color: var(--text2);
+}
+
+.food-option-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.food-option-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.food-option-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  font-size: 0;
+}
+
+.food-option-icon svg {
+  width: 15px;
+  height: 15px;
 }
 
 .food-row {
@@ -1341,27 +1371,6 @@ h2,
 .food-row-actions {
   display: flex;
   gap: 8px;
-}
-
-.tab-section-divider {
-  height: 1px;
-  background: var(--border);
-  margin: 18px 0 16px;
-}
-
-.tab-inline-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.tab-inline-btn {
-  width: auto;
-  margin-top: 0;
-  padding: 10px 14px;
-  font-size: 13px;
 }
 
 .icon-btn {

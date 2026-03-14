@@ -769,11 +769,30 @@ function renderFoodPicker() {
 
   list.innerHTML = foods.map((food) => `
     <div class="food-option ${selectedFoodId === food.id ? "selected" : ""}" onclick="selectFood('${food.id}')">
-      <div>
+      <div class="food-option-main">
         <div class="food-option-name">${escHtml(food.name)}</div>
         <div class="food-option-meta">${Math.round(food.cal)} kcal · ${roundNutrient(food.pro)}g protein per ${escHtml(formatFoodBaseLabel(food))}</div>
       </div>
-      <span class="food-option-badge">${escHtml(formatFoodBaseLabel(food))}</span>
+      <div class="food-option-side">
+        <span class="food-option-badge">${escHtml(formatFoodBaseLabel(food))}</span>
+        <div class="food-option-actions">
+          <button class="icon-btn food-option-icon" onclick="event.stopPropagation(); openFoodModal('${food.id}')" title="Edit" aria-label="Edit ${escHtml(food.name)}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"/>
+            </svg>
+          </button>
+          <button class="icon-btn danger food-option-icon" onclick="event.stopPropagation(); deleteFoodById('${food.id}')" title="Delete" aria-label="Delete ${escHtml(food.name)}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18"/>
+              <path d="M8 6V4h8v2"/>
+              <path d="M19 6l-1 14H6L5 6"/>
+              <path d="M10 11v6"/>
+              <path d="M14 11v6"/>
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
   `).join("");
 }
