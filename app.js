@@ -858,6 +858,7 @@ async function requestAiEstimate() {
       baseFat: normalizePositiveNumber(payload.fat_g, 0),
       baseQuantity: normalizePositiveNumber(payload.base_quantity, 0),
       quantityUnit: payload.quantity_unit || "",
+      portionName: payload.portion_name || "",
       confidence: payload.confidence || "medium",
       note: payload.note || ""
     };
@@ -869,9 +870,7 @@ async function requestAiEstimate() {
     document.getElementById("ai-protein").value = roundNutrient(activeAiEstimate.baseProtein);
     document.getElementById("ai-carb").value = roundNutrient(activeAiEstimate.baseCarb);
     document.getElementById("ai-fat").value = roundNutrient(activeAiEstimate.baseFat);
-    document.getElementById("ai-serving-label").value = activeAiEstimate.baseQuantity > 0 && activeAiEstimate.quantityUnit
-      ? `${roundNutrient(activeAiEstimate.baseQuantity)} ${activeAiEstimate.quantityUnit}`
-      : `${Math.round(activeAiEstimate.baseGrams)} g portion`;
+    document.getElementById("ai-serving-label").value = activeAiEstimate.portionName || buildAiPortionName(activeAiEstimate.baseGrams, activeAiEstimate.baseQuantity, activeAiEstimate.quantityUnit);
     document.getElementById("ai-estimate-note").textContent = `AI estimate (${activeAiEstimate.confidence} confidence): ${payload.note}`;
     updateAiQuantityMode();
     document.getElementById("ai-estimate-editor").classList.remove("hidden");
@@ -909,9 +908,9 @@ function syncEstimateFromGrams() {
   if (activeAiEstimate.baseQuantity > 0 && activeAiEstimate.quantityUnit) {
     const quantity = roundNutrient(activeAiEstimate.baseQuantity * ratio);
     document.getElementById("ai-quantity").value = quantity;
-    document.getElementById("ai-serving-label").value = `${quantity} ${activeAiEstimate.quantityUnit}`;
+    document.getElementById("ai-serving-label").value = buildAiPortionName(grams, quantity, activeAiEstimate.quantityUnit);
   } else {
-    document.getElementById("ai-serving-label").value = `${Math.round(grams)} g portion`;
+    document.getElementById("ai-serving-label").value = buildAiPortionName(grams, 0, "");
   }
 }
 
@@ -929,8 +928,15 @@ function syncEstimateFromQuantity() {
   document.getElementById("ai-carb").value = roundNutrient(activeAiEstimate.baseCarb * ratio);
   document.getElementById("ai-fat").value = roundNutrient(activeAiEstimate.baseFat * ratio);
   if (activeAiEstimate.quantityUnit) {
-    document.getElementById("ai-serving-label").value = `${roundNutrient(quantity)} ${activeAiEstimate.quantityUnit}`;
+    document.getElementById("ai-serving-label").value = buildAiPortionName(grams, quantity, activeAiEstimate.quantityUnit);
   }
+}
+
+function buildAiPortionName(grams, baseQuantity, quantityUnit) {
+  if (baseQuantity > 0 && quantityUnit) {
+    return `${roundNutrient(baseQuantity)} ${quantityUnit}`;
+  }
+  return `${Math.round(grams)} g`;
 }
 
 function readAiEditorValues() {
@@ -961,6 +967,23 @@ function validateAiEditorValues(values) {
   return true;
 }
 
+function resetAiEstimateForm() {
+  activeAiEstimate = null;
+  document.getElementById("ai-food-input").value = "";
+  document.getElementById("ai-name").value = "";
+  document.getElementById("ai-quantity").value = "";
+  document.getElementById("ai-grams").value = "";
+  document.getElementById("ai-calories").value = "";
+  document.getElementById("ai-protein").value = "";
+  document.getElementById("ai-carb").value = "";
+  document.getElementById("ai-fat").value = "";
+  document.getElementById("ai-serving-label").value = "";
+  document.getElementById("ai-estimate-note").textContent = "";
+  document.getElementById("ai-estimate-status").textContent = "";
+  document.getElementById("ai-estimate-editor").classList.add("hidden");
+  updateAiQuantityMode();
+}
+
 function logAiEstimate() {
   const values = readAiEditorValues();
   if (!validateAiEditorValues(values)) {
@@ -978,6 +1001,7 @@ function logAiEstimate() {
   });
 
   saveState();
+  resetAiEstimateForm();
   renderToday();
   renderHistory();
   triggerFoodCelebration();
@@ -1012,6 +1036,8 @@ function saveAiEstimateToFoods() {
 
 function logCustom() {
   const name = document.getElementById("custom-name").value.trim();
+  const quantity = normalizePositiveNumber(document.getElementById("custom-quantity").value, 0);
+  const portionName = document.getElementById("custom-portion-name").value.trim();
   const cal = normalizePositiveNumber(document.getElementById("custom-cal").value, 0);
   const pro = normalizePositiveNumber(document.getElementById("custom-pro").value, 0);
   const carb = normalizePositiveNumber(document.getElementById("custom-carb").value, 0);
@@ -1022,9 +1048,19 @@ function logCustom() {
     return;
   }
 
-  state.logs.push({ id: uid(), date: todayStr(), name, cal, pro, carb, fat });
+  const displayName = quantity > 0 && portionName
+    ? `${name} (${roundNutrient(quantity)} ${portionName})`
+    : portionName
+      ? `${name} (${portionName})`
+      : quantity > 0
+        ? `${name} (${roundNutrient(quantity)})`
+        : name;
+
+  state.logs.push({ id: uid(), date: todayStr(), name: displayName, cal, pro, carb, fat });
   saveState();
   document.getElementById("custom-name").value = "";
+  document.getElementById("custom-quantity").value = "";
+  document.getElementById("custom-portion-name").value = "";
   document.getElementById("custom-cal").value = "";
   document.getElementById("custom-pro").value = "";
   document.getElementById("custom-carb").value = "";

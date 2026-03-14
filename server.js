@@ -159,6 +159,8 @@ function buildEstimatePayload(query, retryInstruction = "") {
     "Estimate the exact described quantity first. If the user says 4 eggs, estimate 4 eggs, not 1 egg.",
     "Return realistic nutrition estimates for that exact described amount, not a generic serving.",
     "Use common prepared-food assumptions only when the user is vague.",
+    "Return a practical portion unit for logging. Prefer g, ml, cup, piece, or oz when they fit. For count-based foods, use a clear singular unit like egg, slice, or bottle.",
+    "Also return a short human-readable portion_name such as 200 g, 250 ml, 1 cup, 2 eggs, or 1 bottle.",
     "Sanity-check the macros before answering. Do not return obviously impossible zeros for major macros when the food normally contains them.",
     "Examples: eggs should include meaningful fat, oils should include fat, rice and bread should include carbs, meat and fish should include protein.",
     "If the food is mixed, estimate all four macros realistically rather than leaving one at zero unless that macro is truly negligible.",
@@ -209,10 +211,11 @@ function buildEstimatePayload(query, retryInstruction = "") {
             fat_g: { type: "number" },
             base_quantity: { type: "number" },
             quantity_unit: { type: "string" },
+            portion_name: { type: "string" },
             confidence: { type: "string", enum: ["low", "medium", "high"] },
             note: { type: "string" }
           },
-          required: ["food_name", "estimated_grams", "calories", "protein_g", "carb_g", "fat_g", "base_quantity", "quantity_unit", "confidence", "note"]
+          required: ["food_name", "estimated_grams", "calories", "protein_g", "carb_g", "fat_g", "base_quantity", "quantity_unit", "portion_name", "confidence", "note"]
         }
       }
     }
@@ -259,6 +262,7 @@ function normalizeEstimate(value) {
   const fat = Number(value.fat_g);
   const baseQuantity = Number(value.base_quantity);
   const quantityUnit = typeof value.quantity_unit === "string" ? singularizeUnit(value.quantity_unit.trim()) : "";
+  const portionName = typeof value.portion_name === "string" ? value.portion_name.trim() : "";
   const confidence = typeof value.confidence === "string" ? value.confidence : "medium";
   const note = typeof value.note === "string" ? value.note.trim() : "";
 
@@ -275,9 +279,17 @@ function normalizeEstimate(value) {
     fat_g: Math.round(fat * 10) / 10,
     base_quantity: Number.isFinite(baseQuantity) && baseQuantity > 0 ? Math.round(baseQuantity * 10) / 10 : 0,
     quantity_unit: Number.isFinite(baseQuantity) && baseQuantity > 0 ? quantityUnit : "",
+    portion_name: portionName || buildPortionName(grams, baseQuantity, quantityUnit),
     confidence: ["low", "medium", "high"].includes(confidence) ? confidence : "medium",
     note: note || "Estimated from a common serving size."
   };
+}
+
+function buildPortionName(grams, baseQuantity, quantityUnit) {
+  if (Number.isFinite(baseQuantity) && baseQuantity > 0 && quantityUnit) {
+    return `${Math.round(baseQuantity * 10) / 10} ${quantityUnit}`;
+  }
+  return `${Math.round(grams)} g`;
 }
 
 function singularizeUnit(unit) {
