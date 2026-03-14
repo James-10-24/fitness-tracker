@@ -102,6 +102,33 @@ h2,
   padding: 56px 20px 20px;
 }
 
+.page-header-with-action {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.header-icon-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+  box-shadow: 0 10px 22px rgba(26, 26, 24, 0.04);
+}
+
+.header-icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
 .page-title {
   font-size: 28px;
   font-weight: 600;
@@ -1063,6 +1090,10 @@ h2,
   margin-bottom: 20px;
 }
 
+.sheet-actions {
+  margin: 16px 0 8px;
+}
+
 .form-group {
   margin-bottom: 16px;
 }
@@ -1163,6 +1194,8 @@ h2,
 .btn-secondary {
   background: var(--bg2);
   color: var(--text);
+  border: 1.5px solid var(--border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
   margin-top: 8px;
 }
 

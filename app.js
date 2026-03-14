@@ -294,17 +294,22 @@ function getFoodLogConfig(food) {
 }
 
 function updateFoodLogInputMode() {
+  const amountGroup = document.getElementById("log-amount-group");
   const amountLabel = document.getElementById("log-amount-label");
   const amountInput = document.getElementById("log-amount");
   const unitSelect = document.getElementById("log-unit");
-  const helper = document.getElementById("log-input-helper");
   const food = state.foods.find((entry) => entry.id === selectedFoodId);
   const config = getFoodLogConfig(food);
-  if (!amountLabel || !amountInput || !unitSelect) {
+  if (!amountGroup || !amountLabel || !amountInput || !unitSelect) {
+    return;
+  }
+  amountGroup.classList.toggle("hidden", !food);
+  if (!food) {
+    unitSelect.innerHTML = "";
     return;
   }
 
-  amountLabel.textContent = config.label;
+  amountLabel.textContent = config.helper;
   amountInput.min = config.min;
   amountInput.step = config.step;
   amountInput.value = String(config.amount);
@@ -314,17 +319,14 @@ function updateFoodLogInputMode() {
   `).join("");
   unitSelect.disabled = config.options.length === 1;
   unitSelect.dataset.prevUnit = config.selectedUnit;
-  if (helper) {
-    helper.textContent = config.helper;
-  }
 }
 
 function handleLogUnitChange() {
   const amountInput = document.getElementById("log-amount");
   const unitSelect = document.getElementById("log-unit");
-  const helper = document.getElementById("log-input-helper");
+  const amountLabel = document.getElementById("log-amount-label");
   const food = state.foods.find((entry) => entry.id === selectedFoodId);
-  if (!amountInput || !unitSelect || !food) {
+  if (!amountInput || !unitSelect || !food || !amountLabel) {
     return;
   }
 
@@ -339,12 +341,10 @@ function handleLogUnitChange() {
     : String(roundNutrient(converted));
   unitSelect.dataset.prevUnit = nextUnit;
 
-  if (helper) {
-    if (config.kind === "weight") {
-      helper.textContent = nextUnit === "oz" ? "Enter how many ounces you had" : "Enter how many grams you had";
-    } else if (config.kind === "volume") {
-      helper.textContent = nextUnit === "cup" ? "Enter the amount in cups" : nextUnit === "l" ? "Enter the amount in L" : "Enter the amount in ml";
-    }
+  if (config.kind === "weight") {
+    amountLabel.textContent = nextUnit === "oz" ? "Enter how many ounces you had" : "Enter how many grams you had";
+  } else if (config.kind === "volume") {
+    amountLabel.textContent = nextUnit === "cup" ? "Enter the amount in cups" : nextUnit === "l" ? "Enter the amount in L" : "Enter the amount in ml";
   }
 }
 
@@ -371,9 +371,6 @@ function showPage(page) {
   if (page === "log") {
     renderFoodPicker();
   }
-  if (page === "foods") {
-    renderFoodsDB();
-  }
   if (page === "history") {
     renderHistory();
   }
@@ -386,10 +383,7 @@ function updateFab() {
   if (!fab) {
     return;
   }
-  if (currentPage === "foods") {
-    fab.style.display = "flex";
-    fab.title = "Add Food";
-  } else if (currentPage === "log" || currentPage === "history") {
+  if (currentPage === "log" || currentPage === "history") {
     closeFabMenu();
     fab.style.display = "none";
   } else {
@@ -401,8 +395,6 @@ function updateFab() {
 function handleFab() {
   if (currentPage === "today") {
     toggleFabMenu();
-  } else if (currentPage === "foods") {
-    openFoodModal();
   }
 }
 
@@ -1034,7 +1026,7 @@ function saveAiEstimateToFoods() {
   showToast("Food saved from AI estimate");
 }
 
-function logCustom() {
+function readCustomValues() {
   const name = document.getElementById("custom-name").value.trim();
   const quantity = normalizePositiveNumber(document.getElementById("custom-quantity").value, 0);
   const portionName = document.getElementById("custom-portion-name").value.trim();
@@ -1043,21 +1035,32 @@ function logCustom() {
   const carb = normalizePositiveNumber(document.getElementById("custom-carb").value, 0);
   const fat = normalizePositiveNumber(document.getElementById("custom-fat").value, 0);
 
-  if (!name) {
-    showToast("Please enter a meal name");
-    return;
-  }
+  return { name, quantity, portionName, cal, pro, carb, fat };
+}
 
-  const displayName = quantity > 0 && portionName
+function buildCustomDisplayName(values) {
+  const { name, quantity, portionName } = values;
+  return quantity > 0 && portionName
     ? `${name} (${roundNutrient(quantity)} ${portionName})`
     : portionName
       ? `${name} (${portionName})`
       : quantity > 0
         ? `${name} (${roundNutrient(quantity)})`
         : name;
+}
 
-  state.logs.push({ id: uid(), date: todayStr(), name: displayName, cal, pro, carb, fat });
-  saveState();
+function buildCustomServing(values) {
+  const { quantity, portionName } = values;
+  if (quantity > 0 && portionName) {
+    return `${roundNutrient(quantity)} ${portionName}`;
+  }
+  if (portionName) {
+    return portionName;
+  }
+  return "";
+}
+
+function resetCustomForm() {
   document.getElementById("custom-name").value = "";
   document.getElementById("custom-quantity").value = "";
   document.getElementById("custom-portion-name").value = "";
@@ -1065,11 +1068,69 @@ function logCustom() {
   document.getElementById("custom-pro").value = "";
   document.getElementById("custom-carb").value = "";
   document.getElementById("custom-fat").value = "";
+}
+
+function validateCustomValues(values) {
+  if (!values.name) {
+    showToast("Please enter a meal name");
+    return false;
+  }
+  return true;
+}
+
+function logCustom() {
+  const values = readCustomValues();
+  if (!validateCustomValues(values)) {
+    return;
+  }
+
+  const displayName = buildCustomDisplayName(values);
+
+  state.logs.push({ id: uid(), date: todayStr(), name: displayName, cal: values.cal, pro: values.pro, carb: values.carb, fat: values.fat });
+  saveState();
+  resetCustomForm();
   renderToday();
   renderHistory();
   triggerFoodCelebration();
   showToast("Meal logged");
   setTimeout(() => showPage("today"), 400);
+}
+
+function saveCustomToFoods() {
+  const values = readCustomValues();
+  if (!validateCustomValues(values)) {
+    return;
+  }
+
+  const serving = buildCustomServing(values);
+  let grams = 100;
+  const normalizedUnit = normalizeFoodUnit(values.portionName);
+  if (values.quantity > 0 && normalizedUnit) {
+    if (isWeightUnit(normalizedUnit)) {
+      grams = convertToCanonicalFoodAmount(values.quantity, normalizedUnit, "weight");
+    } else if (normalizedUnit === "ml") {
+      grams = values.quantity;
+    } else if (normalizedUnit === "l") {
+      grams = values.quantity * 1000;
+    }
+  }
+
+  state.foods.push(normalizeFoodRecord({
+    id: uid(),
+    name: values.name,
+    grams: Math.max(1, roundNutrient(grams)),
+    cal: roundNutrient(values.cal),
+    pro: roundNutrient(values.pro),
+    carb: roundNutrient(values.carb),
+    fat: roundNutrient(values.fat),
+    serving
+  }));
+
+  saveState();
+  resetCustomForm();
+  renderFoodsDB();
+  renderFoodPicker();
+  showToast("Saved to My Foods");
 }
 
 function renderFoodsDB() {
@@ -1364,6 +1425,11 @@ function calculateGoalRecommendation({ gender, age, heightCm, weightKg, fitnessG
 
 function closeModal(name) {
   document.getElementById(`overlay-${name}`).classList.remove("open");
+}
+
+function openMyFoodsModal() {
+  renderFoodsDB();
+  document.getElementById("overlay-my-foods").classList.add("open");
 }
 
 function showToast(message) {
