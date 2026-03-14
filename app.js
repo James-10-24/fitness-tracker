@@ -89,6 +89,8 @@ function normalizeFoodRecord(food) {
   const grams = Math.max(1, normalizePositiveNumber(food.grams, 0) || inferGramsFromServing(food.serving) || 100);
   const cal = normalizePositiveNumber(food.cal, 0);
   const pro = normalizePositiveNumber(food.pro, 0);
+  const carb = normalizePositiveNumber(food.carb, 0);
+  const fat = normalizePositiveNumber(food.fat, 0);
   const quantityMeta = inferQuantityFromServing(food.serving);
   const baseQuantity = normalizePositiveNumber(food.baseQuantity, 0) || quantityMeta.baseQuantity || 0;
   const quantityUnit = food.quantityUnit || quantityMeta.quantityUnit || "";
@@ -97,10 +99,14 @@ function normalizeFoodRecord(food) {
     grams,
     cal,
     pro,
+    carb,
+    fat,
     baseQuantity,
     quantityUnit,
     calPerGram: cal / grams,
     proPerGram: pro / grams,
+    carbPerGram: carb / grams,
+    fatPerGram: fat / grams,
     serving: food.serving || `${Math.round(grams)} g`
   };
 }
@@ -234,26 +240,25 @@ function renderToday() {
   const logs = todayLogs();
   const totalCal = logs.reduce((sum, log) => sum + (log.cal || 0), 0);
   const totalPro = logs.reduce((sum, log) => sum + (log.pro || 0), 0);
+  const totalCarb = logs.reduce((sum, log) => sum + (log.carb || 0), 0);
+  const totalFat = logs.reduce((sum, log) => sum + (log.fat || 0), 0);
   const totalWater = todayWaterTotal();
   const totalSteps = todayStepsTotal();
   const goalCal = state.goals.cal;
   const goalPro = state.goals.pro;
+  const goalCarb = state.goals.carb;
+  const goalFat = state.goals.fat;
   const goalWater = state.goals.water;
   const goalSteps = state.goals.steps;
-
-  document.getElementById("today-cal-val").textContent = Math.round(totalCal);
-  document.getElementById("today-pro-val").textContent = Math.round(totalPro);
-  document.getElementById("today-cal-goal").textContent = goalCal;
-  document.getElementById("today-pro-goal").textContent = goalPro;
-  document.getElementById("today-carb-goal").textContent = Math.round(state.goals.carb);
-  document.getElementById("today-fat-goal").textContent = Math.round(state.goals.fat);
-  document.getElementById("today-water-goal").textContent = roundNutrient(state.goals.water);
-  document.getElementById("today-steps-goal").textContent = Math.round(state.goals.steps);
 
   document.getElementById("prog-cal-curr").textContent = Math.round(totalCal);
   document.getElementById("prog-cal-goal").textContent = goalCal;
   document.getElementById("prog-pro-curr").textContent = Math.round(totalPro);
   document.getElementById("prog-pro-goal").textContent = goalPro;
+  document.getElementById("prog-carb-curr").textContent = Math.round(totalCarb);
+  document.getElementById("prog-carb-goal").textContent = Math.round(goalCarb);
+  document.getElementById("prog-fat-curr").textContent = Math.round(totalFat);
+  document.getElementById("prog-fat-goal").textContent = Math.round(goalFat);
   document.getElementById("prog-water-curr").textContent = roundNutrient(totalWater);
   document.getElementById("prog-water-goal").textContent = roundNutrient(goalWater);
   document.getElementById("prog-steps-curr").textContent = Math.round(totalSteps);
@@ -261,15 +266,21 @@ function renderToday() {
 
   const pCal = goalCal > 0 ? Math.min((totalCal / goalCal) * 100, 100) : 0;
   const pPro = goalPro > 0 ? Math.min((totalPro / goalPro) * 100, 100) : 0;
+  const pCarb = goalCarb > 0 ? Math.min((totalCarb / goalCarb) * 100, 100) : 0;
+  const pFat = goalFat > 0 ? Math.min((totalFat / goalFat) * 100, 100) : 0;
   const pWater = goalWater > 0 ? Math.min((totalWater / goalWater) * 100, 100) : 0;
   const pSteps = goalSteps > 0 ? Math.min((totalSteps / goalSteps) * 100, 100) : 0;
   document.getElementById("prog-cal-bar").style.width = `${pCal}%`;
   document.getElementById("prog-pro-bar").style.width = `${pPro}%`;
+  document.getElementById("prog-carb-bar").style.width = `${pCarb}%`;
+  document.getElementById("prog-fat-bar").style.width = `${pFat}%`;
   document.getElementById("prog-water-bar").style.width = `${pWater}%`;
   document.getElementById("prog-steps-bar").style.width = `${pSteps}%`;
 
   document.getElementById("cal-progress-wrap").classList.toggle("progress-over", totalCal > goalCal);
   document.getElementById("pro-progress-wrap").classList.toggle("progress-over", totalPro > goalPro);
+  document.getElementById("carb-progress-wrap").classList.toggle("progress-over", totalCarb > goalCarb);
+  document.getElementById("fat-progress-wrap").classList.toggle("progress-over", totalFat > goalFat);
   document.getElementById("water-progress-wrap").classList.toggle("progress-over", totalWater > goalWater);
   document.getElementById("steps-progress-wrap").classList.toggle("progress-over", totalSteps > goalSteps);
 
@@ -283,7 +294,7 @@ function renderToday() {
     <div class="meal-item">
       <div>
         <div class="meal-name">${escHtml(log.name)}</div>
-        <div class="meal-meta">${Math.round(log.cal)} kcal · ${roundNutrient(log.pro)}g protein</div>
+        <div class="meal-meta">${Math.round(log.cal)} kcal · ${roundNutrient(log.pro)}g protein · ${roundNutrient(log.carb || 0)}g carbs · ${roundNutrient(log.fat || 0)}g fat</div>
       </div>
       <div class="meal-right">
         <span class="meal-cals">${Math.round(log.cal)}</span>
@@ -559,12 +570,16 @@ function logFromFood() {
 
   const calPerGram = normalizePositiveNumber(food.calPerGram, 0) || (food.grams > 0 ? food.cal / food.grams : 0);
   const proPerGram = normalizePositiveNumber(food.proPerGram, 0) || (food.grams > 0 ? food.pro / food.grams : 0);
+  const carbPerGram = normalizePositiveNumber(food.carbPerGram, 0) || (food.grams > 0 ? food.carb / food.grams : 0);
+  const fatPerGram = normalizePositiveNumber(food.fatPerGram, 0) || (food.grams > 0 ? food.fat / food.grams : 0);
   state.logs.push({
     id: uid(),
     date: todayStr(),
     name: food.name,
     cal: roundNutrient(calPerGram * grams),
-    pro: roundNutrient(proPerGram * grams)
+    pro: roundNutrient(proPerGram * grams),
+    carb: roundNutrient(carbPerGram * grams),
+    fat: roundNutrient(fatPerGram * grams)
   });
 
   saveState();
@@ -609,6 +624,8 @@ async function requestAiEstimate() {
       baseGrams: normalizePositiveNumber(payload.estimated_grams, 100),
       baseCalories: normalizePositiveNumber(payload.calories, 0),
       baseProtein: normalizePositiveNumber(payload.protein_g, 0),
+      baseCarb: normalizePositiveNumber(payload.carb_g, 0),
+      baseFat: normalizePositiveNumber(payload.fat_g, 0),
       baseQuantity: normalizePositiveNumber(payload.base_quantity, 0),
       quantityUnit: payload.quantity_unit || "",
       confidence: payload.confidence || "medium",
@@ -620,6 +637,8 @@ async function requestAiEstimate() {
     document.getElementById("ai-grams").value = Math.round(activeAiEstimate.baseGrams);
     document.getElementById("ai-calories").value = Math.round(activeAiEstimate.baseCalories);
     document.getElementById("ai-protein").value = roundNutrient(activeAiEstimate.baseProtein);
+    document.getElementById("ai-carb").value = roundNutrient(activeAiEstimate.baseCarb);
+    document.getElementById("ai-fat").value = roundNutrient(activeAiEstimate.baseFat);
     document.getElementById("ai-serving-label").value = activeAiEstimate.baseQuantity > 0 && activeAiEstimate.quantityUnit
       ? `${roundNutrient(activeAiEstimate.baseQuantity)} ${activeAiEstimate.quantityUnit}`
       : `${Math.round(activeAiEstimate.baseGrams)} g portion`;
@@ -655,6 +674,8 @@ function syncEstimateFromGrams() {
   const ratio = activeAiEstimate.baseGrams > 0 ? grams / activeAiEstimate.baseGrams : 1;
   document.getElementById("ai-calories").value = Math.round(activeAiEstimate.baseCalories * ratio);
   document.getElementById("ai-protein").value = roundNutrient(activeAiEstimate.baseProtein * ratio);
+  document.getElementById("ai-carb").value = roundNutrient(activeAiEstimate.baseCarb * ratio);
+  document.getElementById("ai-fat").value = roundNutrient(activeAiEstimate.baseFat * ratio);
   if (activeAiEstimate.baseQuantity > 0 && activeAiEstimate.quantityUnit) {
     const quantity = roundNutrient(activeAiEstimate.baseQuantity * ratio);
     document.getElementById("ai-quantity").value = quantity;
@@ -675,6 +696,8 @@ function syncEstimateFromQuantity() {
   document.getElementById("ai-grams").value = grams;
   document.getElementById("ai-calories").value = Math.round(activeAiEstimate.baseCalories * ratio);
   document.getElementById("ai-protein").value = roundNutrient(activeAiEstimate.baseProtein * ratio);
+  document.getElementById("ai-carb").value = roundNutrient(activeAiEstimate.baseCarb * ratio);
+  document.getElementById("ai-fat").value = roundNutrient(activeAiEstimate.baseFat * ratio);
   if (activeAiEstimate.quantityUnit) {
     document.getElementById("ai-serving-label").value = `${roundNutrient(quantity)} ${activeAiEstimate.quantityUnit}`;
   }
@@ -685,9 +708,11 @@ function readAiEditorValues() {
   const grams = normalizePositiveNumber(document.getElementById("ai-grams").value, 0);
   const calories = normalizePositiveNumber(document.getElementById("ai-calories").value, 0);
   const protein = normalizePositiveNumber(document.getElementById("ai-protein").value, 0);
+  const carb = normalizePositiveNumber(document.getElementById("ai-carb").value, 0);
+  const fat = normalizePositiveNumber(document.getElementById("ai-fat").value, 0);
   const serving = document.getElementById("ai-serving-label").value.trim() || `${Math.round(grams)} g portion`;
 
-  return { name, grams, calories, protein, serving };
+  return { name, grams, calories, protein, carb, fat, serving };
 }
 
 function validateAiEditorValues(values) {
@@ -699,8 +724,8 @@ function validateAiEditorValues(values) {
     showToast("Grams must be greater than 0");
     return false;
   }
-  if (values.calories < 0 || values.protein < 0) {
-    showToast("Calories and protein must be valid numbers");
+  if (values.calories < 0 || values.protein < 0 || values.carb < 0 || values.fat < 0) {
+    showToast("Nutrition values must be valid numbers");
     return false;
   }
   return true;
@@ -717,7 +742,9 @@ function logAiEstimate() {
     date: todayStr(),
     name: values.name,
     cal: roundNutrient(values.calories),
-    pro: roundNutrient(values.protein)
+    pro: roundNutrient(values.protein),
+    carb: roundNutrient(values.carb),
+    fat: roundNutrient(values.fat)
   });
 
   saveState();
@@ -741,6 +768,8 @@ function saveAiEstimateToFoods() {
     quantityUnit: activeAiEstimate?.quantityUnit || inferQuantityFromServing(values.serving).quantityUnit || "",
     cal: roundNutrient(values.calories),
     pro: roundNutrient(values.protein),
+    carb: roundNutrient(values.carb),
+    fat: roundNutrient(values.fat),
     serving: values.serving
   }));
 
@@ -754,17 +783,21 @@ function logCustom() {
   const name = document.getElementById("custom-name").value.trim();
   const cal = normalizePositiveNumber(document.getElementById("custom-cal").value, 0);
   const pro = normalizePositiveNumber(document.getElementById("custom-pro").value, 0);
+  const carb = normalizePositiveNumber(document.getElementById("custom-carb").value, 0);
+  const fat = normalizePositiveNumber(document.getElementById("custom-fat").value, 0);
 
   if (!name) {
     showToast("Please enter a meal name");
     return;
   }
 
-  state.logs.push({ id: uid(), date: todayStr(), name, cal, pro });
+  state.logs.push({ id: uid(), date: todayStr(), name, cal, pro, carb, fat });
   saveState();
   document.getElementById("custom-name").value = "";
   document.getElementById("custom-cal").value = "";
   document.getElementById("custom-pro").value = "";
+  document.getElementById("custom-carb").value = "";
+  document.getElementById("custom-fat").value = "";
   renderToday();
   renderHistory();
   showToast("Meal logged");
@@ -782,7 +815,7 @@ function renderFoodsDB() {
     <div class="food-row">
       <div class="food-row-info">
         <div class="food-row-name">${escHtml(food.name)}</div>
-        <div class="food-row-meta">${Math.round(food.cal)} kcal · ${roundNutrient(food.pro)}g protein per ${escHtml(formatFoodBaseLabel(food))}</div>
+        <div class="food-row-meta">${Math.round(food.cal)} kcal · ${roundNutrient(food.pro)}g protein · ${roundNutrient(food.carb || 0)}g carbs · ${roundNutrient(food.fat || 0)}g fat per ${escHtml(formatFoodBaseLabel(food))}</div>
       </div>
       <div class="food-row-actions">
         <button class="icon-btn" onclick="openFoodModal('${food.id}')" title="Edit">Edit</button>
@@ -806,6 +839,8 @@ function openFoodModal(editId) {
     document.getElementById("food-grams-input").value = food.grams;
     document.getElementById("food-cal-input").value = food.cal;
     document.getElementById("food-pro-input").value = food.pro;
+    document.getElementById("food-carb-input").value = food.carb || 0;
+    document.getElementById("food-fat-input").value = food.fat || 0;
     document.getElementById("food-serving-input").value = food.serving || "";
     deleteButton.style.display = "block";
   } else {
@@ -814,6 +849,8 @@ function openFoodModal(editId) {
     document.getElementById("food-grams-input").value = "100";
     document.getElementById("food-cal-input").value = "";
     document.getElementById("food-pro-input").value = "";
+    document.getElementById("food-carb-input").value = "";
+    document.getElementById("food-fat-input").value = "";
     document.getElementById("food-serving-input").value = "";
     deleteButton.style.display = "none";
   }
@@ -826,6 +863,8 @@ function saveFood() {
   const grams = Math.max(1, normalizePositiveNumber(document.getElementById("food-grams-input").value, 100) || 100);
   const cal = normalizePositiveNumber(document.getElementById("food-cal-input").value, 0);
   const pro = normalizePositiveNumber(document.getElementById("food-pro-input").value, 0);
+  const carb = normalizePositiveNumber(document.getElementById("food-carb-input").value, 0);
+  const fat = normalizePositiveNumber(document.getElementById("food-fat-input").value, 0);
   const serving = document.getElementById("food-serving-input").value.trim() || `${Math.round(grams)} g`;
 
   if (!name) {
@@ -837,10 +876,10 @@ function saveFood() {
   if (editId) {
     const index = state.foods.findIndex((food) => food.id === editId);
     if (index >= 0) {
-      state.foods[index] = normalizeFoodRecord({ ...state.foods[index], name, grams, cal, pro, serving });
+      state.foods[index] = normalizeFoodRecord({ ...state.foods[index], name, grams, cal, pro, carb, fat, serving });
     }
   } else {
-    state.foods.push(normalizeFoodRecord({ id: uid(), name, grams, cal, pro, serving }));
+    state.foods.push(normalizeFoodRecord({ id: uid(), name, grams, cal, pro, carb, fat, serving }));
   }
 
   saveState();

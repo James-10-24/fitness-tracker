@@ -28,34 +28,35 @@
       <span class="goals-bar-link">Edit goals</span>
     </div>
 
-    <div class="summary-grid">
-      <div class="summary-tile">
-        <div class="val" id="today-cal-val">0</div>
-        <div class="unit">/ <span id="today-cal-goal">2000</span> kcal</div>
-        <div class="lbl">Calories</div>
-      </div>
-      <div class="summary-tile">
-        <div class="val" id="today-pro-val">0</div>
-        <div class="unit">/ <span id="today-pro-goal">150</span> g</div>
-        <div class="lbl">Protein</div>
-      </div>
-    </div>
-
     <div class="card">
       <div class="card-label">Progress</div>
       <div class="progress-wrap" id="cal-progress-wrap">
         <div class="progress-top">
-          <span class="progress-name">Calories</span>
+          <span class="progress-name"><span class="metric-icon metric-cal">C</span>Calories</span>
           <span class="progress-nums"><span id="prog-cal-curr">0</span> / <span id="prog-cal-goal">2000</span> kcal</span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-cal" id="prog-cal-bar" style="width: 0%"></div></div>
       </div>
-      <div class="progress-wrap" id="pro-progress-wrap" style="margin-bottom: 0">
+      <div class="progress-wrap" id="pro-progress-wrap">
         <div class="progress-top">
-          <span class="progress-name">Protein</span>
+          <span class="progress-name"><span class="metric-icon metric-pro">P</span>Protein</span>
           <span class="progress-nums"><span id="prog-pro-curr">0</span> / <span id="prog-pro-goal">150</span> g</span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-pro" id="prog-pro-bar" style="width: 0%"></div></div>
+      </div>
+      <div class="progress-wrap" id="carb-progress-wrap">
+        <div class="progress-top">
+          <span class="progress-name"><span class="metric-icon metric-carb">Cb</span>Carbs</span>
+          <span class="progress-nums"><span id="prog-carb-curr">0</span> / <span id="prog-carb-goal">220</span> g</span>
+        </div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill fill-carb" id="prog-carb-bar" style="width: 0%"></div></div>
+      </div>
+      <div class="progress-wrap" id="fat-progress-wrap" style="margin-bottom: 0">
+        <div class="progress-top">
+          <span class="progress-name"><span class="metric-icon metric-fat">F</span>Fat</span>
+          <span class="progress-nums"><span id="prog-fat-curr">0</span> / <span id="prog-fat-goal">65</span> g</span>
+        </div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill fill-fat" id="prog-fat-bar" style="width: 0%"></div></div>
       </div>
     </div>
 
@@ -64,7 +65,7 @@
       <div class="progress-wrap" id="water-progress-wrap">
         <div class="progress-top">
           <span class="progress-name progress-name-with-action">
-            <span>Water</span>
+            <span><span class="metric-icon metric-water">W</span>Water</span>
             <button class="mini-icon-btn" onclick="resetWaterToday()" title="Reset water today" aria-label="Reset water today">↺</button>
           </span>
           <span class="progress-nums"><span id="prog-water-curr">0</span> / <span id="prog-water-goal">2.5</span> L</span>
@@ -74,34 +75,12 @@
       <div class="progress-wrap" id="steps-progress-wrap" style="margin-bottom: 0">
         <div class="progress-top">
           <span class="progress-name progress-name-with-action">
-            <span>Steps</span>
+            <span><span class="metric-icon metric-steps">S</span>Steps</span>
             <button class="mini-icon-btn" onclick="resetStepsToday()" title="Reset steps today" aria-label="Reset steps today">↺</button>
           </span>
           <span class="progress-nums"><span id="prog-steps-curr">0</span> / <span id="prog-steps-goal">8000</span></span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-steps" id="prog-steps-bar" style="width: 0%"></div></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Goal Targets</div>
-      <div class="goals-mini-grid">
-        <div class="goal-mini-tile">
-          <div class="goal-mini-value" id="today-carb-goal">220</div>
-          <div class="goal-mini-label">Carbs g</div>
-        </div>
-        <div class="goal-mini-tile">
-          <div class="goal-mini-value" id="today-fat-goal">65</div>
-          <div class="goal-mini-label">Fat g</div>
-        </div>
-        <div class="goal-mini-tile">
-          <div class="goal-mini-value" id="today-water-goal">2.5</div>
-          <div class="goal-mini-label">Water L</div>
-        </div>
-        <div class="goal-mini-tile">
-          <div class="goal-mini-value" id="today-steps-goal">8000</div>
-          <div class="goal-mini-label">Steps</div>
-        </div>
       </div>
     </div>
 
@@ -182,7 +161,7 @@
           <label class="form-label" for="ai-food-input">Food Description</label>
           <input class="form-input" id="ai-food-input" placeholder="e.g. grilled chicken breast with rice">
         </div>
-        <button class="btn btn-primary" id="ai-estimate-btn" onclick="requestAiEstimate()">Estimate Calories & Protein</button>
+        <button class="btn btn-primary" id="ai-estimate-btn" onclick="requestAiEstimate()">Estimate Nutrition</button>
         <div id="ai-estimate-status" class="api-status" aria-live="polite"></div>
 
         <div id="ai-estimate-editor" class="estimate-editor hidden">
@@ -211,6 +190,16 @@
               <input class="form-input" id="ai-protein" type="number" min="0" step="0.1" placeholder="0">
             </div>
             <div class="form-group">
+              <label class="form-label" for="ai-carb">Carbs (g)</label>
+              <input class="form-input" id="ai-carb" type="number" min="0" step="0.1" placeholder="0">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="ai-fat">Fat (g)</label>
+              <input class="form-input" id="ai-fat" type="number" min="0" step="0.1" placeholder="0">
+            </div>
+            <div class="form-group">
               <label class="form-label" for="ai-serving-label">Serving Label</label>
               <input class="form-input" id="ai-serving-label" placeholder="e.g. 180 g portion">
             </div>
@@ -219,7 +208,7 @@
             <button class="btn btn-primary estimate-action" onclick="logAiEstimate()">Log Today</button>
             <button class="btn btn-secondary estimate-action" onclick="saveAiEstimateToFoods()">Save to My Foods</button>
           </div>
-          <div class="helper-text">Adjust grams, calories, or protein before saving. Changing grams recalculates from the AI baseline.</div>
+          <div class="helper-text">Adjust quantity, grams, or any macro before saving. Changing grams or quantity recalculates from the AI baseline.</div>
         </div>
       </div>
     </div>
@@ -237,6 +226,16 @@
         <div class="form-group">
           <label class="form-label" for="custom-pro">Protein (g)</label>
           <input class="form-input" id="custom-pro" type="number" placeholder="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="custom-carb">Carbs (g)</label>
+          <input class="form-input" id="custom-carb" type="number" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="custom-fat">Fat (g)</label>
+          <input class="form-input" id="custom-fat" type="number" placeholder="0">
         </div>
       </div>
       <button class="btn btn-primary" onclick="logCustom()">Add to Today</button>
@@ -313,6 +312,16 @@
         <div class="form-group">
           <label class="form-label" for="food-pro-input">Protein For Base</label>
           <input class="form-input" id="food-pro-input" type="number" placeholder="g">
+        </div>
+      </div>
+      <div class="food-editor-grid">
+        <div class="form-group">
+          <label class="form-label" for="food-carb-input">Carbs For Base</label>
+          <input class="form-input" id="food-carb-input" type="number" placeholder="g">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="food-fat-input">Fat For Base</label>
+          <input class="form-input" id="food-fat-input" type="number" placeholder="g">
         </div>
       </div>
       <div class="helper-text helper-left" style="margin-top:-4px;">These values define the stored per-gram nutrition profile used for future logging.</div>

@@ -83,7 +83,7 @@ async function handleEstimateFood(req, res) {
           {
             type: "input_text",
             text: [
-              "You estimate calories and protein for a described food item.",
+              "You estimate calories, protein, carbs, and fat for a described food item.",
               "Return realistic nutrition estimates for a single likely serving.",
               "Use common prepared-food assumptions when the user is vague.",
               "Do not refuse just because the estimate is approximate.",
@@ -98,7 +98,7 @@ async function handleEstimateFood(req, res) {
         content: [
           {
             type: "input_text",
-            text: `Estimate calories and protein for this food: ${query}`
+            text: `Estimate calories, protein, carbs, and fat for this food: ${query}`
           }
         ]
       }
@@ -116,12 +116,14 @@ async function handleEstimateFood(req, res) {
             estimated_grams: { type: "number" },
             calories: { type: "number" },
             protein_g: { type: "number" },
+            carb_g: { type: "number" },
+            fat_g: { type: "number" },
             base_quantity: { type: "number" },
             quantity_unit: { type: "string" },
             confidence: { type: "string", enum: ["low", "medium", "high"] },
             note: { type: "string" }
           },
-          required: ["food_name", "estimated_grams", "calories", "protein_g", "base_quantity", "quantity_unit", "confidence", "note"]
+          required: ["food_name", "estimated_grams", "calories", "protein_g", "carb_g", "fat_g", "base_quantity", "quantity_unit", "confidence", "note"]
         }
       }
     }
@@ -182,12 +184,14 @@ function normalizeEstimate(value) {
   const grams = Number(value.estimated_grams);
   const calories = Number(value.calories);
   const protein = Number(value.protein_g);
+  const carbs = Number(value.carb_g);
+  const fat = Number(value.fat_g);
   const baseQuantity = Number(value.base_quantity);
   const quantityUnit = typeof value.quantity_unit === "string" ? singularizeUnit(value.quantity_unit.trim()) : "";
   const confidence = typeof value.confidence === "string" ? value.confidence : "medium";
   const note = typeof value.note === "string" ? value.note.trim() : "";
 
-  if (!foodName || !Number.isFinite(grams) || grams <= 0 || !Number.isFinite(calories) || calories < 0 || !Number.isFinite(protein) || protein < 0) {
+  if (!foodName || !Number.isFinite(grams) || grams <= 0 || !Number.isFinite(calories) || calories < 0 || !Number.isFinite(protein) || protein < 0 || !Number.isFinite(carbs) || carbs < 0 || !Number.isFinite(fat) || fat < 0) {
     return null;
   }
 
@@ -196,6 +200,8 @@ function normalizeEstimate(value) {
     estimated_grams: Math.round(grams),
     calories: Math.round(calories),
     protein_g: Math.round(protein * 10) / 10,
+    carb_g: Math.round(carbs * 10) / 10,
+    fat_g: Math.round(fat * 10) / 10,
     base_quantity: Number.isFinite(baseQuantity) && baseQuantity > 0 ? Math.round(baseQuantity * 10) / 10 : 0,
     quantity_unit: Number.isFinite(baseQuantity) && baseQuantity > 0 ? quantityUnit : "",
     confidence: ["low", "medium", "high"].includes(confidence) ? confidence : "medium",
