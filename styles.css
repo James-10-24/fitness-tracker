@@ -1338,6 +1338,10 @@ h2,
   display: flex;
 }
 
+#overlay-install {
+  z-index: 340;
+}
+
 .sheet {
   background: rgba(248, 248, 248, 0.92);
   width: 100%;
