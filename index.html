@@ -174,7 +174,7 @@
             </div>
           </div>
           <div class="form-row">
-            <div class="form-group hidden" id="ai-quantity-group">
+            <div class="form-group" id="ai-quantity-group">
               <label class="form-label" for="ai-quantity" id="ai-quantity-label">Quantity</label>
               <input class="form-input" id="ai-quantity" type="number" min="0.1" step="0.1" placeholder="1">
             </div>
@@ -183,11 +183,11 @@
               <input class="form-input" id="ai-serving-label" placeholder="e.g. cups, pcs, oz">
             </div>
           </div>
-          <div class="form-group">
+          <div class="form-group hidden" id="ai-grams-group">
             <label class="form-label" for="ai-grams">Total Grams</label>
             <input class="form-input" id="ai-grams" type="number" min="1" step="1" placeholder="0">
           </div>
-          <div class="helper-text helper-left" style="margin-top: -4px;">Change any value if it looks off. Editing total grams will auto-update the rest.</div>
+          <div class="helper-text helper-left" id="ai-estimate-helper" style="margin-top: -4px;">Change any value if it looks off. Editing quantity will auto-update the rest.</div>
           <div class="estimate-actions">
             <button class="btn btn-primary estimate-action" onclick="logAiEstimate()">Add to Today</button>
           </div>
