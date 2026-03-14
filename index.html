@@ -63,14 +63,20 @@
       <div class="card-label">Hydration & Movement</div>
       <div class="progress-wrap" id="water-progress-wrap">
         <div class="progress-top">
-          <span class="progress-name">Water</span>
+          <span class="progress-name progress-name-with-action">
+            <span>Water</span>
+            <button class="mini-icon-btn" onclick="resetWaterToday()" title="Reset water today" aria-label="Reset water today">↺</button>
+          </span>
           <span class="progress-nums"><span id="prog-water-curr">0</span> / <span id="prog-water-goal">2.5</span> L</span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-water" id="prog-water-bar" style="width: 0%"></div></div>
       </div>
       <div class="progress-wrap" id="steps-progress-wrap" style="margin-bottom: 0">
         <div class="progress-top">
-          <span class="progress-name">Steps</span>
+          <span class="progress-name progress-name-with-action">
+            <span>Steps</span>
+            <button class="mini-icon-btn" onclick="resetStepsToday()" title="Reset steps today" aria-label="Reset steps today">↺</button>
+          </span>
           <span class="progress-nums"><span id="prog-steps-curr">0</span> / <span id="prog-steps-goal">8000</span></span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-steps" id="prog-steps-bar" style="width: 0%"></div></div>
@@ -100,31 +106,26 @@
     </div>
 
     <div class="card">
-      <div class="card-label">Quick Track</div>
-      <div class="quick-track-grid">
-        <div class="quick-track-item">
-          <label class="form-label">Water Units</label>
-          <div class="water-unit-builder">
-            <input class="form-input" id="water-unit-name" placeholder="e.g. Glass">
-            <div class="water-unit-volume-row">
-              <input class="form-input" id="water-unit-volume" type="number" min="1" step="1" value="250" placeholder="250">
-              <select class="form-input water-unit-select" id="water-unit-volume-unit">
-                <option value="ml">ml</option>
-                <option value="l">L</option>
-              </select>
-            </div>
-            <button class="btn btn-secondary quick-track-btn" onclick="addWaterUnit()">Save Unit</button>
-          </div>
-          <div id="water-unit-list" class="water-unit-list"></div>
-          <div id="water-unit-actions" class="water-action-grid"></div>
-        </div>
-        <div class="quick-track-item">
-          <label class="form-label" for="quick-steps-input">Add Steps</label>
-          <div class="quick-track-row">
-            <input class="form-input" id="quick-steps-input" type="number" min="100" step="100" value="1000">
-            <button class="btn btn-primary quick-track-btn" onclick="addSteps()">Add</button>
-          </div>
-        </div>
+      <div class="card-label">Water Tracking</div>
+      <label class="form-label" for="quick-water-manual-input">Add Water Directly (L)</label>
+      <div class="quick-track-row">
+        <input class="form-input" id="quick-water-manual-input" type="number" min="0.1" step="0.1" value="1.2" placeholder="1.2">
+        <button class="btn btn-primary quick-track-btn" onclick="addWaterManual()">Add</button>
+      </div>
+      <div id="water-unit-actions" class="water-action-grid"></div>
+      <div class="quick-track-header-inline">
+        <label class="form-label">Saved Water Units</label>
+        <button class="btn btn-secondary quick-track-btn" onclick="openWaterUnitModal()">Add Water Unit</button>
+      </div>
+      <div id="water-unit-list" class="water-unit-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Steps Tracking</div>
+      <label class="form-label" for="quick-steps-input">Add Steps</label>
+      <div class="quick-track-row">
+        <input class="form-input" id="quick-steps-input" type="number" min="100" step="100" value="1000">
+        <button class="btn btn-primary quick-track-btn" onclick="addSteps()">Add</button>
       </div>
     </div>
 
@@ -437,6 +438,26 @@
     </div>
   </div>
 
+  <div class="overlay" id="overlay-water-unit" onclick="closeModal('water-unit')">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="water-unit-modal-title">Add Water Unit</div>
+      <input type="hidden" id="water-unit-edit-id">
+      <div class="water-unit-builder">
+        <input class="form-input" id="water-unit-name" placeholder="e.g. Glass">
+        <div class="water-unit-volume-row">
+          <input class="form-input" id="water-unit-volume" type="number" min="1" step="1" value="250" placeholder="250">
+          <select class="form-input water-unit-select" id="water-unit-volume-unit">
+            <option value="ml">ml</option>
+            <option value="l">L</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="saveWaterUnit()">Save Water Unit</button>
+        <button class="btn btn-secondary" onclick="closeModal('water-unit')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <div class="water-cheer hidden" id="water-cheer" aria-hidden="true">
@@ -450,6 +471,22 @@
         <div class="water-fill"></div>
       </div>
       <div class="water-splash"></div>
+    </div>
+  </div>
+
+  <div class="step-cheer hidden" id="step-cheer" aria-hidden="true">
+    <div class="step-cheer-scene">
+      <div class="step-person">
+        <div class="step-head"></div>
+        <div class="step-body"></div>
+        <div class="step-leg step-leg-back"></div>
+        <div class="step-leg step-leg-front"></div>
+        <div class="step-arm step-arm-back"></div>
+        <div class="step-arm step-arm-front"></div>
+      </div>
+      <div class="step-ground"></div>
+      <div class="step-dust step-dust-one"></div>
+      <div class="step-dust step-dust-two"></div>
     </div>
   </div>
 

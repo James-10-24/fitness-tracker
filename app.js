@@ -310,6 +310,26 @@ function addWater() {
   addWaterByUnit(defaultUnit.id);
 }
 
+function addWaterManual() {
+  const amount = normalizePositiveNumber(document.getElementById("quick-water-manual-input").value, 0);
+  if (amount <= 0) {
+    showToast("Enter a valid water amount");
+    return;
+  }
+
+  state.waterLogs.push({
+    id: uid(),
+    date: todayStr(),
+    amount: roundNutrient(amount),
+    unitId: "manual",
+    unitName: "Manual"
+  });
+  saveState();
+  renderToday();
+  triggerWaterCelebration();
+  showToast("Water added");
+}
+
 function addSteps() {
   const amount = Math.round(normalizePositiveNumber(document.getElementById("quick-steps-input").value, 0));
   if (amount <= 0) {
@@ -325,10 +345,40 @@ function addSteps() {
   saveState();
   renderToday();
   document.getElementById("quick-steps-input").value = "1000";
+  triggerStepCelebration();
   showToast("Steps added");
 }
 
-function addWaterUnit() {
+function resetWaterToday() {
+  state.waterLogs = state.waterLogs.filter((entry) => entry.date !== todayStr());
+  saveState();
+  renderToday();
+  showToast("Water reset for today");
+}
+
+function resetStepsToday() {
+  state.stepLogs = state.stepLogs.filter((entry) => entry.date !== todayStr());
+  saveState();
+  renderToday();
+  showToast("Steps reset for today");
+}
+
+function openWaterUnitModal(id = "") {
+  const existing = state.waterUnits.find((unit) => unit.id === id);
+  document.getElementById("water-unit-edit-id").value = id;
+  document.getElementById("water-unit-modal-title").textContent = existing ? "Edit Water Unit" : "Add Water Unit";
+  document.getElementById("water-unit-name").value = existing ? existing.name : "";
+  if (existing) {
+    document.getElementById("water-unit-volume").value = existing.ml >= 1000 && existing.ml % 1000 === 0 ? existing.ml / 1000 : existing.ml;
+    document.getElementById("water-unit-volume-unit").value = existing.ml >= 1000 && existing.ml % 1000 === 0 ? "l" : "ml";
+  } else {
+    document.getElementById("water-unit-volume").value = "250";
+    document.getElementById("water-unit-volume-unit").value = "ml";
+  }
+  document.getElementById("overlay-water-unit").classList.add("open");
+}
+
+function saveWaterUnit() {
   const name = document.getElementById("water-unit-name").value.trim();
   const volume = normalizePositiveNumber(document.getElementById("water-unit-volume").value, 0);
   const volumeUnit = document.getElementById("water-unit-volume-unit").value;
@@ -343,13 +393,22 @@ function addWaterUnit() {
   }
 
   const ml = volumeUnit === "l" ? Math.round(volume * 1000) : Math.round(volume);
-  state.waterUnits.push(normalizeWaterUnit({ id: uid(), name, ml }));
+  const editId = document.getElementById("water-unit-edit-id").value;
+  if (editId) {
+    const index = state.waterUnits.findIndex((unit) => unit.id === editId);
+    if (index >= 0) {
+      state.waterUnits[index] = normalizeWaterUnit({ ...state.waterUnits[index], name, ml });
+    }
+  } else {
+    state.waterUnits.push(normalizeWaterUnit({ id: uid(), name, ml }));
+  }
   saveState();
   renderWaterUnits();
+  closeModal("water-unit");
   document.getElementById("water-unit-name").value = "";
   document.getElementById("water-unit-volume").value = "250";
   document.getElementById("water-unit-volume-unit").value = "ml";
-  showToast(`${name} saved`);
+  showToast(editId ? `${name} updated` : `${name} saved`);
 }
 
 function removeWaterUnit(id) {
@@ -371,6 +430,7 @@ function renderWaterUnits() {
   unitList.innerHTML = state.waterUnits.map((unit) => `
     <div class="water-unit-chip">
       <span>${escHtml(unit.name)} · ${formatWaterUnit(unit.ml)}</span>
+      <button class="water-unit-edit" onclick="openWaterUnitModal('${unit.id}')" title="Edit">Edit</button>
       <button class="water-unit-delete" onclick="removeWaterUnit('${unit.id}')" title="Remove">x</button>
     </div>
   `).join("");
@@ -414,6 +474,21 @@ function triggerWaterCelebration() {
   cheer.classList.add("showing");
   window.clearTimeout(triggerWaterCelebration.timer);
   triggerWaterCelebration.timer = window.setTimeout(() => {
+    cheer.classList.add("hidden");
+    cheer.classList.remove("showing");
+  }, 1100);
+}
+
+function triggerStepCelebration() {
+  const cheer = document.getElementById("step-cheer");
+  if (!cheer) {
+    return;
+  }
+  cheer.classList.remove("hidden");
+  void cheer.offsetWidth;
+  cheer.classList.add("showing");
+  window.clearTimeout(triggerStepCelebration.timer);
+  triggerStepCelebration.timer = window.setTimeout(() => {
     cheer.classList.add("hidden");
     cheer.classList.remove("showing");
   }, 1100);
