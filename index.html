@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="NutriLog">
+  <meta name="theme-color" content="#FAFAF8">
+  <title>NutriLog</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page active" id="page-today">
+    <div class="page-header">
+      <div class="page-title serif" id="today-greeting">Good morning</div>
+      <div class="page-subtitle" id="today-date"></div>
+    </div>
+
+    <div class="goals-bar" onclick="showGoalsModal()" role="button" tabindex="0">
+      <span class="goals-bar-text">Daily Goals</span>
+      <span class="goals-bar-link">Edit goals</span>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-tile">
+        <div class="val" id="today-cal-val">0</div>
+        <div class="unit">/ <span id="today-cal-goal">2000</span> kcal</div>
+        <div class="lbl">Calories</div>
+      </div>
+      <div class="summary-tile">
+        <div class="val" id="today-pro-val">0</div>
+        <div class="unit">/ <span id="today-pro-goal">150</span> g</div>
+        <div class="lbl">Protein</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Progress</div>
+      <div class="progress-wrap" id="cal-progress-wrap">
+        <div class="progress-top">
+          <span class="progress-name">Calories</span>
+          <span class="progress-nums"><span id="prog-cal-curr">0</span> / <span id="prog-cal-goal">2000</span> kcal</span>
+        </div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill fill-cal" id="prog-cal-bar" style="width: 0%"></div></div>
+      </div>
+      <div class="progress-wrap" id="pro-progress-wrap" style="margin-bottom: 0">
+        <div class="progress-top">
+          <span class="progress-name">Protein</span>
+          <span class="progress-nums"><span id="prog-pro-curr">0</span> / <span id="prog-pro-goal">150</span> g</span>
+        </div>
+        <div class="progress-bar-bg"><div class="progress-bar-fill fill-pro" id="prog-pro-bar" style="width: 0%"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Today's Meals</div>
+      <div id="today-meal-list">
+        <div class="empty-state">
+          <div class="empty-icon">Meal</div>
+          No meals logged yet.<br>Tap + to add your first meal.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="page-log">
+    <div class="page-header">
+      <div class="page-title serif">Log a Meal</div>
+      <div class="page-subtitle">Add from your foods or enter custom</div>
+    </div>
+
+    <div class="tab-row">
+      <button class="tab-pill active" onclick="switchLogTab('from-foods')">From Foods</button>
+      <button class="tab-pill" onclick="switchLogTab('custom')">Custom Entry</button>
+    </div>
+
+    <div class="tab-content active" id="tab-from-foods">
+      <div class="search-wrap">
+        <span class="search-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </span>
+        <input class="search-input" id="food-search" placeholder="Search your foods..." oninput="renderFoodPicker()">
+      </div>
+      <div id="food-picker-list"></div>
+      <div class="form-group" style="margin-top: 16px;">
+        <label class="form-label" for="log-servings">Servings</label>
+        <input class="form-input" id="log-servings" type="number" min="0.1" step="0.1" value="1" placeholder="1">
+      </div>
+      <button class="btn btn-primary" onclick="logFromFood()">Add to Today</button>
+      <div class="helper-text">
+        Don't see your food? <span class="helper-link" onclick="goToFoodsAndAdd()">Add it to your database</span>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-custom">
+      <div class="form-group">
+        <label class="form-label" for="custom-name">Meal Name</label>
+        <input class="form-input" id="custom-name" placeholder="e.g. Grilled chicken wrap">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="custom-cal">Calories (kcal)</label>
+          <input class="form-input" id="custom-cal" type="number" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="custom-pro">Protein (g)</label>
+          <input class="form-input" id="custom-pro" type="number" placeholder="0">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="logCustom()">Add to Today</button>
+    </div>
+  </div>
+
+  <div class="page" id="page-foods">
+    <div class="page-header">
+      <div class="page-title serif">My Foods</div>
+      <div class="page-subtitle">Your personal food database</div>
+    </div>
+    <div class="card" id="foods-list-card">
+      <div id="foods-list"></div>
+    </div>
+  </div>
+
+  <div class="page" id="page-history">
+    <div class="page-header">
+      <div class="page-title serif">History</div>
+      <div class="page-subtitle">Your past nutrition logs</div>
+    </div>
+    <div id="history-content"></div>
+  </div>
+
+  <nav class="nav">
+    <button class="nav-btn active" id="nav-today" onclick="showPage('today')">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      </div>
+      Today
+    </button>
+    <button class="nav-btn" id="nav-log" onclick="showPage('log')">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+      </div>
+      Log
+    </button>
+    <button class="nav-btn" id="nav-foods" onclick="showPage('foods')">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+      </div>
+      Foods
+    </button>
+    <button class="nav-btn" id="nav-history" onclick="showPage('history')">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-6"/></svg>
+      </div>
+      History
+    </button>
+  </nav>
+
+  <div class="overlay" id="overlay-food" onclick="closeModal('food')">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="food-modal-title">Add Food</div>
+      <input type="hidden" id="food-edit-id">
+      <div class="form-group">
+        <label class="form-label" for="food-name-input">Food Name</label>
+        <input class="form-input" id="food-name-input" placeholder="e.g. Chicken Breast">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="food-cal-input">Calories (kcal)</label>
+          <input class="form-input" id="food-cal-input" type="number" placeholder="per serving">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="food-pro-input">Protein (g)</label>
+          <input class="form-input" id="food-pro-input" type="number" placeholder="per serving">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="food-serving-input">Serving Size Label (optional)</label>
+        <input class="form-input" id="food-serving-input" placeholder="e.g. 100g, 1 cup, 1 piece">
+      </div>
+      <button class="btn btn-primary" onclick="saveFood()">Save Food</button>
+      <button class="btn btn-secondary" onclick="closeModal('food')">Cancel</button>
+      <button class="btn btn-danger" id="food-delete-btn" onclick="deleteFood()" style="display: none">Delete Food</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay-goals" onclick="closeModal('goals')">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Daily Goals</div>
+      <div class="form-group">
+        <label class="form-label" for="goal-cal-input">Calorie Goal (kcal)</label>
+        <input class="form-input" id="goal-cal-input" type="number" placeholder="2000">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="goal-pro-input">Protein Goal (g)</label>
+        <input class="form-input" id="goal-pro-input" type="number" placeholder="150">
+      </div>
+      <button class="btn btn-primary" onclick="saveGoals()">Save Goals</button>
+      <button class="btn btn-secondary" onclick="closeModal('goals')">Cancel</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <button class="fab" id="fab-btn" onclick="handleFab()" title="Add">+</button>
+
+  <script src="app.js"></script>
+</body>
+</html>
