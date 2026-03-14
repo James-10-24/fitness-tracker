@@ -3,6 +3,7 @@ let state = {
   logs: [],
   waterLogs: [],
   stepLogs: [],
+  waterUnits: [],
   goals: { cal: 2000, pro: 150, carb: 220, fat: 65, water: 2.5, steps: 8000 }
 };
 
@@ -30,11 +31,16 @@ function loadState() {
       state = { ...state, ...JSON.parse(raw) };
       state.waterLogs = Array.isArray(state.waterLogs) ? state.waterLogs : [];
       state.stepLogs = Array.isArray(state.stepLogs) ? state.stepLogs : [];
+      state.waterUnits = Array.isArray(state.waterUnits) && state.waterUnits.length ? state.waterUnits.map(normalizeWaterUnit) : defaultWaterUnits();
       state.foods = Array.isArray(state.foods) ? state.foods.map(normalizeFoodRecord) : [];
       state.goals = { cal: 2000, pro: 150, carb: 220, fat: 65, water: 2.5, steps: 8000, ...(state.goals || {}) };
     }
   } catch (error) {
     console.error("Failed to load state", error);
+  }
+
+  if (!Array.isArray(state.waterUnits) || !state.waterUnits.length) {
+    state.waterUnits = defaultWaterUnits();
   }
 }
 
@@ -64,15 +70,35 @@ function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+function defaultWaterUnits() {
+  return [
+    normalizeWaterUnit({ id: uid(), name: "Glass", ml: 250 }),
+    normalizeWaterUnit({ id: uid(), name: "Bottle", ml: 500 })
+  ];
+}
+
+function normalizeWaterUnit(unit) {
+  return {
+    id: unit.id || uid(),
+    name: (unit.name || "Drink").trim(),
+    ml: Math.max(1, Math.round(normalizePositiveNumber(unit.ml, 250) || 250))
+  };
+}
+
 function normalizeFoodRecord(food) {
   const grams = Math.max(1, normalizePositiveNumber(food.grams, 0) || inferGramsFromServing(food.serving) || 100);
   const cal = normalizePositiveNumber(food.cal, 0);
   const pro = normalizePositiveNumber(food.pro, 0);
+  const quantityMeta = inferQuantityFromServing(food.serving);
+  const baseQuantity = normalizePositiveNumber(food.baseQuantity, 0) || quantityMeta.baseQuantity || 0;
+  const quantityUnit = food.quantityUnit || quantityMeta.quantityUnit || "";
   return {
     ...food,
     grams,
     cal,
     pro,
+    baseQuantity,
+    quantityUnit,
     calPerGram: cal / grams,
     proPerGram: pro / grams,
     serving: food.serving || `${Math.round(grams)} g`
@@ -85,6 +111,59 @@ function inferGramsFromServing(serving) {
   }
   const match = String(serving).match(/(\d+(?:\.\d+)?)\s*g\b/i);
   return match ? Number(match[1]) : 0;
+}
+
+function inferQuantityFromServing(serving) {
+  if (!serving) {
+    return { baseQuantity: 0, quantityUnit: "" };
+  }
+  const cleaned = String(serving).trim();
+  const match = cleaned.match(/^(\d+(?:\.\d+)?)\s+(.+)$/i);
+  if (!match) {
+    return { baseQuantity: 0, quantityUnit: "" };
+  }
+
+  const unit = match[2].trim().toLowerCase();
+  if (/\b(g|gram|grams|kg|ml|l|oz)\b/i.test(unit)) {
+    return { baseQuantity: 0, quantityUnit: "" };
+  }
+
+  return {
+    baseQuantity: Number(match[1]),
+    quantityUnit: unit.replace(/\s+/g, " ")
+  };
+}
+
+function formatFoodBaseLabel(food) {
+  if (food.quantityUnit && food.baseQuantity > 0) {
+    return `${roundNutrient(food.baseQuantity)} ${food.quantityUnit}`;
+  }
+  return food.serving || `${Math.round(food.grams)} g`;
+}
+
+function singularizeUnit(unit) {
+  if (!unit) {
+    return "";
+  }
+  return unit.replace(/\bpieces\b/i, "piece").replace(/\beggs\b/i, "egg").replace(/s$/i, "");
+}
+
+function updateFoodLogInputMode() {
+  const quantityGroup = document.getElementById("log-quantity-group");
+  const gramsGroup = document.getElementById("log-grams-group");
+  const quantityLabel = document.getElementById("log-quantity-label");
+  const food = state.foods.find((entry) => entry.id === selectedFoodId);
+
+  if (food && food.quantityUnit && food.baseQuantity > 0) {
+    quantityGroup.classList.remove("hidden");
+    gramsGroup.classList.add("hidden");
+    quantityLabel.textContent = `Quantity (${food.quantityUnit})`;
+    document.getElementById("log-quantity").value = String(roundNutrient(food.baseQuantity));
+  } else {
+    quantityGroup.classList.add("hidden");
+    gramsGroup.classList.remove("hidden");
+    document.getElementById("log-grams").value = food ? String(Math.round(food.grams)) : "100";
+  }
 }
 
 function roundNutrient(value) {
@@ -223,21 +302,12 @@ function deleteLog(id) {
 }
 
 function addWater() {
-  const amount = normalizePositiveNumber(document.getElementById("quick-water-input").value, 0);
-  if (amount <= 0) {
-    showToast("Enter a valid water amount");
+  const defaultUnit = state.waterUnits[0];
+  if (!defaultUnit) {
+    showToast("Create a water unit first");
     return;
   }
-
-  state.waterLogs.push({
-    id: uid(),
-    date: todayStr(),
-    amount: roundNutrient(amount)
-  });
-  saveState();
-  renderToday();
-  document.getElementById("quick-water-input").value = "0.5";
-  showToast("Water added");
+  addWaterByUnit(defaultUnit.id);
 }
 
 function addSteps() {
@@ -256,6 +326,97 @@ function addSteps() {
   renderToday();
   document.getElementById("quick-steps-input").value = "1000";
   showToast("Steps added");
+}
+
+function addWaterUnit() {
+  const name = document.getElementById("water-unit-name").value.trim();
+  const volume = normalizePositiveNumber(document.getElementById("water-unit-volume").value, 0);
+  const volumeUnit = document.getElementById("water-unit-volume-unit").value;
+
+  if (!name) {
+    showToast("Enter a unit name");
+    return;
+  }
+  if (volume <= 0) {
+    showToast("Enter a valid water volume");
+    return;
+  }
+
+  const ml = volumeUnit === "l" ? Math.round(volume * 1000) : Math.round(volume);
+  state.waterUnits.push(normalizeWaterUnit({ id: uid(), name, ml }));
+  saveState();
+  renderWaterUnits();
+  document.getElementById("water-unit-name").value = "";
+  document.getElementById("water-unit-volume").value = "250";
+  document.getElementById("water-unit-volume-unit").value = "ml";
+  showToast(`${name} saved`);
+}
+
+function removeWaterUnit(id) {
+  state.waterUnits = state.waterUnits.filter((unit) => unit.id !== id);
+  if (!state.waterUnits.length) {
+    state.waterUnits = defaultWaterUnits();
+  }
+  saveState();
+  renderWaterUnits();
+}
+
+function renderWaterUnits() {
+  const unitList = document.getElementById("water-unit-list");
+  const actionList = document.getElementById("water-unit-actions");
+  if (!unitList || !actionList) {
+    return;
+  }
+
+  unitList.innerHTML = state.waterUnits.map((unit) => `
+    <div class="water-unit-chip">
+      <span>${escHtml(unit.name)} · ${formatWaterUnit(unit.ml)}</span>
+      <button class="water-unit-delete" onclick="removeWaterUnit('${unit.id}')" title="Remove">x</button>
+    </div>
+  `).join("");
+
+  actionList.innerHTML = state.waterUnits.map((unit) => `
+    <button class="btn btn-primary water-action-btn" onclick="addWaterByUnit('${unit.id}')">Add ${escHtml(unit.name)}</button>
+  `).join("");
+}
+
+function formatWaterUnit(ml) {
+  return ml >= 1000 ? `${roundNutrient(ml / 1000)} L` : `${Math.round(ml)} ml`;
+}
+
+function addWaterByUnit(id) {
+  const unit = state.waterUnits.find((entry) => entry.id === id);
+  if (!unit) {
+    showToast("Water unit not found");
+    return;
+  }
+
+  state.waterLogs.push({
+    id: uid(),
+    date: todayStr(),
+    amount: roundNutrient(unit.ml / 1000),
+    unitId: unit.id,
+    unitName: unit.name
+  });
+  saveState();
+  renderToday();
+  triggerWaterCelebration();
+  showToast(`${unit.name} added`);
+}
+
+function triggerWaterCelebration() {
+  const cheer = document.getElementById("water-cheer");
+  if (!cheer) {
+    return;
+  }
+  cheer.classList.remove("hidden");
+  void cheer.offsetWidth;
+  cheer.classList.add("showing");
+  window.clearTimeout(triggerWaterCelebration.timer);
+  triggerWaterCelebration.timer = window.setTimeout(() => {
+    cheer.classList.add("hidden");
+    cheer.classList.remove("showing");
+  }, 1100);
 }
 
 function switchLogTab(tab) {
@@ -281,9 +442,9 @@ function renderFoodPicker() {
     <div class="food-option ${selectedFoodId === food.id ? "selected" : ""}" onclick="selectFood('${food.id}')">
       <div>
         <div class="food-option-name">${escHtml(food.name)}</div>
-        <div class="food-option-meta">${Math.round(food.cal)} kcal · ${roundNutrient(food.pro)}g protein per ${escHtml(food.serving || `${Math.round(food.grams)} g`)}</div>
+        <div class="food-option-meta">${Math.round(food.cal)} kcal · ${roundNutrient(food.pro)}g protein per ${escHtml(formatFoodBaseLabel(food))}</div>
       </div>
-      <span class="food-option-badge">${Math.round(food.grams)} g base</span>
+      <span class="food-option-badge">${escHtml(formatFoodBaseLabel(food))}</span>
     </div>
   `).join("");
 }
@@ -291,6 +452,7 @@ function renderFoodPicker() {
 function selectFood(id) {
   selectedFoodId = selectedFoodId === id ? null : id;
   renderFoodPicker();
+  updateFoodLogInputMode();
 }
 
 function logFromFood() {
@@ -304,7 +466,17 @@ function logFromFood() {
     return;
   }
 
-  const grams = normalizePositiveNumber(document.getElementById("log-grams").value, 0);
+  let grams = 0;
+  if (food.quantityUnit && food.baseQuantity > 0) {
+    const quantity = normalizePositiveNumber(document.getElementById("log-quantity").value, 0);
+    if (quantity <= 0) {
+      showToast("Enter quantity greater than 0");
+      return;
+    }
+    grams = (food.grams / food.baseQuantity) * quantity;
+  } else {
+    grams = normalizePositiveNumber(document.getElementById("log-grams").value, 0);
+  }
   if (grams <= 0) {
     showToast("Enter grams greater than 0");
     return;
@@ -322,9 +494,11 @@ function logFromFood() {
 
   saveState();
   selectedFoodId = null;
+  document.getElementById("log-quantity").value = "1";
   document.getElementById("log-grams").value = "100";
   document.getElementById("food-search").value = "";
   renderFoodPicker();
+  updateFoodLogInputMode();
   renderToday();
   renderHistory();
   showToast("Meal logged");
@@ -360,16 +534,22 @@ async function requestAiEstimate() {
       baseGrams: normalizePositiveNumber(payload.estimated_grams, 100),
       baseCalories: normalizePositiveNumber(payload.calories, 0),
       baseProtein: normalizePositiveNumber(payload.protein_g, 0),
+      baseQuantity: normalizePositiveNumber(payload.base_quantity, 0),
+      quantityUnit: payload.quantity_unit || "",
       confidence: payload.confidence || "medium",
       note: payload.note || ""
     };
 
     document.getElementById("ai-name").value = payload.food_name || query;
+    document.getElementById("ai-quantity").value = activeAiEstimate.baseQuantity > 0 ? roundNutrient(activeAiEstimate.baseQuantity) : "1";
     document.getElementById("ai-grams").value = Math.round(activeAiEstimate.baseGrams);
     document.getElementById("ai-calories").value = Math.round(activeAiEstimate.baseCalories);
     document.getElementById("ai-protein").value = roundNutrient(activeAiEstimate.baseProtein);
-    document.getElementById("ai-serving-label").value = `${Math.round(activeAiEstimate.baseGrams)} g portion`;
+    document.getElementById("ai-serving-label").value = activeAiEstimate.baseQuantity > 0 && activeAiEstimate.quantityUnit
+      ? `${roundNutrient(activeAiEstimate.baseQuantity)} ${activeAiEstimate.quantityUnit}`
+      : `${Math.round(activeAiEstimate.baseGrams)} g portion`;
     document.getElementById("ai-estimate-note").textContent = `AI estimate (${activeAiEstimate.confidence} confidence): ${payload.note}`;
+    updateAiQuantityMode();
     document.getElementById("ai-estimate-editor").classList.remove("hidden");
     statusNode.textContent = "Estimate ready. Adjust any values before saving.";
   } catch (error) {
@@ -377,6 +557,17 @@ async function requestAiEstimate() {
     statusNode.textContent = error.message || "Estimate failed";
   } finally {
     button.disabled = false;
+  }
+}
+
+function updateAiQuantityMode() {
+  const quantityGroup = document.getElementById("ai-quantity-group");
+  const quantityLabel = document.getElementById("ai-quantity-label");
+  if (activeAiEstimate && activeAiEstimate.baseQuantity > 0 && activeAiEstimate.quantityUnit) {
+    quantityGroup.classList.remove("hidden");
+    quantityLabel.textContent = `Quantity (${activeAiEstimate.quantityUnit})`;
+  } else {
+    quantityGroup.classList.add("hidden");
   }
 }
 
@@ -389,7 +580,29 @@ function syncEstimateFromGrams() {
   const ratio = activeAiEstimate.baseGrams > 0 ? grams / activeAiEstimate.baseGrams : 1;
   document.getElementById("ai-calories").value = Math.round(activeAiEstimate.baseCalories * ratio);
   document.getElementById("ai-protein").value = roundNutrient(activeAiEstimate.baseProtein * ratio);
-  document.getElementById("ai-serving-label").value = `${Math.round(grams)} g portion`;
+  if (activeAiEstimate.baseQuantity > 0 && activeAiEstimate.quantityUnit) {
+    const quantity = roundNutrient(activeAiEstimate.baseQuantity * ratio);
+    document.getElementById("ai-quantity").value = quantity;
+    document.getElementById("ai-serving-label").value = `${quantity} ${activeAiEstimate.quantityUnit}`;
+  } else {
+    document.getElementById("ai-serving-label").value = `${Math.round(grams)} g portion`;
+  }
+}
+
+function syncEstimateFromQuantity() {
+  if (!activeAiEstimate || !(activeAiEstimate.baseQuantity > 0)) {
+    return;
+  }
+
+  const quantity = normalizePositiveNumber(document.getElementById("ai-quantity").value, activeAiEstimate.baseQuantity);
+  const ratio = activeAiEstimate.baseQuantity > 0 ? quantity / activeAiEstimate.baseQuantity : 1;
+  const grams = Math.round(activeAiEstimate.baseGrams * ratio);
+  document.getElementById("ai-grams").value = grams;
+  document.getElementById("ai-calories").value = Math.round(activeAiEstimate.baseCalories * ratio);
+  document.getElementById("ai-protein").value = roundNutrient(activeAiEstimate.baseProtein * ratio);
+  if (activeAiEstimate.quantityUnit) {
+    document.getElementById("ai-serving-label").value = `${roundNutrient(quantity)} ${activeAiEstimate.quantityUnit}`;
+  }
 }
 
 function readAiEditorValues() {
@@ -449,6 +662,8 @@ function saveAiEstimateToFoods() {
     id: uid(),
     name: values.name,
     grams: values.grams,
+    baseQuantity: activeAiEstimate?.baseQuantity || inferQuantityFromServing(values.serving).baseQuantity || 0,
+    quantityUnit: activeAiEstimate?.quantityUnit || inferQuantityFromServing(values.serving).quantityUnit || "",
     cal: roundNutrient(values.calories),
     pro: roundNutrient(values.protein),
     serving: values.serving
@@ -492,7 +707,7 @@ function renderFoodsDB() {
     <div class="food-row">
       <div class="food-row-info">
         <div class="food-row-name">${escHtml(food.name)}</div>
-        <div class="food-row-meta">${Math.round(food.cal)} kcal · ${roundNutrient(food.pro)}g protein per ${escHtml(food.serving || `${Math.round(food.grams)} g`)}</div>
+        <div class="food-row-meta">${Math.round(food.cal)} kcal · ${roundNutrient(food.pro)}g protein per ${escHtml(formatFoodBaseLabel(food))}</div>
       </div>
       <div class="food-row-actions">
         <button class="icon-btn" onclick="openFoodModal('${food.id}')" title="Edit">Edit</button>
@@ -557,6 +772,7 @@ function saveFood() {
   closeModal("food");
   renderFoodsDB();
   renderFoodPicker();
+  updateFoodLogInputMode();
   showToast(editId ? "Food updated" : "Food added");
 }
 
@@ -574,6 +790,7 @@ function deleteFood() {
   closeModal("food");
   renderFoodsDB();
   renderFoodPicker();
+  updateFoodLogInputMode();
   showToast("Food deleted");
 }
 
@@ -808,8 +1025,10 @@ document.addEventListener("keydown", (event) => {
 document.addEventListener("DOMContentLoaded", () => {
   loadState();
   renderToday();
+  renderWaterUnits();
   renderFoodsDB();
   renderFoodPicker();
+  updateFoodLogInputMode();
   renderHistory();
   updateFab();
   registerServiceWorker();
@@ -822,6 +1041,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.getElementById("ai-grams")?.addEventListener("input", syncEstimateFromGrams);
+  document.getElementById("ai-quantity")?.addEventListener("input", syncEstimateFromQuantity);
   document.getElementById("goal-height-unit")?.addEventListener("change", toggleHeightInputs);
   toggleHeightInputs();
 });

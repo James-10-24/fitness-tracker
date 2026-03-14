@@ -103,11 +103,20 @@
       <div class="card-label">Quick Track</div>
       <div class="quick-track-grid">
         <div class="quick-track-item">
-          <label class="form-label" for="quick-water-input">Add Water (L)</label>
-          <div class="quick-track-row">
-            <input class="form-input" id="quick-water-input" type="number" min="0.1" step="0.1" value="0.5">
-            <button class="btn btn-primary quick-track-btn" onclick="addWater()">Add</button>
+          <label class="form-label">Water Units</label>
+          <div class="water-unit-builder">
+            <input class="form-input" id="water-unit-name" placeholder="e.g. Glass">
+            <div class="water-unit-volume-row">
+              <input class="form-input" id="water-unit-volume" type="number" min="1" step="1" value="250" placeholder="250">
+              <select class="form-input water-unit-select" id="water-unit-volume-unit">
+                <option value="ml">ml</option>
+                <option value="l">L</option>
+              </select>
+            </div>
+            <button class="btn btn-secondary quick-track-btn" onclick="addWaterUnit()">Save Unit</button>
           </div>
+          <div id="water-unit-list" class="water-unit-list"></div>
+          <div id="water-unit-actions" class="water-action-grid"></div>
         </div>
         <div class="quick-track-item">
           <label class="form-label" for="quick-steps-input">Add Steps</label>
@@ -150,13 +159,17 @@
         <input class="search-input" id="food-search" placeholder="Search your foods..." oninput="renderFoodPicker()">
       </div>
       <div id="food-picker-list"></div>
-      <div class="form-group" style="margin-top: 16px;">
+      <div class="form-group hidden" id="log-quantity-group" style="margin-top: 16px;">
+        <label class="form-label" for="log-quantity" id="log-quantity-label">Quantity</label>
+        <input class="form-input" id="log-quantity" type="number" min="0.1" step="0.1" value="1" placeholder="1">
+      </div>
+      <div class="form-group" id="log-grams-group" style="margin-top: 16px;">
         <label class="form-label" for="log-grams">Grams</label>
         <input class="form-input" id="log-grams" type="number" min="1" step="1" value="100" placeholder="100">
       </div>
       <button class="btn btn-primary" onclick="logFromFood()">Add to Today</button>
       <div class="helper-text">
-        Need a new item? <span class="helper-link" onclick="switchLogTab('ai-estimate')">Estimate it with AI</span>. Saved foods can be logged at any gram amount without another API call.
+        Need a new item? <span class="helper-link" onclick="switchLogTab('ai-estimate')">Estimate it with AI</span>. Saved foods can be logged by grams or by quantity without another API call.
       </div>
     </div>
 
@@ -178,6 +191,10 @@
             <input class="form-input" id="ai-name" placeholder="Food name">
           </div>
           <div class="form-row">
+            <div class="form-group hidden" id="ai-quantity-group">
+              <label class="form-label" for="ai-quantity" id="ai-quantity-label">Quantity</label>
+              <input class="form-input" id="ai-quantity" type="number" min="0.1" step="0.1" placeholder="1">
+            </div>
             <div class="form-group">
               <label class="form-label" for="ai-grams">Grams</label>
               <input class="form-input" id="ai-grams" type="number" min="1" step="1" placeholder="0">
@@ -421,6 +438,20 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <div class="water-cheer hidden" id="water-cheer" aria-hidden="true">
+    <div class="water-cheer-scene">
+      <div class="water-person">
+        <div class="water-head"></div>
+        <div class="water-body"></div>
+        <div class="water-arm"></div>
+      </div>
+      <div class="water-glass">
+        <div class="water-fill"></div>
+      </div>
+      <div class="water-splash"></div>
+    </div>
+  </div>
 
   <button class="fab" id="fab-btn" onclick="handleFab()" title="Add">+</button>
 

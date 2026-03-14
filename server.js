@@ -116,10 +116,12 @@ async function handleEstimateFood(req, res) {
             estimated_grams: { type: "number" },
             calories: { type: "number" },
             protein_g: { type: "number" },
+            base_quantity: { type: "number" },
+            quantity_unit: { type: "string" },
             confidence: { type: "string", enum: ["low", "medium", "high"] },
             note: { type: "string" }
           },
-          required: ["food_name", "estimated_grams", "calories", "protein_g", "confidence", "note"]
+          required: ["food_name", "estimated_grams", "calories", "protein_g", "base_quantity", "quantity_unit", "confidence", "note"]
         }
       }
     }
@@ -180,6 +182,8 @@ function normalizeEstimate(value) {
   const grams = Number(value.estimated_grams);
   const calories = Number(value.calories);
   const protein = Number(value.protein_g);
+  const baseQuantity = Number(value.base_quantity);
+  const quantityUnit = typeof value.quantity_unit === "string" ? singularizeUnit(value.quantity_unit.trim()) : "";
   const confidence = typeof value.confidence === "string" ? value.confidence : "medium";
   const note = typeof value.note === "string" ? value.note.trim() : "";
 
@@ -192,9 +196,18 @@ function normalizeEstimate(value) {
     estimated_grams: Math.round(grams),
     calories: Math.round(calories),
     protein_g: Math.round(protein * 10) / 10,
+    base_quantity: Number.isFinite(baseQuantity) && baseQuantity > 0 ? Math.round(baseQuantity * 10) / 10 : 0,
+    quantity_unit: Number.isFinite(baseQuantity) && baseQuantity > 0 ? quantityUnit : "",
     confidence: ["low", "medium", "high"].includes(confidence) ? confidence : "medium",
     note: note || "Estimated from a common serving size."
   };
+}
+
+function singularizeUnit(unit) {
+  if (!unit) {
+    return "";
+  }
+  return unit.replace(/\bpieces\b/gi, "piece").replace(/\beggs\b/gi, "egg").replace(/s$/i, "");
 }
 
 function extractOutputText(responseJson) {
