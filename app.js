@@ -27,8 +27,8 @@ let pullRefreshDistance = 0;
 let isPullRefreshing = false;
 let isPullTracking = false;
 
-const PULL_REFRESH_TRIGGER = 84;
-const PULL_REFRESH_MAX = 132;
+const PULL_REFRESH_TRIGGER = 60;
+const PULL_REFRESH_MAX = 112;
 
 function createInitialState() {
   return {
@@ -149,8 +149,9 @@ function updateInstallUi() {
 }
 
 function isAtTopOfPage() {
-  const scrollTop = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
-  return scrollTop <= 0;
+  const scroller = document.scrollingElement || document.documentElement || document.body;
+  const scrollTop = scroller?.scrollTop || window.scrollY || 0;
+  return scrollTop <= 2;
 }
 
 function hasOpenOverlay() {
@@ -166,6 +167,7 @@ function updatePullRefreshUi(distance = 0, refreshing = false) {
   const indicator = document.getElementById("pull-refresh-indicator");
   const text = document.getElementById("pull-refresh-text");
   const icon = document.getElementById("pull-refresh-icon");
+  const pill = document.getElementById("pull-refresh-pill");
   if (!indicator || !text || !icon) {
     return;
   }
@@ -173,22 +175,25 @@ function updatePullRefreshUi(distance = 0, refreshing = false) {
   if (!distance && !refreshing) {
     indicator.classList.remove("visible", "ready", "refreshing");
     indicator.style.transform = "translate(-50%, -72px)";
+    pill?.style.setProperty("--pull-progress", "0");
     text.textContent = "Pull to refresh";
-    icon.textContent = "↓";
+    icon.textContent = "↻";
     return;
   }
 
   const capped = Math.min(distance, PULL_REFRESH_MAX);
+  const progress = Math.min(capped / PULL_REFRESH_TRIGGER, 1);
   indicator.classList.add("visible");
   indicator.classList.toggle("ready", capped >= PULL_REFRESH_TRIGGER && !refreshing);
   indicator.classList.toggle("refreshing", refreshing);
   indicator.style.transform = `translate(-50%, ${Math.min(capped - 64, 18)}px)`;
+  pill?.style.setProperty("--pull-progress", String(progress));
   text.textContent = refreshing
     ? "Refreshing..."
     : capped >= PULL_REFRESH_TRIGGER
       ? "Release to refresh"
       : "Pull to refresh";
-  icon.textContent = refreshing ? "↻" : "↓";
+  icon.textContent = "↻";
 }
 
 async function refreshCurrentView() {
@@ -230,9 +235,15 @@ function handlePullTouchStart(event) {
     return;
   }
 
+  if ((event.touches?.[0]?.clientY || 0) > 120) {
+    isPullTracking = false;
+    return;
+  }
+
   pullRefreshStartY = event.touches[0]?.clientY || 0;
   pullRefreshDistance = 0;
   isPullTracking = true;
+  updatePullRefreshUi(0, false);
 }
 
 function handlePullTouchMove(event) {
@@ -252,8 +263,8 @@ function handlePullTouchMove(event) {
     return;
   }
 
-  pullRefreshDistance = Math.min(rawDistance * 0.6, PULL_REFRESH_MAX);
-  if (pullRefreshDistance > 6) {
+  pullRefreshDistance = Math.min(rawDistance * 0.85, PULL_REFRESH_MAX);
+  if (pullRefreshDistance > 4) {
     event.preventDefault();
     updatePullRefreshUi(pullRefreshDistance, false);
   }
@@ -745,7 +756,7 @@ function openInstallModal() {
     steps.classList.add("hidden");
     actionButton.classList.remove("hidden");
   } else if (isIosDevice()) {
-    copy.textContent = "Safari on iPhone does not allow one-tap install prompts, but you can still add Viva.AI in a few seconds.";
+    copy.textContent = "On iPhone and iPad, Viva.AI can still be added manually from your browser menu or share sheet even when the browser does not show a one-tap install prompt.";
     steps.classList.remove("hidden");
     actionButton.classList.add("hidden");
   } else {
@@ -1167,7 +1178,7 @@ function showPage(page) {
   document.querySelectorAll(".page").forEach((node) => node.classList.remove("active"));
   document.querySelectorAll(".nav-btn").forEach((node) => node.classList.remove("active"));
   document.getElementById(`page-${page}`).classList.add("active");
-  document.getElementById(`nav-${page}`).classList.add("active");
+  document.getElementById(`nav-${page}`)?.classList.add("active");
   currentPage = page;
 
   if (page === "today") {
@@ -1175,6 +1186,7 @@ function showPage(page) {
   }
   if (page === "log") {
     updateLogTabs();
+    switchLogTab(state.foods.length ? "from-foods" : "ai-estimate");
     renderFoodPicker();
   }
   if (page === "history") {
@@ -1554,6 +1566,11 @@ function updateLogTabs() {
   const activeTab = document.querySelector(".tab-pill.active")?.dataset.tab;
   if (!hasFoods && activeTab === "from-foods") {
     switchLogTab("ai-estimate");
+    return;
+  }
+
+  if (hasFoods && !activeTab) {
+    switchLogTab("from-foods");
   }
 }
 

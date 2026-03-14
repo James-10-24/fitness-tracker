@@ -162,7 +162,7 @@
   <div class="page" id="page-log">
     <div class="page-header">
       <div>
-        <div class="page-title serif">Log a Meal</div>
+        <div class="page-title serif">Add a Meal</div>
         <div class="page-subtitle">Use saved foods, AI estimates, or direct custom values</div>
       </div>
     </div>
@@ -316,12 +316,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       </div>
       Today
-    </button>
-    <button class="nav-btn" id="nav-log" onclick="showPage('log')">
-      <div class="nav-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.5h8l3 3V20a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5.5a2 2 0 0 1 2-2Z"/><path d="M15 3.5V7h3"/><path d="M8.5 11h7"/><path d="M8.5 14.5h7"/><path d="M8.5 18h4.5"/></svg>
-      </div>
-      Log
     </button>
     <button class="nav-btn" id="nav-history" onclick="showPage('history')">
       <div class="nav-icon">
@@ -525,8 +519,8 @@
       <div class="sheet-title" id="install-title">Install Viva.AI</div>
       <div class="account-email" id="install-copy"></div>
       <div class="install-steps hidden" id="install-steps">
-        <div class="install-step"><span class="install-step-num">1</span><span>Tap the browser share button.</span></div>
-        <div class="install-step"><span class="install-step-num">2</span><span>Select <strong>Add to Home Screen</strong>.</span></div>
+        <div class="install-step"><span class="install-step-num">1</span><span>Open the browser menu or share sheet.</span></div>
+        <div class="install-step"><span class="install-step-num">2</span><span>Select <strong>Add to Home Screen</strong> or the closest install option shown by your browser.</span></div>
         <div class="install-step"><span class="install-step-num">3</span><span>Confirm to install Viva.AI like a normal app.</span></div>
       </div>
       <button class="btn btn-primary hidden" id="install-action-btn" type="button" onclick="promptPwaInstall()">Add to Home Screen</button>
@@ -589,7 +583,7 @@
 
     <div class="fab-menu-section">
       <div class="fab-menu-section-title">Food</div>
-      <button class="btn btn-primary fab-menu-action" onclick="openLogFromFab()">Log Food</button>
+      <button class="btn btn-primary fab-menu-action" onclick="openLogFromFab()">Add Meal</button>
     </div>
 
     <div class="fab-menu-section">

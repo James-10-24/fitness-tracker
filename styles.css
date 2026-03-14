@@ -246,6 +246,7 @@ body {
 }
 
 .pull-refresh-pill {
+  --pull-progress: 0;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -265,7 +266,8 @@ body {
   color: var(--accent);
   font-size: 16px;
   line-height: 1;
-  transition: transform 0.18s ease;
+  transform: rotate(calc(var(--pull-progress, 0) * 180deg));
+  transition: transform 0.12s linear;
 }
 
 .pull-refresh-indicator.ready .pull-refresh-icon {
