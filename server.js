@@ -290,6 +290,7 @@ function buildEstimatePayload(query, retryInstruction = "") {
     "You estimate calories, protein, carbs, and fat for a described food item.",
     "Estimate the exact described quantity first. If the user says 4 eggs, estimate 4 eggs, not 1 egg.",
     "Return realistic nutrition estimates for that exact described amount, not a generic serving.",
+    "estimated_grams must be the total grams for the full described amount, not grams per unit. Example: 4 eggs at 50 g each must return estimated_grams=200, base_quantity=4, quantity_unit=egg.",
     "Use common prepared-food assumptions only when the user is vague.",
     "Return a practical portion unit for logging. Prefer g, ml, cup, piece, or oz when they fit. For count-based foods, use a clear singular unit like egg, slice, or bottle.",
     "Also return a short human-readable portion_name such as 200 g, 250 ml, 1 cup, 2 eggs, or 1 bottle.",
@@ -387,7 +388,7 @@ function validateEstimateAgainstQuery(query, estimate) {
 
 function normalizeEstimate(value) {
   const foodName = typeof value.food_name === "string" ? value.food_name.trim() : "";
-  const grams = Number(value.estimated_grams);
+  const rawGrams = Number(value.estimated_grams);
   const calories = Number(value.calories);
   const protein = Number(value.protein_g);
   const carbs = Number(value.carb_g);
@@ -397,6 +398,16 @@ function normalizeEstimate(value) {
   const portionName = typeof value.portion_name === "string" ? value.portion_name.trim() : "";
   const confidence = typeof value.confidence === "string" ? value.confidence : "medium";
   const note = typeof value.note === "string" ? value.note.trim() : "";
+  const grams = normalizeEstimatedTotalGrams({
+    estimatedGrams: rawGrams,
+    calories,
+    protein,
+    carbs,
+    fat,
+    baseQuantity,
+    quantityUnit,
+    note
+  });
 
   if (!foodName || !Number.isFinite(grams) || grams <= 0 || !Number.isFinite(calories) || calories < 0 || !Number.isFinite(protein) || protein < 0 || !Number.isFinite(carbs) || carbs < 0 || !Number.isFinite(fat) || fat < 0) {
     return null;
@@ -446,6 +457,35 @@ function buildPortionName(grams, baseQuantity, quantityUnit) {
     return `${Math.round(baseQuantity * 10) / 10} ${quantityUnit}`;
   }
   return `${Math.round(grams)} g`;
+}
+
+function normalizeEstimatedTotalGrams({ estimatedGrams, calories, protein, carbs, fat, baseQuantity, quantityUnit, note }) {
+  if (!Number.isFinite(estimatedGrams) || estimatedGrams <= 0) {
+    return estimatedGrams;
+  }
+
+  if (!(Number.isFinite(baseQuantity) && baseQuantity > 1) || !isCountBasedUnit(quantityUnit)) {
+    return estimatedGrams;
+  }
+
+  const gramsPerEachMatch = String(note || "").match(/(\d+(?:\.\d+)?)\s*g\s+each/i);
+  if (gramsPerEachMatch) {
+    return Number(gramsPerEachMatch[1]) * baseQuantity;
+  }
+
+  const macroMass = Math.max(0, protein) + Math.max(0, carbs) + Math.max(0, fat);
+  const caloriesPerGram = Number.isFinite(calories) && estimatedGrams > 0 ? calories / estimatedGrams : 0;
+  const macroDensity = estimatedGrams > 0 ? macroMass / estimatedGrams : 0;
+  if (caloriesPerGram > 4.5 || macroDensity > 0.75) {
+    return estimatedGrams * baseQuantity;
+  }
+
+  return estimatedGrams;
+}
+
+function isCountBasedUnit(unit) {
+  const normalized = singularizeUnit(String(unit || "").trim().toLowerCase());
+  return !!normalized && !["g", "gram", "kg", "oz", "lb", "ml", "l", "cup"].includes(normalized);
 }
 
 function singularizeUnit(unit) {

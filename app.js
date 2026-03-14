@@ -10,7 +10,6 @@ let state = {
 const STORAGE_KEY = "nutrilog_v2";
 const LEGACY_STORAGE_KEY = "nutrilog_v1";
 const AI_ESTIMATE_ENDPOINT = "/api/estimate-food";
-const GOAL_SUGGEST_ENDPOINT = "/api/suggest-goals";
 const OUNCES_TO_GRAMS = 28.3495;
 const CUP_TO_ML = 240;
 
@@ -358,6 +357,11 @@ function normalizePositiveNumber(value, fallback = 0) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+function isCountBasedFoodUnit(unit) {
+  const normalized = normalizeFoodUnit(unit);
+  return !!normalized && !["g", "kg", "oz", "lb", "ml", "l", "cup"].includes(normalized);
+}
+
 function showPage(page) {
   closeFabMenu();
   document.querySelectorAll(".page").forEach((node) => node.classList.remove("active"));
@@ -370,6 +374,7 @@ function showPage(page) {
     renderToday();
   }
   if (page === "log") {
+    updateLogTabs();
     renderFoodPicker();
   }
   if (page === "history") {
@@ -724,12 +729,32 @@ function triggerFoodCelebration() {
 }
 
 function switchLogTab(tab) {
+  if (tab === "from-foods" && !state.foods.length) {
+    tab = "ai-estimate";
+  }
   document.querySelectorAll(".tab-pill").forEach((pill) => {
     pill.classList.toggle("active", pill.dataset.tab === tab);
   });
   document.querySelectorAll(".tab-content").forEach((content) => {
     content.classList.toggle("active", content.id === `tab-${tab}`);
   });
+}
+
+function updateLogTabs() {
+  const hasFoods = state.foods.length > 0;
+  const myFoodsTab = document.getElementById("log-tab-my-foods");
+  const myFoodsContent = document.getElementById("tab-from-foods");
+  if (!myFoodsTab || !myFoodsContent) {
+    return;
+  }
+
+  myFoodsTab.classList.toggle("hidden", !hasFoods);
+  myFoodsContent.classList.toggle("hidden", !hasFoods);
+
+  const activeTab = document.querySelector(".tab-pill.active")?.dataset.tab;
+  if (!hasFoods && activeTab === "from-foods") {
+    switchLogTab("ai-estimate");
+  }
 }
 
 function renderFoodPicker() {
@@ -843,14 +868,27 @@ async function requestAiEstimate() {
       throw new Error(payload.error || "Estimate failed");
     }
 
+    const normalizedBaseQuantity = normalizePositiveNumber(payload.base_quantity, 0);
+    const normalizedQuantityUnit = payload.quantity_unit || "";
+    const resolvedTotalGrams = resolveAiEstimatedTotalGrams({
+      estimatedGrams: normalizePositiveNumber(payload.estimated_grams, 100),
+      baseQuantity: normalizedBaseQuantity,
+      quantityUnit: normalizedQuantityUnit,
+      calories: normalizePositiveNumber(payload.calories, 0),
+      protein: normalizePositiveNumber(payload.protein_g, 0),
+      carbs: normalizePositiveNumber(payload.carb_g, 0),
+      fat: normalizePositiveNumber(payload.fat_g, 0),
+      note: payload.note || ""
+    });
+
     activeAiEstimate = {
-      baseGrams: normalizePositiveNumber(payload.estimated_grams, 100),
+      baseGrams: resolvedTotalGrams,
       baseCalories: normalizePositiveNumber(payload.calories, 0),
       baseProtein: normalizePositiveNumber(payload.protein_g, 0),
       baseCarb: normalizePositiveNumber(payload.carb_g, 0),
       baseFat: normalizePositiveNumber(payload.fat_g, 0),
-      baseQuantity: normalizePositiveNumber(payload.base_quantity, 0),
-      quantityUnit: payload.quantity_unit || "",
+      baseQuantity: normalizedBaseQuantity,
+      quantityUnit: normalizedQuantityUnit,
       portionName: payload.portion_name || "",
       confidence: payload.confidence || "medium",
       note: payload.note || ""
@@ -932,6 +970,30 @@ function buildAiPortionName(grams, baseQuantity, quantityUnit) {
   return `${Math.round(grams)} g`;
 }
 
+function resolveAiEstimatedTotalGrams({ estimatedGrams, baseQuantity, quantityUnit, calories, protein, carbs, fat, note }) {
+  const grams = normalizePositiveNumber(estimatedGrams, 0);
+  if (!(grams > 0)) {
+    return 0;
+  }
+  if (!(baseQuantity > 1) || !isCountBasedFoodUnit(quantityUnit)) {
+    return grams;
+  }
+
+  const gramsPerEachMatch = String(note || "").match(/(\d+(?:\.\d+)?)\s*g\s+each/i);
+  if (gramsPerEachMatch) {
+    return Number(gramsPerEachMatch[1]) * baseQuantity;
+  }
+
+  const macroMass = Math.max(0, protein) + Math.max(0, carbs) + Math.max(0, fat);
+  const caloriesPerGram = calories > 0 ? calories / grams : 0;
+  const macroDensity = macroMass / grams;
+  if (caloriesPerGram > 4.5 || macroDensity > 0.75) {
+    return grams * baseQuantity;
+  }
+
+  return grams;
+}
+
 function readAiEditorValues() {
   const name = document.getElementById("ai-name").value.trim();
   const grams = normalizePositiveNumber(document.getElementById("ai-grams").value, 0);
@@ -974,6 +1036,7 @@ function resetAiEstimateForm() {
   document.getElementById("ai-estimate-note").textContent = "";
   document.getElementById("ai-estimate-status").textContent = "";
   document.getElementById("ai-estimate-editor").classList.add("hidden");
+  document.getElementById("ai-save-to-foods").checked = true;
   updateAiQuantityMode();
 }
 
@@ -993,12 +1056,17 @@ function logAiEstimate() {
     fat: roundNutrient(values.fat)
   });
 
+  const shouldSave = document.getElementById("ai-save-to-foods")?.checked;
+  if (shouldSave) {
+    upsertAiEstimateFood(values);
+  }
+
   saveState();
   resetAiEstimateForm();
   renderToday();
   renderHistory();
   triggerFoodCelebration();
-  showToast("AI estimate logged");
+  showToast(shouldSave ? "Meal logged and saved to My Foods" : "Meal logged");
   setTimeout(() => showPage("today"), 400);
 }
 
@@ -1008,23 +1076,31 @@ function saveAiEstimateToFoods() {
     return;
   }
 
-  state.foods.push(normalizeFoodRecord({
-    id: uid(),
+  upsertAiEstimateFood(values);
+  saveState();
+  renderFoodsDB();
+  updateLogTabs();
+  renderFoodPicker();
+  showToast("Food saved from AI estimate");
+}
+
+function upsertAiEstimateFood(values) {
+  const baseQuantity = activeAiEstimate?.baseQuantity || inferQuantityFromServing(values.serving).baseQuantity || 0;
+  const quantityUnit = activeAiEstimate?.quantityUnit || inferQuantityFromServing(values.serving).quantityUnit || "";
+  upsertFoodRecord({
     name: values.name,
     grams: values.grams,
-    baseQuantity: activeAiEstimate?.baseQuantity || inferQuantityFromServing(values.serving).baseQuantity || 0,
-    quantityUnit: activeAiEstimate?.quantityUnit || inferQuantityFromServing(values.serving).quantityUnit || "",
+    baseQuantity,
+    quantityUnit,
     cal: roundNutrient(values.calories),
     pro: roundNutrient(values.protein),
     carb: roundNutrient(values.carb),
     fat: roundNutrient(values.fat),
     serving: values.serving
-  }));
-
-  saveState();
+  });
   renderFoodsDB();
+  updateLogTabs();
   renderFoodPicker();
-  showToast("Food saved from AI estimate");
 }
 
 function readCustomValues() {
@@ -1069,6 +1145,7 @@ function resetCustomForm() {
   document.getElementById("custom-pro").value = "";
   document.getElementById("custom-carb").value = "";
   document.getElementById("custom-fat").value = "";
+  document.getElementById("custom-save-to-foods").checked = true;
 }
 
 function validateCustomValues(values) {
@@ -1088,12 +1165,16 @@ function logCustom() {
   const displayName = buildCustomDisplayName(values);
 
   state.logs.push({ id: uid(), date: todayStr(), name: displayName, cal: values.cal, pro: values.pro, carb: values.carb, fat: values.fat });
+  const shouldSave = document.getElementById("custom-save-to-foods")?.checked;
+  if (shouldSave) {
+    saveCustomValuesToFoods(values);
+  }
   saveState();
   resetCustomForm();
   renderToday();
   renderHistory();
   triggerFoodCelebration();
-  showToast("Meal logged");
+  showToast(shouldSave ? "Meal logged and saved to My Foods" : "Meal logged");
   setTimeout(() => showPage("today"), 400);
 }
 
@@ -1103,6 +1184,13 @@ function saveCustomToFoods() {
     return;
   }
 
+  saveCustomValuesToFoods(values);
+  saveState();
+  resetCustomForm();
+  showToast("Saved to My Foods");
+}
+
+function saveCustomValuesToFoods(values) {
   const serving = buildCustomServing(values);
   let grams = 100;
   const normalizedUnit = normalizeFoodUnit(values.portionName);
@@ -1116,28 +1204,44 @@ function saveCustomToFoods() {
     }
   }
 
-  state.foods.push(normalizeFoodRecord({
-    id: uid(),
+  const quantityMeta = inferQuantityFromServing(serving);
+  upsertFoodRecord({
     name: values.name,
     grams: Math.max(1, roundNutrient(grams)),
+    baseQuantity: quantityMeta.baseQuantity || 0,
+    quantityUnit: quantityMeta.quantityUnit || "",
     cal: roundNutrient(values.cal),
     pro: roundNutrient(values.pro),
     carb: roundNutrient(values.carb),
     fat: roundNutrient(values.fat),
     serving
-  }));
-
-  saveState();
-  resetCustomForm();
+  });
   renderFoodsDB();
+  updateLogTabs();
   renderFoodPicker();
-  showToast("Saved to My Foods");
+}
+
+function upsertFoodRecord(foodLike) {
+  const normalized = normalizeFoodRecord({ id: uid(), ...foodLike });
+  const matchIndex = state.foods.findIndex((food) =>
+    food.name.trim().toLowerCase() === normalized.name.trim().toLowerCase() &&
+    (food.serving || "").trim().toLowerCase() === (normalized.serving || "").trim().toLowerCase()
+  );
+  if (matchIndex >= 0) {
+    state.foods[matchIndex] = { ...state.foods[matchIndex], ...normalized, id: state.foods[matchIndex].id };
+    return state.foods[matchIndex];
+  }
+  state.foods.push(normalized);
+  return normalized;
 }
 
 function renderFoodsDB() {
   const list = document.getElementById("foods-list");
+  if (!list) {
+    return;
+  }
   if (!state.foods.length) {
-    list.innerHTML = "<div class=\"empty-state\"><div class=\"empty-icon\">Food</div>No foods yet.<br>Use AI Estimate or tap + to add one manually.</div>";
+    list.innerHTML = "<div class=\"empty-state\"><div class=\"empty-icon\">Food</div>No saved foods yet.<br>Use AI or Custom to create one.</div>";
     return;
   }
 
@@ -1149,6 +1253,7 @@ function renderFoodsDB() {
       </div>
       <div class="food-row-actions">
         <button class="icon-btn" onclick="openFoodModal('${food.id}')" title="Edit">Edit</button>
+        <button class="icon-btn danger" onclick="deleteFoodById('${food.id}')" title="Delete">Delete</button>
       </div>
     </div>
   `).join("");
@@ -1215,6 +1320,7 @@ function saveFood() {
   saveState();
   closeModal("food");
   renderFoodsDB();
+  updateLogTabs();
   renderFoodPicker();
   updateFoodLogInputMode();
   showToast(editId ? "Food updated" : "Food added");
@@ -1225,14 +1331,27 @@ function deleteFood() {
   if (!editId) {
     return;
   }
+  deleteFoodById(editId, true);
+}
+
+function deleteFoodById(id, closeEditor = false) {
+  if (!id) {
+    return;
+  }
   if (!window.confirm("Delete this food from your database?")) {
     return;
   }
 
-  state.foods = state.foods.filter((food) => food.id !== editId);
+  state.foods = state.foods.filter((food) => food.id !== id);
+  if (selectedFoodId === id) {
+    selectedFoodId = null;
+  }
   saveState();
-  closeModal("food");
+  if (closeEditor) {
+    closeModal("food");
+  }
   renderFoodsDB();
+  updateLogTabs();
   renderFoodPicker();
   updateFoodLogInputMode();
   showToast("Food deleted");
@@ -1293,6 +1412,7 @@ function showGoalsModal() {
   document.getElementById("goal-water-input").value = state.goals.water;
   document.getElementById("goal-steps-input").value = state.goals.steps;
   document.getElementById("goal-suggest-status").textContent = "";
+  document.getElementById("goal-sources-popover").classList.add("hidden");
   document.getElementById("overlay-goals").classList.add("open");
 }
 
@@ -1346,47 +1466,148 @@ async function suggestGoals() {
     return;
   }
 
-  status.textContent = "Generating AI goal suggestion...";
+  const recommendation = calculateGoalRecommendation({
+    gender,
+    age,
+    heightCm,
+    weightKg,
+    fitnessGoal,
+    activity
+  });
 
-  try {
-    const response = await fetch(GOAL_SUGGEST_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        gender,
-        age,
-        height_cm: heightCm,
-        weight_kg: weightKg,
-        fitness_goal: fitnessGoal,
-        activity
-      })
-    });
+  document.getElementById("goal-cal-input").value = recommendation.cal;
+  document.getElementById("goal-pro-input").value = recommendation.pro;
+  document.getElementById("goal-carb-input").value = recommendation.carb;
+  document.getElementById("goal-fat-input").value = recommendation.fat;
+  document.getElementById("goal-water-input").value = recommendation.water;
+  document.getElementById("goal-steps-input").value = recommendation.steps;
+  status.textContent = recommendation.note;
+}
 
-    const recommendation = await response.json();
-    if (!response.ok) {
-      throw new Error(recommendation.error || "Goal suggestion failed");
-    }
+function toggleGoalSourcesInfo() {
+  document.getElementById("goal-sources-popover").classList.toggle("hidden");
+}
 
-    document.getElementById("goal-cal-input").value = recommendation.cal;
-    document.getElementById("goal-pro-input").value = recommendation.pro;
-    document.getElementById("goal-carb-input").value = recommendation.carb;
-    document.getElementById("goal-fat-input").value = recommendation.fat;
-    document.getElementById("goal-water-input").value = recommendation.water;
-    document.getElementById("goal-steps-input").value = recommendation.steps;
-    status.textContent = recommendation.note;
-  } catch (error) {
-    console.error("Goal suggestion failed", error);
-    status.textContent = error.message || "Goal suggestion failed";
+function calculateGoalRecommendation({ gender, age, heightCm, weightKg, fitnessGoal, activity }) {
+  const sexOffset = gender === "male" ? 5 : -161;
+  const rmr = (10 * weightKg) + (6.25 * heightCm) - (5 * age) + sexOffset;
+  const activityMultiplier = {
+    sedentary: 1.2,
+    light: 1.375,
+    moderate: 1.55,
+    very: 1.725
+  }[activity] || 1.55;
+  const goalAdjustment = {
+    lose: -400,
+    maintain: 0,
+    build: 250,
+    health: 0
+  }[fitnessGoal] || 0;
+
+  const calories = Math.max(1200, roundToNearest((rmr * activityMultiplier) + goalAdjustment, 25));
+
+  const proteinMultiplier = {
+    lose: 1.8,
+    maintain: 1.4,
+    build: 2.0,
+    health: 1.2
+  }[fitnessGoal] || 1.4;
+  const minimumProteinMultiplier = {
+    lose: 1.4,
+    maintain: 1.2,
+    build: 1.6,
+    health: 1.0
+  }[fitnessGoal] || 1.2;
+  const fatPercentTarget = {
+    lose: 0.25,
+    maintain: 0.28,
+    build: 0.27,
+    health: 0.3
+  }[fitnessGoal] || 0.28;
+
+  let protein = weightKg * proteinMultiplier;
+  protein = Math.min(protein, (calories * 0.3) / 4);
+  let proteinCalories = protein * 4;
+
+  let fatCalories = calories * fatPercentTarget;
+  fatCalories = clamp(fatCalories, calories * 0.2, calories * 0.35);
+  let carbCalories = calories - proteinCalories - fatCalories;
+
+  const minimumCarbCalories = calories * 0.45;
+  if (carbCalories < minimumCarbCalories) {
+    fatCalories = Math.max(calories * 0.2, fatCalories - (minimumCarbCalories - carbCalories));
+    carbCalories = calories - proteinCalories - fatCalories;
   }
+  if (carbCalories < minimumCarbCalories) {
+    const minimumProteinCalories = weightKg * minimumProteinMultiplier * 4;
+    proteinCalories = Math.max(minimumProteinCalories, proteinCalories - (minimumCarbCalories - carbCalories));
+    protein = proteinCalories / 4;
+    carbCalories = calories - proteinCalories - fatCalories;
+  }
+
+  const fat = fatCalories / 9;
+  const carbs = Math.max(0, carbCalories / 4);
+
+  const waterBase = gender === "male" ? 3.7 : 2.7;
+  const water = roundToDecimal(waterBase + ({
+    sedentary: 0,
+    light: 0.3,
+    moderate: 0.6,
+    very: 0.9
+  }[activity] || 0.3), 1);
+
+  const steps = {
+    sedentary: 6000,
+    light: 8000,
+    moderate: 10000,
+    very: 12000
+  }[activity] || 8000;
+
+  return {
+    cal: Math.round(calories),
+    pro: roundToDecimal(protein, 1),
+    carb: roundToDecimal(carbs, 1),
+    fat: roundToDecimal(fat, 1),
+    water,
+    steps,
+    note: buildGoalRecommendationNote(fitnessGoal, activity)
+  };
+}
+
+function buildGoalRecommendationNote(fitnessGoal, activity) {
+  const goalCopy = {
+    lose: "fat loss with higher protein and a moderate calorie deficit",
+    maintain: "steady maintenance with balanced macros",
+    build: "muscle gain with a controlled calorie surplus",
+    health: "general health with practical daily targets"
+  }[fitnessGoal] || "balanced nutrition";
+  const activityCopy = {
+    sedentary: "sedentary",
+    light: "lightly active",
+    moderate: "moderately active",
+    very: "very active"
+  }[activity] || "moderately active";
+  return `Suggested from NIH/National Academies guidance for a ${activityCopy} routine and ${goalCopy}. You can still edit any target manually.`;
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function roundToNearest(value, step) {
+  return Math.round(value / step) * step;
+}
+
+function roundToDecimal(value, digits = 1) {
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
 }
 
 function closeModal(name) {
   document.getElementById(`overlay-${name}`).classList.remove("open");
-}
-
-function openMyFoodsModal() {
-  renderFoodsDB();
-  document.getElementById("overlay-my-foods").classList.add("open");
+  if (name === "goals") {
+    document.getElementById("goal-sources-popover").classList.add("hidden");
+  }
 }
 
 function showToast(message) {
@@ -1430,6 +1651,7 @@ document.addEventListener("keydown", (event) => {
 
 document.addEventListener("DOMContentLoaded", () => {
   loadState();
+  updateLogTabs();
   renderToday();
   renderWaterUnits();
   renderFoodsDB();

@@ -32,7 +32,7 @@
       <div class="card-label">Progress</div>
       <div class="progress-wrap" id="cal-progress-wrap">
         <div class="progress-top">
-          <span class="progress-name">Calories</span>
+          <span class="progress-name"><span class="progress-icon" aria-hidden="true">🔥</span><span>Calories</span></span>
           <span class="progress-nums"><span id="prog-cal-curr">0</span> / <span id="prog-cal-goal">2000</span> kcal</span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-cal" id="prog-cal-bar" style="width: 0%"></div></div>
@@ -40,7 +40,7 @@
       </div>
       <div class="progress-wrap" id="pro-progress-wrap">
         <div class="progress-top">
-          <span class="progress-name">Protein</span>
+          <span class="progress-name"><span class="progress-icon" aria-hidden="true">🥩</span><span>Protein</span></span>
           <span class="progress-nums"><span id="prog-pro-curr">0</span> / <span id="prog-pro-goal">150</span> g</span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-pro" id="prog-pro-bar" style="width: 0%"></div></div>
@@ -48,7 +48,7 @@
       </div>
       <div class="progress-wrap" id="carb-progress-wrap">
         <div class="progress-top">
-          <span class="progress-name">Carbs</span>
+          <span class="progress-name"><span class="progress-icon" aria-hidden="true">🍞</span><span>Carbs</span></span>
           <span class="progress-nums"><span id="prog-carb-curr">0</span> / <span id="prog-carb-goal">220</span> g</span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-carb" id="prog-carb-bar" style="width: 0%"></div></div>
@@ -56,7 +56,7 @@
       </div>
       <div class="progress-wrap" id="fat-progress-wrap" style="margin-bottom: 0">
         <div class="progress-top">
-          <span class="progress-name">Fat</span>
+          <span class="progress-name"><span class="progress-icon" aria-hidden="true">🧈</span><span>Fat</span></span>
           <span class="progress-nums"><span id="prog-fat-curr">0</span> / <span id="prog-fat-goal">65</span> g</span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-fat" id="prog-fat-bar" style="width: 0%"></div></div>
@@ -69,7 +69,7 @@
       <div class="progress-wrap" id="water-progress-wrap">
         <div class="progress-top">
           <span class="progress-name progress-name-with-action">
-            <span>Water</span>
+            <span class="progress-name"><span class="progress-icon" aria-hidden="true">💧</span><span>Water</span></span>
             <button class="mini-icon-btn" onclick="resetWaterToday()" title="Reset water today" aria-label="Reset water today">↺</button>
           </span>
           <span class="progress-nums"><span id="prog-water-curr">0</span> / <span id="prog-water-goal">2.5</span> L</span>
@@ -80,7 +80,7 @@
       <div class="progress-wrap" id="steps-progress-wrap" style="margin-bottom: 0">
         <div class="progress-top">
           <span class="progress-name progress-name-with-action">
-            <span>Steps</span>
+            <span class="progress-name"><span class="progress-icon" aria-hidden="true">👟</span><span>Steps</span></span>
             <button class="mini-icon-btn" onclick="resetStepsToday()" title="Reset steps today" aria-label="Reset steps today">↺</button>
           </span>
           <span class="progress-nums"><span id="prog-steps-curr">0</span> / <span id="prog-steps-goal">8000</span></span>
@@ -102,20 +102,17 @@
   </div>
 
   <div class="page" id="page-log">
-    <div class="page-header page-header-with-action">
+    <div class="page-header">
       <div>
         <div class="page-title serif">Log a Meal</div>
         <div class="page-subtitle">Use saved foods, AI estimates, or direct custom values</div>
       </div>
-      <button class="header-icon-btn" onclick="openMyFoodsModal()" title="Open My Foods" aria-label="Open My Foods">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 20h10a3 3 0 0 0 3-3v-4.2a4.8 4.8 0 0 0-4.8-4.8c-.6 0-1.2.1-1.7.3A5.2 5.2 0 0 0 4 11.7V17a3 3 0 0 0 3 3Z"/><path d="M8.5 11.2c.5-.9 1.3-1.7 2.4-2.2"/><path d="M15.5 11.2c-.5-.9-1.3-1.7-2.4-2.2"/></svg>
-      </button>
     </div>
 
     <div class="tab-row">
-      <button class="tab-pill active" data-tab="from-foods" onclick="switchLogTab('from-foods')">My Foods</button>
-      <button class="tab-pill" data-tab="ai-estimate" onclick="switchLogTab('ai-estimate')">AI</button>
-      <button class="tab-pill" data-tab="custom" onclick="switchLogTab('custom')">Custom</button>
+      <button class="tab-pill active" data-tab="from-foods" id="log-tab-my-foods" onclick="switchLogTab('from-foods')">My Foods</button>
+      <button class="tab-pill" data-tab="ai-estimate" id="log-tab-ai" onclick="switchLogTab('ai-estimate')">AI</button>
+      <button class="tab-pill" data-tab="custom" id="log-tab-custom" onclick="switchLogTab('custom')">Custom</button>
     </div>
 
     <div class="tab-content active" id="tab-from-foods">
@@ -137,6 +134,12 @@
       <div class="helper-text">
         Missing a food item? <span class="helper-link" onclick="switchLogTab('ai-estimate')">Let AI take a guess for you</span>. After saving it, you can log it by grams or quantity in just a tap.
       </div>
+      <div class="tab-section-divider"></div>
+      <div class="tab-inline-header">
+        <div class="card-label" style="margin-bottom: 0">Manage Saved Foods</div>
+        <button class="btn btn-secondary tab-inline-btn" onclick="openFoodModal()">Add Food Manually</button>
+      </div>
+      <div id="foods-list"></div>
     </div>
 
     <div class="tab-content" id="tab-ai-estimate">
@@ -192,8 +195,11 @@
           </div>
           <div class="estimate-actions">
             <button class="btn btn-primary estimate-action" onclick="logAiEstimate()">Add to Today</button>
-            <button class="btn btn-secondary estimate-action" onclick="saveAiEstimateToFoods()">Save to My Foods</button>
           </div>
+          <label class="checkbox-row" for="ai-save-to-foods">
+            <input id="ai-save-to-foods" type="checkbox" checked>
+            <span>Save to My Foods</span>
+          </label>
           <div class="helper-text">Change any value if it looks off. Editing grams will auto-update the rest.</div>
         </div>
       </div>
@@ -236,8 +242,11 @@
       </div>
       <div class="estimate-actions">
         <button class="btn btn-primary estimate-action" onclick="logCustom()">Add to Today</button>
-        <button class="btn btn-secondary estimate-action" onclick="saveCustomToFoods()">Save to My Foods</button>
       </div>
+      <label class="checkbox-row" for="custom-save-to-foods">
+        <input id="custom-save-to-foods" type="checkbox" checked>
+        <span>Save to My Foods</span>
+      </label>
     </div>
   </div>
 
@@ -314,28 +323,20 @@
     </div>
   </div>
 
-  <div class="overlay" id="overlay-my-foods" onclick="closeModal('my-foods')">
-    <div class="sheet" onclick="event.stopPropagation()">
-      <div class="sheet-handle"></div>
-      <div class="sheet-title">My Foods</div>
-      <div class="card card-tight">
-        <div class="card-label">Quick Tip</div>
-        <div class="api-note">Use AI or Custom in Log to build foods here, then reuse them with one tap.</div>
-      </div>
-      <div class="sheet-actions">
-        <button class="btn btn-secondary" onclick="openFoodModal()">Add Food Manually</button>
-      </div>
-      <div id="foods-list"></div>
-    </div>
-  </div>
-
   <div class="overlay" id="overlay-goals" onclick="closeModal('goals')">
     <div class="sheet" onclick="event.stopPropagation()">
       <div class="sheet-handle"></div>
       <div class="sheet-title">Daily Goals</div>
       <div class="goals-helper-card">
-        <div class="card-label">Suggest Goals</div>
+        <div class="goals-header-row">
+          <div class="card-label" style="margin-bottom: 0">Suggest Goals</div>
+          <button class="info-icon-btn" type="button" onclick="toggleGoalSourcesInfo()" aria-label="How goal suggestions are calculated" title="How goal suggestions are calculated">i</button>
+        </div>
         <div class="api-note">Use your profile to estimate daily calories, protein, carbs, fat, water, and steps. You can still edit everything manually before saving.</div>
+        <div class="goal-sources-popover hidden" id="goal-sources-popover">
+          <div class="goal-sources-title">How suggestions work</div>
+          <div class="goal-sources-copy">Calories use the Mifflin-St Jeor formula with activity multipliers from NIH/NIDDK guidance. Protein, carbs, fat, and water follow National Academies dietary reference ranges and adequate intake guidance. Steps use a simple activity-based target informed by CDC activity guidance and NIH step-count evidence.</div>
+        </div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label" for="goal-gender-input">Gender</label>
