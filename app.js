@@ -1203,6 +1203,15 @@ function roundNutrient(value) {
   return Math.round(Number(value) * 10) / 10;
 }
 
+function setNumericInputValue(id, value, formatter = (next) => String(next)) {
+  const input = document.getElementById(id);
+  if (!input) {
+    return;
+  }
+  const numeric = Number(value);
+  input.value = Number.isFinite(numeric) ? formatter(numeric) : "";
+}
+
 function normalizePositiveNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
@@ -1771,12 +1780,12 @@ async function requestAiEstimate() {
     };
 
     document.getElementById("ai-name").value = payload.food_name || query;
-    document.getElementById("ai-quantity").value = roundNutrient(getAiVisibleQuantity());
-    document.getElementById("ai-grams").value = Math.round(activeAiEstimate.baseGrams);
-    document.getElementById("ai-calories").value = Math.round(activeAiEstimate.baseCalories);
-    document.getElementById("ai-protein").value = roundNutrient(activeAiEstimate.baseProtein);
-    document.getElementById("ai-carb").value = roundNutrient(activeAiEstimate.baseCarb);
-    document.getElementById("ai-fat").value = roundNutrient(activeAiEstimate.baseFat);
+    setNumericInputValue("ai-quantity", getAiVisibleQuantity(), (next) => String(roundNutrient(next)));
+    setNumericInputValue("ai-grams", activeAiEstimate.baseGrams, (next) => String(Math.round(next)));
+    setNumericInputValue("ai-calories", activeAiEstimate.baseCalories, (next) => String(Math.round(next)));
+    setNumericInputValue("ai-protein", activeAiEstimate.baseProtein, (next) => String(roundNutrient(next)));
+    setNumericInputValue("ai-carb", activeAiEstimate.baseCarb, (next) => String(roundNutrient(next)));
+    setNumericInputValue("ai-fat", activeAiEstimate.baseFat, (next) => String(roundNutrient(next)));
     document.getElementById("ai-serving-label").value = getAiPortionUnitLabel();
     document.getElementById("ai-estimate-note").textContent = `AI estimate (${activeAiEstimate.confidence} confidence): ${payload.note}`;
     updateAiQuantityMode();
@@ -1784,7 +1793,9 @@ async function requestAiEstimate() {
     statusNode.textContent = "Estimate ready. Adjust any values before saving.";
   } catch (error) {
     console.error("AI estimate failed", error);
-    statusNode.textContent = error.message || "Estimate failed";
+    statusNode.textContent = /expected pattern/i.test(error?.message || "")
+      ? "AI estimate returned an invalid value. Please try again."
+      : (error.message || "Estimate failed");
   } finally {
     button.disabled = false;
   }
@@ -1801,9 +1812,9 @@ function updateAiQuantityMode() {
     return;
   }
   quantityLabel.textContent = "Quantity";
-  quantityInput.value = roundNutrient(getAiVisibleQuantity());
+  setNumericInputValue("ai-quantity", getAiVisibleQuantity(), (next) => String(roundNutrient(next)));
   portionInput.value = getAiPortionUnitLabel();
-  gramsInput.value = Math.round(activeAiEstimate.baseGrams);
+  setNumericInputValue("ai-grams", activeAiEstimate.baseGrams, (next) => String(Math.round(next)));
   const showGrams = shouldShowAiGramsField();
   gramsGroup.classList.toggle("hidden", !showGrams);
   helper.textContent = showGrams
@@ -1819,11 +1830,11 @@ function syncEstimateFromQuantity() {
   const quantity = normalizePositiveNumber(document.getElementById("ai-quantity").value, getAiVisibleQuantity());
   const ratio = getAiQuantityRatio(quantity);
   const grams = Math.round(activeAiEstimate.baseGrams * ratio);
-  document.getElementById("ai-grams").value = grams;
-  document.getElementById("ai-calories").value = Math.round(activeAiEstimate.baseCalories * ratio);
-  document.getElementById("ai-protein").value = roundNutrient(activeAiEstimate.baseProtein * ratio);
-  document.getElementById("ai-carb").value = roundNutrient(activeAiEstimate.baseCarb * ratio);
-  document.getElementById("ai-fat").value = roundNutrient(activeAiEstimate.baseFat * ratio);
+  setNumericInputValue("ai-grams", grams, (next) => String(Math.round(next)));
+  setNumericInputValue("ai-calories", activeAiEstimate.baseCalories * ratio, (next) => String(Math.round(next)));
+  setNumericInputValue("ai-protein", activeAiEstimate.baseProtein * ratio, (next) => String(roundNutrient(next)));
+  setNumericInputValue("ai-carb", activeAiEstimate.baseCarb * ratio, (next) => String(roundNutrient(next)));
+  setNumericInputValue("ai-fat", activeAiEstimate.baseFat * ratio, (next) => String(roundNutrient(next)));
   document.getElementById("ai-serving-label").value = getAiPortionUnitLabel(quantity);
 }
 
@@ -1834,10 +1845,10 @@ function syncEstimateFromGrams() {
 
   const grams = normalizePositiveNumber(document.getElementById("ai-grams").value, activeAiEstimate.baseGrams);
   const ratio = activeAiEstimate.baseGrams > 0 ? grams / activeAiEstimate.baseGrams : 1;
-  document.getElementById("ai-calories").value = Math.round(activeAiEstimate.baseCalories * ratio);
-  document.getElementById("ai-protein").value = roundNutrient(activeAiEstimate.baseProtein * ratio);
-  document.getElementById("ai-carb").value = roundNutrient(activeAiEstimate.baseCarb * ratio);
-  document.getElementById("ai-fat").value = roundNutrient(activeAiEstimate.baseFat * ratio);
+  setNumericInputValue("ai-calories", activeAiEstimate.baseCalories * ratio, (next) => String(Math.round(next)));
+  setNumericInputValue("ai-protein", activeAiEstimate.baseProtein * ratio, (next) => String(roundNutrient(next)));
+  setNumericInputValue("ai-carb", activeAiEstimate.baseCarb * ratio, (next) => String(roundNutrient(next)));
+  setNumericInputValue("ai-fat", activeAiEstimate.baseFat * ratio, (next) => String(roundNutrient(next)));
 }
 
 function getAiVisibleQuantity() {
