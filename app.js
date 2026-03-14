@@ -183,6 +183,7 @@ function normalizePositiveNumber(value, fallback = 0) {
 }
 
 function showPage(page) {
+  closeFabMenu();
   document.querySelectorAll(".page").forEach((node) => node.classList.remove("active"));
   document.querySelectorAll(".nav-btn").forEach((node) => node.classList.remove("active"));
   document.getElementById(`page-${page}`).classList.add("active");
@@ -207,23 +208,61 @@ function showPage(page) {
 
 function updateFab() {
   const fab = document.getElementById("fab-btn");
+  if (!fab) {
+    return;
+  }
   if (currentPage === "foods") {
     fab.style.display = "flex";
     fab.title = "Add Food";
   } else if (currentPage === "log" || currentPage === "history") {
+    closeFabMenu();
     fab.style.display = "none";
   } else {
     fab.style.display = "flex";
-    fab.title = currentPage === "today" ? "Log Meal" : "Add";
+    fab.title = currentPage === "today" ? "Daily Tracking" : "Add";
   }
 }
 
 function handleFab() {
   if (currentPage === "today") {
-    showPage("log");
+    toggleFabMenu();
   } else if (currentPage === "foods") {
     openFoodModal();
   }
+}
+
+function toggleFabMenu() {
+  setFabMenuOpen(!isFabMenuOpen());
+}
+
+function closeFabMenu() {
+  setFabMenuOpen(false);
+}
+
+function isFabMenuOpen() {
+  const menu = document.getElementById("fab-menu");
+  return !!menu && !menu.classList.contains("hidden");
+}
+
+function setFabMenuOpen(open) {
+  const menu = document.getElementById("fab-menu");
+  const backdrop = document.getElementById("fab-menu-backdrop");
+  const fab = document.getElementById("fab-btn");
+  if (!menu || !backdrop || !fab) {
+    return;
+  }
+
+  menu.classList.toggle("hidden", !open);
+  backdrop.classList.toggle("hidden", !open);
+  menu.setAttribute("aria-hidden", String(!open));
+  backdrop.setAttribute("aria-hidden", String(!open));
+  fab.classList.toggle("open", open);
+  fab.setAttribute("aria-expanded", String(open));
+}
+
+function openLogFromFab() {
+  closeFabMenu();
+  showPage("log");
 }
 
 function renderToday() {
@@ -342,6 +381,7 @@ function addWaterManual() {
   });
   saveState();
   renderToday();
+  closeFabMenu();
   triggerWaterCelebration();
   showToast("Water added");
 }
@@ -361,6 +401,7 @@ function addSteps() {
   saveState();
   renderToday();
   document.getElementById("quick-steps-input").value = "1000";
+  closeFabMenu();
   triggerStepCelebration();
   showToast("Steps added");
 }
@@ -423,15 +464,15 @@ function renderWaterUnits() {
 
   unitList.innerHTML = state.waterUnits.map((unit) => `
     <div class="water-unit-card">
-      <div class="form-label" style="margin:0">${escHtml(unit.name)}</div>
+      <div class="water-unit-card-title">${escHtml(unit.name)}</div>
       <div class="water-unit-volume-row">
-        <input class="form-input" id="water-unit-volume-${unit.id}" type="number" min="1" step="1" value="${unit.ml >= 1000 && unit.ml % 1000 === 0 ? unit.ml / 1000 : unit.ml}">
+        <input class="form-input" id="water-unit-volume-${unit.id}" type="number" min="0.1" step="0.1" value="${unit.ml >= 1000 && unit.ml % 1000 === 0 ? unit.ml / 1000 : unit.ml}">
         <select class="form-input water-unit-select" id="water-unit-unit-${unit.id}">
           <option value="ml" ${unit.ml >= 1000 && unit.ml % 1000 === 0 ? "" : "selected"}>ml</option>
           <option value="l" ${unit.ml >= 1000 && unit.ml % 1000 === 0 ? "selected" : ""}>L</option>
         </select>
       </div>
-      <button class="btn btn-secondary quick-track-btn secondary-quiet" onclick="saveWaterUnitVolume('${unit.id}')">Save</button>
+      <button class="btn btn-secondary quick-track-btn secondary-quiet water-unit-save-btn" onclick="saveWaterUnitVolume('${unit.id}')">Save</button>
     </div>
   `).join("");
 
@@ -463,6 +504,7 @@ function addWaterByUnit(id) {
   });
   saveState();
   renderToday();
+  closeFabMenu();
   triggerWaterCelebration();
   showToast(`${unit.name} added`);
 }
@@ -1124,6 +1166,7 @@ function registerServiceWorker() {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    closeFabMenu();
     document.querySelectorAll(".overlay.open").forEach((overlay) => overlay.classList.remove("open"));
   }
 });

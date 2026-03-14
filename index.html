@@ -89,29 +89,6 @@
     </div>
 
     <div class="card">
-      <div class="card-label">Water Tracking</div>
-      <label class="form-label" for="quick-water-manual-input">Add Water Directly (L)</label>
-      <div class="quick-track-row">
-        <input class="form-input" id="quick-water-manual-input" type="number" min="0.1" step="0.1" value="1.2" placeholder="1.2">
-        <button class="btn btn-primary quick-track-btn" onclick="addWaterManual()">Add</button>
-      </div>
-      <div id="water-unit-actions" class="water-action-grid"></div>
-      <div class="quick-track-header-inline">
-        <label class="form-label">Water Unit Volumes</label>
-      </div>
-      <div id="water-unit-list" class="water-unit-list"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Steps Tracking</div>
-      <label class="form-label" for="quick-steps-input">Add Steps</label>
-      <div class="quick-track-row">
-        <input class="form-input" id="quick-steps-input" type="number" min="100" step="100" value="1000">
-        <button class="btn btn-primary quick-track-btn" onclick="addSteps()">Add</button>
-      </div>
-    </div>
-
-    <div class="card">
       <div class="card-label">Today's Meals</div>
       <div id="today-meal-list">
         <div class="empty-state">
@@ -479,6 +456,42 @@
       <div class="step-ground"></div>
       <div class="step-dust step-dust-one"></div>
       <div class="step-dust step-dust-two"></div>
+    </div>
+  </div>
+
+  <button class="fab-menu-backdrop hidden" id="fab-menu-backdrop" onclick="closeFabMenu()" aria-hidden="true"></button>
+  <div class="fab-menu hidden" id="fab-menu" aria-hidden="true">
+    <div class="fab-menu-header">
+      <div class="fab-menu-title">Daily Tracking</div>
+      <div class="fab-menu-subtitle">Add food, water, or steps without leaving Today.</div>
+    </div>
+
+    <div class="fab-menu-section">
+      <div class="fab-menu-section-title">Food</div>
+      <button class="btn btn-primary fab-menu-action" onclick="openLogFromFab()">Log Food</button>
+    </div>
+
+    <div class="fab-menu-section">
+      <div class="fab-menu-section-title">Water</div>
+      <label class="form-label" for="quick-water-manual-input">Add Water Directly (L)</label>
+      <div class="quick-track-row">
+        <input class="form-input" id="quick-water-manual-input" type="number" min="0.1" step="0.1" value="1.2" placeholder="1.2">
+        <button class="btn btn-primary quick-track-btn" onclick="addWaterManual()">Add</button>
+      </div>
+      <div id="water-unit-actions" class="water-action-grid"></div>
+      <div class="quick-track-header-inline">
+        <label class="form-label">Glass & Bottle Volumes</label>
+      </div>
+      <div id="water-unit-list" class="water-unit-list"></div>
+    </div>
+
+    <div class="fab-menu-section">
+      <div class="fab-menu-section-title">Steps</div>
+      <label class="form-label" for="quick-steps-input">Add Steps</label>
+      <div class="quick-track-row">
+        <input class="form-input" id="quick-steps-input" type="number" min="100" step="100" value="1000">
+        <button class="btn btn-primary quick-track-btn" onclick="addSteps()">Add</button>
+      </div>
     </div>
   </div>
 

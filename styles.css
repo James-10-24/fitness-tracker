@@ -277,6 +277,18 @@ h2,
 
 .water-unit-select {
   min-width: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 38px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text2) 50%),
+    linear-gradient(135deg, var(--text2) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
 }
 
 .water-unit-list {
@@ -287,14 +299,25 @@ h2,
 
 .water-unit-card {
   display: grid;
-  grid-template-columns: 96px 1fr auto;
-  align-items: end;
   gap: 10px;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 12px;
   font-size: 13px;
+}
+
+.water-unit-card-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text2);
+}
+
+.water-unit-save-btn {
+  width: auto;
+  justify-self: start;
 }
 
 .water-action-grid {
@@ -730,8 +753,7 @@ h2,
 .fab {
   position: fixed;
   bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px);
-  right: 50%;
-  transform: translateX(calc(50% - 190px));
+  right: max(16px, calc((100vw - 430px) / 2 + 16px));
   width: 52px;
   height: 52px;
   border-radius: 50%;
@@ -750,7 +772,78 @@ h2,
 }
 
 .fab:active {
-  transform: translateX(calc(50% - 190px)) scale(0.94);
+  transform: scale(0.94);
+}
+
+.fab.open {
+  transform: rotate(45deg);
+}
+
+.fab-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 26, 24, 0.18);
+  border: none;
+  padding: 0;
+  z-index: 97;
+}
+
+.fab-menu {
+  position: fixed;
+  right: max(16px, calc((100vw - 430px) / 2 + 16px));
+  bottom: calc(var(--nav-h) + var(--safe-bottom) + 80px);
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(70vh, 620px);
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(226, 226, 220, 0.95);
+  border-radius: 22px;
+  padding: 16px;
+  box-shadow: 0 22px 46px rgba(26, 26, 24, 0.14);
+  z-index: 98;
+}
+
+.fab-menu-header {
+  margin-bottom: 14px;
+}
+
+.fab-menu-title {
+  font-family: "Playfair Display", serif;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.fab-menu-subtitle {
+  color: var(--text2);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.fab-menu-section {
+  padding-top: 14px;
+  border-top: 1px solid rgba(226, 226, 220, 0.9);
+}
+
+.fab-menu-section + .fab-menu-section {
+  margin-top: 14px;
+}
+
+.fab-menu-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text2);
+  margin-bottom: 10px;
+}
+
+.fab-menu-action {
+  margin-top: 0;
+}
+
+.hidden {
+  display: none !important;
 }
 
 .goals-bar {
@@ -1080,10 +1173,6 @@ h2,
 
 .tab-content.active {
   display: block;
-}
-
-.hidden {
-  display: none;
 }
 
 .toast {
