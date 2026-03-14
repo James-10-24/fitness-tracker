@@ -148,6 +148,10 @@ body {
   margin-top: 10px;
 }
 
+.auth-install-btn {
+  margin-top: 10px;
+}
+
 .password-input-wrap {
   position: relative;
 }
@@ -1311,6 +1315,10 @@ h2,
 .goals-bar-link {
   font-size: 12px;
   color: var(--accent);
+}
+
+.today-install-btn {
+  margin: 0 16px 14px;
 }
 
 .overlay {

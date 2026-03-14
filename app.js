@@ -140,7 +140,7 @@ function shouldShowInstallEntry() {
 }
 
 function updateInstallUi() {
-  ["account-install-btn", "account-install-btn-guest"].forEach((id) => {
+  ["auth-install-btn", "today-install-btn"].forEach((id) => {
     const button = document.getElementById(id);
     if (button) {
       button.classList.toggle("hidden", !shouldShowInstallEntry());

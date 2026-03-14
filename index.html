@@ -62,6 +62,7 @@
         <button class="btn btn-primary" type="button" onclick="submitAuth('signin')">Sign In</button>
         <button class="btn btn-secondary" type="button" onclick="submitAuth('signup')">Create Account</button>
       </div>
+      <button class="btn btn-secondary auth-install-btn hidden" id="auth-install-btn" type="button" onclick="openInstallModal()">Install Viva.AI App</button>
       <button class="btn btn-secondary auth-guest-btn" id="auth-guest-btn" type="button" onclick="continueAsGuest()">Continue Without Account</button>
       <div class="api-status auth-status" id="auth-status" aria-live="polite"></div>
     </div>
@@ -85,6 +86,8 @@
       <span class="goals-bar-text">Daily Goals</span>
       <span class="goals-bar-link">Edit goals</span>
     </div>
+
+    <button class="btn btn-secondary today-install-btn hidden" id="today-install-btn" type="button" onclick="openInstallModal()">Install Viva.AI App</button>
 
     <div class="card">
       <div class="card-label">Progress</div>
@@ -495,7 +498,6 @@
       <div class="account-view hidden" id="account-signed-out">
         <div class="account-email">Use an account to sync your local data across devices and keep it private to you.</div>
         <button class="btn btn-primary" type="button" onclick="openAuthFromAccount('signin')">Sign In or Register</button>
-        <button class="btn btn-secondary hidden" id="account-install-btn-guest" type="button" onclick="openInstallModal()">Install Viva.AI App</button>
       </div>
       <div class="account-view hidden" id="account-signed-in">
         <div class="account-email" id="account-email-display"></div>
@@ -505,7 +507,6 @@
         </div>
         <div class="helper-text helper-left account-helper">Shown in the app instead of your email address. Max 100 characters.</div>
         <button class="btn btn-primary" type="button" onclick="saveDisplayName()">Save Name</button>
-        <button class="btn btn-secondary hidden" id="account-install-btn" type="button" onclick="openInstallModal()">Install Viva.AI App</button>
         <div class="api-status" id="account-status" aria-live="polite"></div>
         <button class="btn btn-secondary" type="button" onclick="logout()">Log Out</button>
       </div>
