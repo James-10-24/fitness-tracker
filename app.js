@@ -10,6 +10,7 @@ let state = {
 const STORAGE_KEY = "nutrilog_v2";
 const LEGACY_STORAGE_KEY = "nutrilog_v1";
 const AI_ESTIMATE_ENDPOINT = "/api/estimate-food";
+const GOAL_SUGGEST_ENDPOINT = "/api/suggest-goals";
 const OUNCES_TO_GRAMS = 28.3495;
 const CUP_TO_ML = 240;
 
@@ -1331,7 +1332,7 @@ function weightToKg() {
   return unit === "lb" ? value * 0.45359237 : value;
 }
 
-function suggestGoals() {
+async function suggestGoals() {
   const gender = document.getElementById("goal-gender-input").value;
   const age = normalizePositiveNumber(document.getElementById("goal-age-input").value, 0);
   const heightCm = heightToCm();
@@ -1345,82 +1346,38 @@ function suggestGoals() {
     return;
   }
 
-  const recommendation = calculateGoalRecommendation({
-    gender,
-    age,
-    heightCm,
-    weightKg,
-    fitnessGoal,
-    activity
-  });
+  status.textContent = "Generating AI goal suggestion...";
 
-  document.getElementById("goal-cal-input").value = recommendation.cal;
-  document.getElementById("goal-pro-input").value = recommendation.pro;
-  document.getElementById("goal-carb-input").value = recommendation.carb;
-  document.getElementById("goal-fat-input").value = recommendation.fat;
-  document.getElementById("goal-water-input").value = recommendation.water;
-  document.getElementById("goal-steps-input").value = recommendation.steps;
-  status.textContent = recommendation.note;
-}
+  try {
+    const response = await fetch(GOAL_SUGGEST_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        gender,
+        age,
+        height_cm: heightCm,
+        weight_kg: weightKg,
+        fitness_goal: fitnessGoal,
+        activity
+      })
+    });
 
-function calculateGoalRecommendation({ gender, age, heightCm, weightKg, fitnessGoal, activity }) {
-  const activityMultiplier = {
-    sedentary: 1.2,
-    light: 1.375,
-    moderate: 1.55,
-    very: 1.725
-  }[activity] || 1.55;
+    const recommendation = await response.json();
+    if (!response.ok) {
+      throw new Error(recommendation.error || "Goal suggestion failed");
+    }
 
-  const baseBmr = gender === "female"
-    ? (10 * weightKg) + (6.25 * heightCm) - (5 * age) - 161
-    : (10 * weightKg) + (6.25 * heightCm) - (5 * age) + 5;
-
-  const tdee = baseBmr * activityMultiplier;
-  const calorieAdjustment = {
-    lose: -450,
-    maintain: 0,
-    build: 250,
-    health: -150
-  }[fitnessGoal] ?? 0;
-  const calorieGoal = Math.max(1200, Math.round(tdee + calorieAdjustment));
-
-  const proteinPerKg = {
-    lose: 2,
-    maintain: 1.6,
-    build: 2,
-    health: 1.4
-  }[fitnessGoal] || 1.6;
-  const fatPerKg = {
-    lose: 0.8,
-    maintain: 0.9,
-    build: 1,
-    health: 0.9
-  }[fitnessGoal] || 0.9;
-
-  const pro = Math.round(weightKg * proteinPerKg);
-  const fat = Math.round(weightKg * fatPerKg);
-  const remainingCalories = calorieGoal - (pro * 4) - (fat * 9);
-  const carb = Math.max(130, Math.round(remainingCalories / 4));
-  const waterBase = weightKg * (activity === "very" ? 0.04 : activity === "moderate" ? 0.037 : 0.035);
-  const water = roundNutrient(waterBase);
-
-  const activitySteps = {
-    sedentary: 6500,
-    light: 8000,
-    moderate: 10000,
-    very: 12000
-  }[activity] || 8000;
-  const steps = Math.round((activitySteps + (fitnessGoal === "lose" ? 1500 : fitnessGoal === "build" ? -500 : 0)) / 500) * 500;
-
-  return {
-    cal: calorieGoal,
-    pro,
-    carb,
-    fat,
-    water,
-    steps: Math.max(4000, steps),
-    note: `Suggested from your profile using estimated maintenance calories and macro targets for ${fitnessGoal === "lose" ? "fat loss" : fitnessGoal === "build" ? "muscle gain" : fitnessGoal === "health" ? "general health" : "maintenance"}.`
-  };
+    document.getElementById("goal-cal-input").value = recommendation.cal;
+    document.getElementById("goal-pro-input").value = recommendation.pro;
+    document.getElementById("goal-carb-input").value = recommendation.carb;
+    document.getElementById("goal-fat-input").value = recommendation.fat;
+    document.getElementById("goal-water-input").value = recommendation.water;
+    document.getElementById("goal-steps-input").value = recommendation.steps;
+    status.textContent = recommendation.note;
+  } catch (error) {
+    console.error("Goal suggestion failed", error);
+    status.textContent = error.message || "Goal suggestion failed";
+  }
 }
 
 function closeModal(name) {

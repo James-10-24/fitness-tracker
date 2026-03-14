@@ -500,6 +500,15 @@
     </div>
 
     <div class="fab-menu-section">
+      <div class="fab-menu-section-title">Steps</div>
+      <label class="form-label" for="quick-steps-input">Add Steps</label>
+      <div class="quick-track-row">
+        <input class="form-input" id="quick-steps-input" type="number" min="100" step="100" value="1000">
+        <button class="btn btn-primary quick-track-btn" onclick="addSteps()">Add</button>
+      </div>
+    </div>
+
+    <div class="fab-menu-section">
       <div class="fab-menu-section-title">Water</div>
       <label class="form-label" for="quick-water-manual-input">Add Water Directly (L)</label>
       <div class="quick-track-row">
@@ -511,15 +520,6 @@
         <label class="form-label">Glass & Bottle Volumes</label>
       </div>
       <div id="water-unit-list" class="water-unit-list"></div>
-    </div>
-
-    <div class="fab-menu-section">
-      <div class="fab-menu-section-title">Steps</div>
-      <label class="form-label" for="quick-steps-input">Add Steps</label>
-      <div class="quick-track-row">
-        <input class="form-input" id="quick-steps-input" type="number" min="100" step="100" value="1000">
-        <button class="btn btn-primary quick-track-btn" onclick="addSteps()">Add</button>
-      </div>
     </div>
   </div>
 

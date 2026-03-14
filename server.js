@@ -33,6 +33,10 @@ const server = http.createServer(async (req, res) => {
       await handleEstimateFood(req, res);
       return;
     }
+    if (requestUrl.pathname === "/api/suggest-goals" && req.method === "POST") {
+      await handleSuggestGoals(req, res);
+      return;
+    }
 
     if (req.method !== "GET" && req.method !== "HEAD") {
       sendJson(res, 405, { error: "Method not allowed" });
@@ -84,6 +88,37 @@ async function handleEstimateFood(req, res) {
     sendJson(res, 200, normalized);
   } catch (error) {
     sendJson(res, 502, { error: error.message || "AI estimate request failed." });
+  }
+}
+
+async function handleSuggestGoals(req, res) {
+  if (!OPENAI_API_KEY) {
+    sendJson(res, 500, { error: "OPENAI_API_KEY is missing. Add it to .env before using AI suggestions." });
+    return;
+  }
+
+  const body = await readJsonBody(req);
+  const gender = typeof body.gender === "string" ? body.gender.trim().toLowerCase() : "";
+  const age = Number(body.age);
+  const heightCm = Number(body.height_cm);
+  const weightKg = Number(body.weight_kg);
+  const fitnessGoal = typeof body.fitness_goal === "string" ? body.fitness_goal.trim().toLowerCase() : "";
+  const activity = typeof body.activity === "string" ? body.activity.trim().toLowerCase() : "";
+
+  if (!["male", "female"].includes(gender) || !Number.isFinite(age) || age < 13 || age > 100 || !Number.isFinite(heightCm) || heightCm <= 0 || !Number.isFinite(weightKg) || weightKg <= 0 || !["lose", "maintain", "build", "health"].includes(fitnessGoal) || !["sedentary", "light", "moderate", "very"].includes(activity)) {
+    sendJson(res, 400, { error: "Valid profile inputs are required." });
+    return;
+  }
+
+  try {
+    const suggestion = await requestGoalSuggestion({ gender, age, heightCm, weightKg, fitnessGoal, activity });
+    if (!suggestion) {
+      sendJson(res, 502, { error: "Goal suggestion response was incomplete." });
+      return;
+    }
+    sendJson(res, 200, suggestion);
+  } catch (error) {
+    sendJson(res, 502, { error: error.message || "Goal suggestion request failed." });
   }
 }
 
@@ -151,6 +186,103 @@ async function requestOpenAiEstimate(query, retryInstruction = "") {
   }
 
   return normalizeEstimate(parsed);
+}
+
+async function requestGoalSuggestion(profile) {
+  const payload = buildGoalSuggestionPayload(profile);
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENAI_API_KEY}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenAI goal suggestion request failed", response.status, errorText);
+    let openAiMessage = "Goal suggestion request failed.";
+    try {
+      const parsedError = JSON.parse(errorText);
+      openAiMessage = parsedError?.error?.message || openAiMessage;
+    } catch (error) {
+      openAiMessage = errorText || openAiMessage;
+    }
+    throw new Error(openAiMessage);
+  }
+
+  const result = await response.json();
+  const outputText = extractOutputText(result);
+  if (!outputText) {
+    console.error("OpenAI goal suggestion missing output text", JSON.stringify(result));
+    throw new Error("Goal suggestion response was incomplete.");
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(outputText);
+  } catch (error) {
+    console.error("Failed to parse goal suggestion JSON", outputText);
+    throw new Error("Goal suggestion format was invalid.");
+  }
+
+  return normalizeGoalSuggestion(parsed);
+}
+
+function buildGoalSuggestionPayload({ gender, age, heightCm, weightKg, fitnessGoal, activity }) {
+  return {
+    model: OPENAI_MODEL,
+    input: [
+      {
+        role: "system",
+        content: [
+          {
+            type: "input_text",
+            text: [
+              "You suggest realistic daily goals for calories, protein, carbs, fat, water, and steps.",
+              "Use the provided profile inputs to estimate practical daily targets.",
+              "Make the recommendation consistent with the user's stated fitness goal and activity level.",
+              "Keep calories and macros realistic and internally consistent.",
+              "Water should be in liters and steps should be a realistic rounded daily target.",
+              "Keep the note concise and practical.",
+              "The output must follow the provided JSON schema exactly."
+            ].join(" ")
+          }
+        ]
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: `Suggest daily goals for: gender=${gender}, age=${age}, height_cm=${heightCm}, weight_kg=${weightKg}, fitness_goal=${fitnessGoal}, activity=${activity}`
+          }
+        ]
+      }
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "goal_suggestion",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            cal: { type: "number" },
+            pro: { type: "number" },
+            carb: { type: "number" },
+            fat: { type: "number" },
+            water: { type: "number" },
+            steps: { type: "number" },
+            note: { type: "string" }
+          },
+          required: ["cal", "pro", "carb", "fat", "water", "steps", "note"]
+        }
+      }
+    }
+  };
 }
 
 function buildEstimatePayload(query, retryInstruction = "") {
@@ -282,6 +414,30 @@ function normalizeEstimate(value) {
     portion_name: portionName || buildPortionName(grams, baseQuantity, quantityUnit),
     confidence: ["low", "medium", "high"].includes(confidence) ? confidence : "medium",
     note: note || "Estimated from a common serving size."
+  };
+}
+
+function normalizeGoalSuggestion(value) {
+  const cal = Number(value.cal);
+  const pro = Number(value.pro);
+  const carb = Number(value.carb);
+  const fat = Number(value.fat);
+  const water = Number(value.water);
+  const steps = Number(value.steps);
+  const note = typeof value.note === "string" ? value.note.trim() : "";
+
+  if (!Number.isFinite(cal) || cal < 1200 || !Number.isFinite(pro) || pro < 0 || !Number.isFinite(carb) || carb < 0 || !Number.isFinite(fat) || fat < 0 || !Number.isFinite(water) || water <= 0 || !Number.isFinite(steps) || steps <= 0) {
+    return null;
+  }
+
+  return {
+    cal: Math.round(cal),
+    pro: Math.round(pro),
+    carb: Math.round(carb),
+    fat: Math.round(fat),
+    water: Math.round(water * 10) / 10,
+    steps: Math.round(steps / 500) * 500,
+    note: note || "Suggested from your profile and activity."
   };
 }
 
