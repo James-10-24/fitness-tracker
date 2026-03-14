@@ -155,9 +155,6 @@ h2,
 .progress-name {
   font-size: 14px;
   font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .progress-name-with-action {
@@ -217,41 +214,11 @@ h2,
   background: #e05555;
 }
 
-.metric-icon {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  color: #fff;
-  flex: 0 0 auto;
-}
-
-.metric-cal {
-  background: #3d6b4f;
-}
-
-.metric-pro {
-  background: #c8603a;
-}
-
-.metric-carb {
-  background: #d38e24;
-}
-
-.metric-fat {
-  background: #8a5b2b;
-}
-
-.metric-water {
-  background: #4f7bd9;
-}
-
-.metric-steps {
-  background: #ad7a28;
+.progress-warning {
+  color: #c8603a;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 8px;
 }
 
 .quick-track-row {
@@ -264,6 +231,12 @@ h2,
   width: auto;
   margin-top: 0;
   padding-inline: 16px;
+}
+
+.quick-track-btn.secondary-quiet {
+  background: #eef4f0;
+  color: var(--accent);
+  border: 1px solid rgba(61, 107, 79, 0.15);
 }
 
 .mini-icon-btn {
@@ -290,15 +263,10 @@ h2,
 
 .quick-track-header-inline {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   gap: 12px;
   margin-top: 14px;
-}
-
-.water-unit-builder {
-  display: grid;
-  gap: 8px;
 }
 
 .water-unit-volume-row {
@@ -312,41 +280,21 @@ h2,
 }
 
 .water-unit-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  gap: 10px;
   margin-top: 12px;
 }
 
-.water-unit-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.water-unit-card {
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  align-items: end;
+  gap: 10px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 8px 12px;
+  border-radius: 14px;
+  padding: 12px;
   font-size: 13px;
-}
-
-.water-unit-delete {
-  border: none;
-  background: transparent;
-  color: var(--text2);
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
-}
-
-.water-unit-edit {
-  border: none;
-  background: transparent;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-  padding: 0;
 }
 
 .water-action-grid {
@@ -358,6 +306,62 @@ h2,
 
 .water-action-btn {
   width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.water-action-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.glass-icon,
+.bottle-icon {
+  position: relative;
+  display: inline-block;
+}
+
+.glass-icon {
+  width: 12px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top: 0;
+  border-radius: 0 0 4px 4px;
+}
+
+.glass-icon::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: 1px;
+  height: 7px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 0 0 2px 2px;
+}
+
+.bottle-icon {
+  width: 12px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-radius: 3px 3px 4px 4px;
+}
+
+.bottle-icon::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: -5px;
+  width: 4px;
+  height: 5px;
+  border: 2px solid currentColor;
+  border-bottom: 0;
+  border-radius: 2px 2px 0 0;
 }
 
 .water-cheer {
@@ -1216,6 +1220,10 @@ h2,
   }
 
   .water-action-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .water-unit-card {
     grid-template-columns: 1fr;
   }
 

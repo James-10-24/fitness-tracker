@@ -32,31 +32,35 @@
       <div class="card-label">Progress</div>
       <div class="progress-wrap" id="cal-progress-wrap">
         <div class="progress-top">
-          <span class="progress-name"><span class="metric-icon metric-cal">C</span>Calories</span>
+          <span class="progress-name">Calories</span>
           <span class="progress-nums"><span id="prog-cal-curr">0</span> / <span id="prog-cal-goal">2000</span> kcal</span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-cal" id="prog-cal-bar" style="width: 0%"></div></div>
+        <div class="progress-warning hidden" id="prog-cal-warning">You've hit your calorie limit for today. Time to wind down!</div>
       </div>
       <div class="progress-wrap" id="pro-progress-wrap">
         <div class="progress-top">
-          <span class="progress-name"><span class="metric-icon metric-pro">P</span>Protein</span>
+          <span class="progress-name">Protein</span>
           <span class="progress-nums"><span id="prog-pro-curr">0</span> / <span id="prog-pro-goal">150</span> g</span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-pro" id="prog-pro-bar" style="width: 0%"></div></div>
+        <div class="progress-warning hidden" id="prog-pro-warning">Protein's maxed out! Your muscles have had enough for today.</div>
       </div>
       <div class="progress-wrap" id="carb-progress-wrap">
         <div class="progress-top">
-          <span class="progress-name"><span class="metric-icon metric-carb">Cb</span>Carbs</span>
+          <span class="progress-name">Carbs</span>
           <span class="progress-nums"><span id="prog-carb-curr">0</span> / <span id="prog-carb-goal">220</span> g</span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-carb" id="prog-carb-bar" style="width: 0%"></div></div>
+        <div class="progress-warning hidden" id="prog-carb-warning">Carb limit reached. Give your energy stores a rest!</div>
       </div>
       <div class="progress-wrap" id="fat-progress-wrap" style="margin-bottom: 0">
         <div class="progress-top">
-          <span class="progress-name"><span class="metric-icon metric-fat">F</span>Fat</span>
+          <span class="progress-name">Fat</span>
           <span class="progress-nums"><span id="prog-fat-curr">0</span> / <span id="prog-fat-goal">65</span> g</span>
         </div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-fat" id="prog-fat-bar" style="width: 0%"></div></div>
+        <div class="progress-warning hidden" id="prog-fat-warning">Fat intake is over the limit. Keep it light for the rest of the day.</div>
       </div>
     </div>
 
@@ -65,7 +69,7 @@
       <div class="progress-wrap" id="water-progress-wrap">
         <div class="progress-top">
           <span class="progress-name progress-name-with-action">
-            <span><span class="metric-icon metric-water">W</span>Water</span>
+            <span>Water</span>
             <button class="mini-icon-btn" onclick="resetWaterToday()" title="Reset water today" aria-label="Reset water today">↺</button>
           </span>
           <span class="progress-nums"><span id="prog-water-curr">0</span> / <span id="prog-water-goal">2.5</span> L</span>
@@ -75,7 +79,7 @@
       <div class="progress-wrap" id="steps-progress-wrap" style="margin-bottom: 0">
         <div class="progress-top">
           <span class="progress-name progress-name-with-action">
-            <span><span class="metric-icon metric-steps">S</span>Steps</span>
+            <span>Steps</span>
             <button class="mini-icon-btn" onclick="resetStepsToday()" title="Reset steps today" aria-label="Reset steps today">↺</button>
           </span>
           <span class="progress-nums"><span id="prog-steps-curr">0</span> / <span id="prog-steps-goal">8000</span></span>
@@ -93,8 +97,7 @@
       </div>
       <div id="water-unit-actions" class="water-action-grid"></div>
       <div class="quick-track-header-inline">
-        <label class="form-label">Saved Water Units</label>
-        <button class="btn btn-secondary quick-track-btn" onclick="openWaterUnitModal()">Add Water Unit</button>
+        <label class="form-label">Water Unit Volumes</label>
       </div>
       <div id="water-unit-list" class="water-unit-list"></div>
     </div>
@@ -444,26 +447,6 @@
       </div>
       <button class="btn btn-primary" onclick="saveGoals()">Save Goals</button>
       <button class="btn btn-secondary" onclick="closeModal('goals')">Cancel</button>
-    </div>
-  </div>
-
-  <div class="overlay" id="overlay-water-unit" onclick="closeModal('water-unit')">
-    <div class="sheet" onclick="event.stopPropagation()">
-      <div class="sheet-handle"></div>
-      <div class="sheet-title" id="water-unit-modal-title">Add Water Unit</div>
-      <input type="hidden" id="water-unit-edit-id">
-      <div class="water-unit-builder">
-        <input class="form-input" id="water-unit-name" placeholder="e.g. Glass">
-        <div class="water-unit-volume-row">
-          <input class="form-input" id="water-unit-volume" type="number" min="1" step="1" value="250" placeholder="250">
-          <select class="form-input water-unit-select" id="water-unit-volume-unit">
-            <option value="ml">ml</option>
-            <option value="l">L</option>
-          </select>
-        </div>
-        <button class="btn btn-primary" onclick="saveWaterUnit()">Save Water Unit</button>
-        <button class="btn btn-secondary" onclick="closeModal('water-unit')">Cancel</button>
-      </div>
     </div>
   </div>
 

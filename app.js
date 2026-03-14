@@ -31,7 +31,7 @@ function loadState() {
       state = { ...state, ...JSON.parse(raw) };
       state.waterLogs = Array.isArray(state.waterLogs) ? state.waterLogs : [];
       state.stepLogs = Array.isArray(state.stepLogs) ? state.stepLogs : [];
-      state.waterUnits = Array.isArray(state.waterUnits) && state.waterUnits.length ? state.waterUnits.map(normalizeWaterUnit) : defaultWaterUnits();
+      state.waterUnits = defaultWaterUnits(state.waterUnits);
       state.foods = Array.isArray(state.foods) ? state.foods.map(normalizeFoodRecord) : [];
       state.goals = { cal: 2000, pro: 150, carb: 220, fat: 65, water: 2.5, steps: 8000, ...(state.goals || {}) };
     }
@@ -39,9 +39,7 @@ function loadState() {
     console.error("Failed to load state", error);
   }
 
-  if (!Array.isArray(state.waterUnits) || !state.waterUnits.length) {
-    state.waterUnits = defaultWaterUnits();
-  }
+  state.waterUnits = defaultWaterUnits(state.waterUnits);
 }
 
 function todayStr() {
@@ -70,10 +68,13 @@ function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-function defaultWaterUnits() {
+function defaultWaterUnits(existingUnits = []) {
+  const existing = Array.isArray(existingUnits) ? existingUnits : [];
+  const glass = existing.find((unit) => String(unit.name).toLowerCase() === "glass");
+  const bottle = existing.find((unit) => String(unit.name).toLowerCase() === "bottle");
   return [
-    normalizeWaterUnit({ id: uid(), name: "Glass", ml: 250 }),
-    normalizeWaterUnit({ id: uid(), name: "Bottle", ml: 500 })
+    normalizeWaterUnit({ id: glass?.id || "glass-unit", name: "Glass", ml: glass?.ml || 250 }),
+    normalizeWaterUnit({ id: bottle?.id || "bottle-unit", name: "Bottle", ml: bottle?.ml || 500 })
   ];
 }
 
@@ -283,6 +284,10 @@ function renderToday() {
   document.getElementById("fat-progress-wrap").classList.toggle("progress-over", totalFat > goalFat);
   document.getElementById("water-progress-wrap").classList.toggle("progress-over", totalWater > goalWater);
   document.getElementById("steps-progress-wrap").classList.toggle("progress-over", totalSteps > goalSteps);
+  document.getElementById("prog-cal-warning").classList.toggle("hidden", totalCal <= goalCal);
+  document.getElementById("prog-pro-warning").classList.toggle("hidden", totalPro <= goalPro);
+  document.getElementById("prog-carb-warning").classList.toggle("hidden", totalCarb <= goalCarb);
+  document.getElementById("prog-fat-warning").classList.toggle("hidden", totalFat <= goalFat);
 
   const list = document.getElementById("today-meal-list");
   if (!logs.length) {
@@ -374,52 +379,30 @@ function resetStepsToday() {
   showToast("Steps reset for today");
 }
 
-function openWaterUnitModal(id = "") {
-  const existing = state.waterUnits.find((unit) => unit.id === id);
-  document.getElementById("water-unit-edit-id").value = id;
-  document.getElementById("water-unit-modal-title").textContent = existing ? "Edit Water Unit" : "Add Water Unit";
-  document.getElementById("water-unit-name").value = existing ? existing.name : "";
-  if (existing) {
-    document.getElementById("water-unit-volume").value = existing.ml >= 1000 && existing.ml % 1000 === 0 ? existing.ml / 1000 : existing.ml;
-    document.getElementById("water-unit-volume-unit").value = existing.ml >= 1000 && existing.ml % 1000 === 0 ? "l" : "ml";
-  } else {
-    document.getElementById("water-unit-volume").value = "250";
-    document.getElementById("water-unit-volume-unit").value = "ml";
-  }
-  document.getElementById("overlay-water-unit").classList.add("open");
-}
-
-function saveWaterUnit() {
-  const name = document.getElementById("water-unit-name").value.trim();
-  const volume = normalizePositiveNumber(document.getElementById("water-unit-volume").value, 0);
-  const volumeUnit = document.getElementById("water-unit-volume-unit").value;
-
-  if (!name) {
-    showToast("Enter a unit name");
+function saveWaterUnitVolume(id) {
+  const volumeInput = document.getElementById(`water-unit-volume-${id}`);
+  const unitInput = document.getElementById(`water-unit-unit-${id}`);
+  const unit = state.waterUnits.find((entry) => entry.id === id);
+  if (!volumeInput || !unitInput || !unit) {
+    showToast("Water unit not found");
     return;
   }
+
+  const volume = normalizePositiveNumber(volumeInput.value, 0);
+  const volumeUnit = unitInput.value;
   if (volume <= 0) {
     showToast("Enter a valid water volume");
     return;
   }
 
   const ml = volumeUnit === "l" ? Math.round(volume * 1000) : Math.round(volume);
-  const editId = document.getElementById("water-unit-edit-id").value;
-  if (editId) {
-    const index = state.waterUnits.findIndex((unit) => unit.id === editId);
-    if (index >= 0) {
-      state.waterUnits[index] = normalizeWaterUnit({ ...state.waterUnits[index], name, ml });
-    }
-  } else {
-    state.waterUnits.push(normalizeWaterUnit({ id: uid(), name, ml }));
+  const index = state.waterUnits.findIndex((entry) => entry.id === id);
+  if (index >= 0) {
+    state.waterUnits[index] = normalizeWaterUnit({ ...state.waterUnits[index], ml });
   }
   saveState();
   renderWaterUnits();
-  closeModal("water-unit");
-  document.getElementById("water-unit-name").value = "";
-  document.getElementById("water-unit-volume").value = "250";
-  document.getElementById("water-unit-volume-unit").value = "ml";
-  showToast(editId ? `${name} updated` : `${name} saved`);
+  showToast(`${unit.name} volume updated`);
 }
 
 function removeWaterUnit(id) {
@@ -439,15 +422,24 @@ function renderWaterUnits() {
   }
 
   unitList.innerHTML = state.waterUnits.map((unit) => `
-    <div class="water-unit-chip">
-      <span>${escHtml(unit.name)} · ${formatWaterUnit(unit.ml)}</span>
-      <button class="water-unit-edit" onclick="openWaterUnitModal('${unit.id}')" title="Edit">Edit</button>
-      <button class="water-unit-delete" onclick="removeWaterUnit('${unit.id}')" title="Remove">x</button>
+    <div class="water-unit-card">
+      <div class="form-label" style="margin:0">${escHtml(unit.name)}</div>
+      <div class="water-unit-volume-row">
+        <input class="form-input" id="water-unit-volume-${unit.id}" type="number" min="1" step="1" value="${unit.ml >= 1000 && unit.ml % 1000 === 0 ? unit.ml / 1000 : unit.ml}">
+        <select class="form-input water-unit-select" id="water-unit-unit-${unit.id}">
+          <option value="ml" ${unit.ml >= 1000 && unit.ml % 1000 === 0 ? "" : "selected"}>ml</option>
+          <option value="l" ${unit.ml >= 1000 && unit.ml % 1000 === 0 ? "selected" : ""}>L</option>
+        </select>
+      </div>
+      <button class="btn btn-secondary quick-track-btn secondary-quiet" onclick="saveWaterUnitVolume('${unit.id}')">Save</button>
     </div>
   `).join("");
 
   actionList.innerHTML = state.waterUnits.map((unit) => `
-    <button class="btn btn-primary water-action-btn" onclick="addWaterByUnit('${unit.id}')">Add ${escHtml(unit.name)}</button>
+    <button class="btn btn-secondary quick-track-btn secondary-quiet water-action-btn" onclick="addWaterByUnit('${unit.id}')">
+      <span class="water-action-icon">${unit.name === "Bottle" ? "<span class='bottle-icon'></span>" : "<span class='glass-icon'></span>"}</span>
+      <span>Add ${escHtml(unit.name)}</span>
+    </button>
   `).join("");
 }
 
