@@ -133,11 +133,12 @@ function shouldShowInstallEntry() {
 }
 
 function updateInstallUi() {
-  const button = document.getElementById("account-install-btn");
-  if (!button) {
-    return;
-  }
-  button.classList.toggle("hidden", !shouldShowInstallEntry());
+  ["account-install-btn", "account-install-btn-guest"].forEach((id) => {
+    const button = document.getElementById(id);
+    if (button) {
+      button.classList.toggle("hidden", !shouldShowInstallEntry());
+    }
+  });
 }
 
 function scheduleCloudSync() {
@@ -584,11 +585,9 @@ async function completePasswordReset() {
 }
 
 function openAccountModal() {
-  if (!currentUser) {
-    openAuthFromAccount("signin");
-    return;
+  if (currentUser) {
+    document.getElementById("account-status").textContent = "";
   }
-  document.getElementById("account-status").textContent = "";
   document.getElementById("overlay-account").classList.add("open");
 }
 
