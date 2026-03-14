@@ -44,6 +44,93 @@ body {
   overflow-x: hidden;
 }
 
+.auth-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(245, 242, 236, 0.98), rgba(238, 242, 234, 0.98)),
+    rgba(245, 242, 236, 0.96);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 28px;
+  padding: 24px 20px;
+  box-shadow: 0 20px 44px rgba(15, 23, 42, 0.12);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.auth-logo {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 auto;
+}
+
+.auth-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.auth-subtitle,
+.auth-note,
+.account-email {
+  color: var(--text2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.account-email {
+  margin-bottom: 16px;
+}
+
+.auth-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.auth-note {
+  margin-top: 14px;
+}
+
+.auth-status {
+  margin-top: 14px;
+}
+
+.account-chip {
+  position: fixed;
+  top: 18px;
+  right: max(16px, calc((100vw - 430px) / 2 + 16px));
+  z-index: 210;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(24px) saturate(1.15);
+  -webkit-backdrop-filter: blur(24px) saturate(1.15);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+}
+
 h1,
 h2,
 .serif {
@@ -1672,6 +1759,10 @@ h2,
 
   .estimate-actions {
     flex-direction: column;
+  }
+
+  .auth-actions {
+    grid-template-columns: 1fr;
   }
 
   .food-editor-grid {

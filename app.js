@@ -1,47 +1,428 @@
-let state = {
-  foods: [],
-  logs: [],
-  waterLogs: [],
-  stepLogs: [],
-  waterUnits: [],
-  goals: { cal: 2000, pro: 150, carb: 220, fat: 65, water: 2.5, steps: 8000 }
-};
-
-const STORAGE_KEY = "nutrilog_v2";
+const DEFAULT_GOALS = { cal: 2000, pro: 150, carb: 220, fat: 65, water: 2.5, steps: 8000 };
+const SUPABASE_URL = "https://fqylcprwmpgqenhlvfdj.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vst5ttBTskmLEFK-iKar5A_8qttx1eO";
+const STORAGE_KEY = "nutrilog_v3";
 const LEGACY_STORAGE_KEY = "nutrilog_v1";
 const AI_ESTIMATE_ENDPOINT = "/api/estimate-food";
 const OUNCES_TO_GRAMS = 28.3495;
 const CUP_TO_ML = 240;
 
+let state = createInitialState();
 let currentPage = "today";
 let selectedFoodId = null;
 let toastTimer;
 let activeAiEstimate = null;
+let supabaseClient = null;
+let currentUser = null;
+let hasLoadedUserState = false;
+let cloudSyncTimer = null;
+let isApplyingRemoteState = false;
+
+function createInitialState() {
+  return {
+    foods: [],
+    logs: [],
+    waterLogs: [],
+    stepLogs: [],
+    waterUnits: defaultWaterUnits(),
+    goals: { ...DEFAULT_GOALS }
+  };
+}
 
 function saveState() {
+  saveLocalState();
+  if (currentUser && !isApplyingRemoteState) {
+    scheduleCloudSync();
+  }
+}
+
+function saveLocalState() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(getStorageKey(currentUser?.id), JSON.stringify(state));
   } catch (error) {
     console.error("Failed to save state", error);
   }
 }
 
-function loadState() {
+function loadState(userId = null) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
-    if (raw) {
-      state = { ...state, ...JSON.parse(raw) };
-      state.waterLogs = Array.isArray(state.waterLogs) ? state.waterLogs : [];
-      state.stepLogs = Array.isArray(state.stepLogs) ? state.stepLogs : [];
-      state.waterUnits = defaultWaterUnits(state.waterUnits);
-      state.foods = Array.isArray(state.foods) ? state.foods.map(normalizeFoodRecord) : [];
-      state.goals = { cal: 2000, pro: 150, carb: 220, fat: 65, water: 2.5, steps: 8000, ...(state.goals || {}) };
-    }
+    const raw = readCachedState(userId);
+    state = raw ? normalizeAppState(JSON.parse(raw)) : createInitialState();
   } catch (error) {
     console.error("Failed to load state", error);
+    state = createInitialState();
+  }
+}
+
+function readCachedState(userId = null) {
+  return localStorage.getItem(getStorageKey(userId))
+    || (userId ? localStorage.getItem(STORAGE_KEY) : null)
+    || localStorage.getItem(LEGACY_STORAGE_KEY);
+}
+
+function getStorageKey(userId = null) {
+  return userId ? `${STORAGE_KEY}:${userId}` : STORAGE_KEY;
+}
+
+function normalizeAppState(rawState) {
+  const nextState = { ...createInitialState(), ...(rawState || {}) };
+  nextState.waterLogs = Array.isArray(nextState.waterLogs) ? nextState.waterLogs : [];
+  nextState.stepLogs = Array.isArray(nextState.stepLogs) ? nextState.stepLogs : [];
+  nextState.logs = Array.isArray(nextState.logs) ? nextState.logs : [];
+  nextState.waterUnits = defaultWaterUnits(nextState.waterUnits);
+  nextState.foods = Array.isArray(nextState.foods) ? nextState.foods.map(normalizeFoodRecord) : [];
+  nextState.goals = { ...DEFAULT_GOALS, ...(nextState.goals || {}) };
+  return nextState;
+}
+
+function hasMeaningfulData(candidateState) {
+  if (!candidateState) {
+    return false;
+  }
+  return Boolean(
+    candidateState.foods?.length
+    || candidateState.logs?.length
+    || candidateState.waterLogs?.length
+    || candidateState.stepLogs?.length
+  );
+}
+
+function renderApp() {
+  updateLogTabs();
+  renderToday();
+  renderWaterUnits();
+  renderFoodsDB();
+  renderFoodPicker();
+  updateFoodLogInputMode();
+  renderHistory();
+  updateFab();
+}
+
+function scheduleCloudSync() {
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = setTimeout(() => {
+    syncStateToCloud().catch((error) => {
+      console.error("Cloud sync failed", error);
+      showToast("Cloud sync failed");
+    });
+  }, 300);
+}
+
+async function syncStateToCloud() {
+  if (!supabaseClient || !currentUser) {
+    return;
   }
 
-  state.waterUnits = defaultWaterUnits(state.waterUnits);
+  const userId = currentUser.id;
+  const goalsRow = {
+    user_id: userId,
+    cal: Math.round(state.goals.cal || DEFAULT_GOALS.cal),
+    pro: roundNutrient(state.goals.pro || DEFAULT_GOALS.pro),
+    carb: roundNutrient(state.goals.carb || DEFAULT_GOALS.carb),
+    fat: roundNutrient(state.goals.fat || DEFAULT_GOALS.fat),
+    water: roundNutrient(state.goals.water || DEFAULT_GOALS.water),
+    steps: Math.round(state.goals.steps || DEFAULT_GOALS.steps),
+    updated_at: new Date().toISOString()
+  };
+
+  const goalsResult = await supabaseClient.from("goals").upsert(goalsRow, { onConflict: "user_id" });
+  if (goalsResult.error) {
+    throw goalsResult.error;
+  }
+
+  await Promise.all([
+    replaceUserRows("foods", state.foods.map((food) => ({
+      id: food.id,
+      user_id: userId,
+      name: food.name,
+      grams: roundNutrient(food.grams),
+      base_quantity: roundNutrient(food.baseQuantity || 0),
+      quantity_unit: food.quantityUnit || "",
+      cal: roundNutrient(food.cal),
+      pro: roundNutrient(food.pro),
+      carb: roundNutrient(food.carb || 0),
+      fat: roundNutrient(food.fat || 0),
+      serving: food.serving || "",
+      created_at: food.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }))),
+    replaceUserRows("meal_logs", state.logs.map((log) => ({
+      id: log.id,
+      user_id: userId,
+      logged_on: log.date,
+      name: log.name,
+      cal: roundNutrient(log.cal),
+      pro: roundNutrient(log.pro),
+      carb: roundNutrient(log.carb || 0),
+      fat: roundNutrient(log.fat || 0),
+      created_at: log.created_at || new Date().toISOString()
+    }))),
+    replaceUserRows("water_logs", state.waterLogs.map((entry) => ({
+      id: entry.id,
+      user_id: userId,
+      logged_on: entry.date,
+      amount: roundNutrient(entry.amount),
+      created_at: entry.created_at || new Date().toISOString()
+    }))),
+    replaceUserRows("step_logs", state.stepLogs.map((entry) => ({
+      id: entry.id,
+      user_id: userId,
+      logged_on: entry.date,
+      amount: Math.round(entry.amount),
+      created_at: entry.created_at || new Date().toISOString()
+    }))),
+    replaceUserRows("water_units", state.waterUnits.map((unit) => ({
+      id: unit.id,
+      user_id: userId,
+      name: unit.name,
+      ml: Math.round(unit.ml),
+      created_at: unit.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })))
+  ]);
+}
+
+async function replaceUserRows(table, rows) {
+  if (!supabaseClient || !currentUser) {
+    return;
+  }
+  const userId = currentUser.id;
+  const deleteResult = await supabaseClient.from(table).delete().eq("user_id", userId);
+  if (deleteResult.error) {
+    throw deleteResult.error;
+  }
+  if (!rows.length) {
+    return;
+  }
+  const insertResult = await supabaseClient.from(table).insert(rows);
+  if (insertResult.error) {
+    throw insertResult.error;
+  }
+}
+
+async function loadUserState(userId) {
+  isApplyingRemoteState = true;
+  try {
+    const [goalsResult, foodsResult, logsResult, waterLogsResult, stepLogsResult, waterUnitsResult] = await Promise.all([
+      supabaseClient.from("goals").select("*").eq("user_id", userId).maybeSingle(),
+      supabaseClient.from("foods").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
+      supabaseClient.from("meal_logs").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
+      supabaseClient.from("water_logs").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
+      supabaseClient.from("step_logs").select("*").eq("user_id", userId).order("created_at", { ascending: true }),
+      supabaseClient.from("water_units").select("*").eq("user_id", userId).order("created_at", { ascending: true })
+    ]);
+
+    const errors = [goalsResult.error, foodsResult.error, logsResult.error, waterLogsResult.error, stepLogsResult.error, waterUnitsResult.error].filter(Boolean);
+    if (errors.length) {
+      throw errors[0];
+    }
+
+    const remoteState = normalizeAppState({
+      goals: goalsResult.data ? {
+        cal: goalsResult.data.cal,
+        pro: goalsResult.data.pro,
+        carb: goalsResult.data.carb,
+        fat: goalsResult.data.fat,
+        water: goalsResult.data.water,
+        steps: goalsResult.data.steps
+      } : undefined,
+      foods: (foodsResult.data || []).map((row) => ({
+        id: row.id,
+        name: row.name,
+        grams: row.grams,
+        baseQuantity: row.base_quantity,
+        quantityUnit: row.quantity_unit,
+        cal: row.cal,
+        pro: row.pro,
+        carb: row.carb,
+        fat: row.fat,
+        serving: row.serving || "",
+        created_at: row.created_at,
+        updated_at: row.updated_at
+      })),
+      logs: (logsResult.data || []).map((row) => ({
+        id: row.id,
+        date: row.logged_on,
+        name: row.name,
+        cal: row.cal,
+        pro: row.pro,
+        carb: row.carb,
+        fat: row.fat,
+        created_at: row.created_at
+      })),
+      waterLogs: (waterLogsResult.data || []).map((row) => ({
+        id: row.id,
+        date: row.logged_on,
+        amount: row.amount,
+        created_at: row.created_at
+      })),
+      stepLogs: (stepLogsResult.data || []).map((row) => ({
+        id: row.id,
+        date: row.logged_on,
+        amount: row.amount,
+        created_at: row.created_at
+      })),
+      waterUnits: (waterUnitsResult.data || []).map((row) => ({
+        id: row.id,
+        name: row.name,
+        ml: row.ml,
+        created_at: row.created_at,
+        updated_at: row.updated_at
+      }))
+    });
+
+    const remoteHasData = Boolean(
+      goalsResult.data
+      || foodsResult.data?.length
+      || logsResult.data?.length
+      || waterLogsResult.data?.length
+      || stepLogsResult.data?.length
+      || waterUnitsResult.data?.length
+    );
+
+    loadState(userId);
+    const localState = state;
+    if (!remoteHasData && hasMeaningfulData(localState)) {
+      state = localState;
+      renderApp();
+      saveLocalState();
+      setTimeout(() => {
+        syncStateToCloud().catch((error) => {
+          console.error("Initial import failed", error);
+          showToast("Initial cloud import failed");
+        });
+      }, 0);
+      showToast("Imported this device data to your account");
+      return;
+    }
+
+    state = remoteState;
+    saveLocalState();
+    renderApp();
+  } finally {
+    isApplyingRemoteState = false;
+  }
+}
+
+function updateAuthUi() {
+  const authScreen = document.getElementById("auth-screen");
+  const accountButton = document.getElementById("account-btn");
+  const accountEmail = document.getElementById("account-email-display");
+  if (!authScreen || !accountButton || !accountEmail) {
+    return;
+  }
+
+  const signedIn = !!currentUser;
+  authScreen.classList.toggle("hidden", signedIn);
+  accountButton.classList.toggle("hidden", !signedIn);
+  accountButton.textContent = signedIn ? (currentUser.email || "Account") : "Account";
+  accountEmail.textContent = signedIn ? (currentUser.email || "") : "";
+}
+
+async function applySession(session) {
+  const nextUser = session?.user || null;
+  if (nextUser && currentUser?.id === nextUser.id && hasLoadedUserState) {
+    updateAuthUi();
+    return;
+  }
+
+  currentUser = nextUser;
+  updateAuthUi();
+
+  if (!currentUser) {
+    hasLoadedUserState = false;
+    clearTimeout(cloudSyncTimer);
+    state = createInitialState();
+    renderApp();
+    return;
+  }
+
+  hasLoadedUserState = true;
+  document.getElementById("auth-status").textContent = "Loading your data...";
+  await loadUserState(currentUser.id);
+  document.getElementById("auth-status").textContent = "";
+}
+
+async function initializeSupabase() {
+  if (!window.supabase?.createClient) {
+    console.error("Supabase client failed to load");
+    return;
+  }
+
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true
+    }
+  });
+
+  const sessionResult = await supabaseClient.auth.getSession();
+  if (sessionResult.error) {
+    console.error("Failed to get session", sessionResult.error);
+  }
+  await applySession(sessionResult.data.session);
+
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
+    Promise.resolve(applySession(session)).catch((error) => {
+      console.error("Failed to apply auth session", error);
+      document.getElementById("auth-status").textContent = error.message || "Auth session failed";
+    });
+  });
+}
+
+async function submitAuth(mode) {
+  const email = document.getElementById("auth-email").value.trim();
+  const password = document.getElementById("auth-password").value;
+  const status = document.getElementById("auth-status");
+
+  if (!supabaseClient) {
+    status.textContent = "Supabase is not ready yet.";
+    return;
+  }
+  if (!email || !password) {
+    status.textContent = "Enter both email and password.";
+    return;
+  }
+
+  status.textContent = mode === "signup" ? "Creating account..." : "Signing in...";
+  try {
+    const result = mode === "signup"
+      ? await supabaseClient.auth.signUp({ email, password })
+      : await supabaseClient.auth.signInWithPassword({ email, password });
+
+    if (result.error) {
+      throw result.error;
+    }
+
+    if (mode === "signup" && !result.data.session) {
+      status.textContent = "Account created. Check your email to confirm, then sign in.";
+      return;
+    }
+
+    status.textContent = "";
+  } catch (error) {
+    console.error("Auth request failed", error);
+    status.textContent = error.message || "Authentication failed.";
+  }
+}
+
+function openAccountModal() {
+  document.getElementById("overlay-account").classList.add("open");
+}
+
+async function logout() {
+  if (!supabaseClient) {
+    return;
+  }
+  const result = await supabaseClient.auth.signOut();
+  if (result.error) {
+    showToast(result.error.message || "Logout failed");
+    return;
+  }
+  closeModal("account");
+  document.getElementById("auth-email").value = "";
+  document.getElementById("auth-password").value = "";
+  document.getElementById("auth-status").textContent = "";
 }
 
 function todayStr() {
@@ -1716,21 +2097,32 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-  loadState();
-  updateLogTabs();
-  renderToday();
-  renderWaterUnits();
-  renderFoodsDB();
-  renderFoodPicker();
-  updateFoodLogInputMode();
-  renderHistory();
-  updateFab();
+  renderApp();
+  updateAuthUi();
   registerServiceWorker();
+  initializeSupabase().catch((error) => {
+    console.error("Supabase initialization failed", error);
+    document.getElementById("auth-status").textContent = error.message || "Failed to initialize authentication.";
+  });
 
   document.getElementById("ai-food-input")?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
       requestAiEstimate();
+    }
+  });
+
+  document.getElementById("auth-email")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      submitAuth("signin");
+    }
+  });
+
+  document.getElementById("auth-password")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      submitAuth("signin");
     }
   });
 
