@@ -13,13 +13,13 @@ const AMPLITUDE_PRODUCTION_HOSTS = new Set(["fitness-tracker-three-ebon.vercel.a
 const OUNCES_TO_GRAMS = 28.3495;
 const CUP_TO_ML = 240;
 
+let currentUser = null;
 let state = createInitialState();
 let currentPage = "today";
 let selectedFoodId = null;
 let toastTimer;
 let activeAiEstimate = null;
 let supabaseClient = null;
-let currentUser = null;
 let hasLoadedUserState = false;
 let cloudSyncTimer = null;
 let isApplyingRemoteState = false;
