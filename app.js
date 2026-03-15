@@ -38,6 +38,10 @@ let editingLogId = null;
 let quickTrackMode = "water";
 let amplitudeInitPromise = null;
 let hasTrackedAppOpened = false;
+let historyDayIndex = 0;
+let historyMealsExpanded = true;
+let historyTouchStartX = 0;
+let historyTouchStartY = 0;
 
 const PULL_REFRESH_TRIGGER = 60;
 const PULL_REFRESH_MAX = 112;
@@ -3024,77 +3028,244 @@ function renderHistory() {
     return;
   }
 
-  content.innerHTML = allDates.map((date) => {
-    const logs = state.logs.filter((entry) => entry.date === date);
-    const waterTotal = state.waterLogs
-      .filter((entry) => entry.date === date)
-      .reduce((sum, entry) => sum + (entry.amount || 0), 0);
-    const stepsTotal = state.stepLogs
-      .filter((entry) => entry.date === date)
-      .reduce((sum, entry) => sum + (entry.amount || 0), 0);
-    const totalCal = logs.reduce((sum, log) => sum + (log.cal || 0), 0);
-    const totalPro = logs.reduce((sum, log) => sum + (log.pro || 0), 0);
-    const totalCarb = logs.reduce((sum, log) => sum + (log.carb || 0), 0);
-    const totalFat = logs.reduce((sum, log) => sum + (log.fat || 0), 0);
-    const label = new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric"
-    });
-    const pCal = state.goals.cal > 0 ? Math.min((totalCal / state.goals.cal) * 100, 100) : 0;
-    const pPro = state.goals.pro > 0 ? Math.min((totalPro / state.goals.pro) * 100, 100) : 0;
+  historyDayIndex = clamp(historyDayIndex, 0, allDates.length - 1);
+  const date = allDates[historyDayIndex];
+  const logs = state.logs
+    .filter((entry) => entry.date === date)
+    .slice()
+    .sort((a, b) => new Date(a.created_at || `${a.date}T12:00:00`).getTime() - new Date(b.created_at || `${b.date}T12:00:00`).getTime());
+  const waterTotal = state.waterLogs
+    .filter((entry) => entry.date === date)
+    .reduce((sum, entry) => sum + (entry.amount || 0), 0);
+  const stepsTotal = state.stepLogs
+    .filter((entry) => entry.date === date)
+    .reduce((sum, entry) => sum + (entry.amount || 0), 0);
+  const totalCal = logs.reduce((sum, log) => sum + (log.cal || 0), 0);
+  const totalPro = logs.reduce((sum, log) => sum + (log.pro || 0), 0);
+  const totalCarb = logs.reduce((sum, log) => sum + (log.carb || 0), 0);
+  const totalFat = logs.reduce((sum, log) => sum + (log.fat || 0), 0);
+  const label = new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric"
+  });
+  const pCal = state.goals.cal > 0 ? Math.min((totalCal / state.goals.cal) * 100, 100) : 0;
+  const pPro = state.goals.pro > 0 ? Math.min((totalPro / state.goals.pro) * 100, 100) : 0;
+  const pCarb = state.goals.carb > 0 ? Math.min((totalCarb / state.goals.carb) * 100, 100) : 0;
+  const pFat = state.goals.fat > 0 ? Math.min((totalFat / state.goals.fat) * 100, 100) : 0;
+  const pWater = state.goals.water > 0 ? Math.min((waterTotal / state.goals.water) * 100, 100) : 0;
+  const pSteps = state.goals.steps > 0 ? Math.min((stepsTotal / state.goals.steps) * 100, 100) : 0;
+  const groupedMeals = groupHistoryMealsByTime(logs);
 
-    return `
-      <div class="history-day">
-        <div class="history-date">${label}</div>
-        <div class="history-card">
-          <div class="history-summary-grid">
-            <div class="history-summary-item">
-              <div class="history-summary-label">Calories</div>
-              <div class="history-summary-value">${Math.round(totalCal)}</div>
-            </div>
-            <div class="history-summary-item">
-              <div class="history-summary-label">Protein</div>
-              <div class="history-summary-value">${roundNutrient(totalPro)}g</div>
-            </div>
-            <div class="history-summary-item">
-              <div class="history-summary-label">Carbs</div>
-              <div class="history-summary-value">${roundNutrient(totalCarb)}g</div>
-            </div>
-            <div class="history-summary-item">
-              <div class="history-summary-label">Fat</div>
-              <div class="history-summary-value">${roundNutrient(totalFat)}g</div>
-            </div>
-          </div>
-          <div class="history-chip-row">
-            <div class="history-chip">${logs.length} ${logs.length === 1 ? "meal" : "meals"}</div>
-            <div class="history-chip">${roundNutrient(waterTotal)} L water</div>
-            <div class="history-chip">${Math.round(stepsTotal)} steps</div>
-          </div>
-          <div class="progress-wrap" style="margin-bottom:8px">
-            <div class="progress-top"><span class="progress-name" style="font-size:12px">Calories</span><span class="progress-nums">${Math.round(pCal)}%</span></div>
-            <div class="progress-bar-bg"><div class="progress-bar-fill fill-cal" style="width:${pCal}%"></div></div>
-          </div>
-          <div class="progress-wrap" style="margin-bottom:0">
-            <div class="progress-top"><span class="progress-name" style="font-size:12px">Protein</span><span class="progress-nums">${Math.round(pPro)}%</span></div>
-            <div class="progress-bar-bg"><div class="progress-bar-fill fill-pro" style="width:${pPro}%"></div></div>
-          </div>
-          ${logs.length ? `
-            <div class="history-meal-list">
-              ${logs.map((log) => `
-                <div class="history-meal-row">
-                  <div class="history-meal-name">${escHtml(getLogDisplayName(log))}</div>
-                  <div class="history-meal-meta">${Math.round(log.cal || 0)} kcal · ${roundNutrient(log.pro || 0)}p · ${roundNutrient(log.carb || 0)}c · ${roundNutrient(log.fat || 0)}f</div>
-                </div>
-              `).join("")}
-            </div>
-          ` : `
-            <div class="history-empty-line">No meals logged on this day.</div>
-          `}
+  content.innerHTML = `
+    <div class="history-day">
+      <div class="history-nav">
+        <button class="history-nav-btn" type="button" onclick="navigateHistoryDay(-1)" ${historyDayIndex === 0 ? "disabled" : ""} aria-label="Newer day">&lt;</button>
+        <div class="history-date-wrap">
+          <div class="history-date">${label}</div>
+          <div class="history-date-sub">${historyDayIndex + 1} of ${allDates.length}</div>
         </div>
+        <button class="history-nav-btn" type="button" onclick="navigateHistoryDay(1)" ${historyDayIndex === allDates.length - 1 ? "disabled" : ""} aria-label="Older day">&gt;</button>
       </div>
-    `;
-  }).join("");
+      <div class="history-card">
+        <div class="history-summary-grid">
+          <div class="history-summary-item">
+            <div class="history-summary-label">Calories</div>
+            <div class="history-summary-value">${Math.round(totalCal)}</div>
+          </div>
+          <div class="history-summary-item">
+            <div class="history-summary-label">Protein</div>
+            <div class="history-summary-value">${roundNutrient(totalPro)}g</div>
+          </div>
+          <div class="history-summary-item">
+            <div class="history-summary-label">Carbs</div>
+            <div class="history-summary-value">${roundNutrient(totalCarb)}g</div>
+          </div>
+          <div class="history-summary-item">
+            <div class="history-summary-label">Fat</div>
+            <div class="history-summary-value">${roundNutrient(totalFat)}g</div>
+          </div>
+        </div>
+        ${renderHistoryMacroProgress("Calories", pCal, Math.round(totalCal), `${Math.round(state.goals.cal)} kcal`, "fill-cal")}
+        ${renderHistoryMacroProgress("Protein", pPro, roundNutrient(totalPro), `${roundNutrient(state.goals.pro)} g`, "fill-pro")}
+        ${renderHistoryMacroProgress("Carbs", pCarb, roundNutrient(totalCarb), `${roundNutrient(state.goals.carb)} g`, "fill-carb")}
+        ${renderHistoryMacroProgress("Fat", pFat, roundNutrient(totalFat), `${roundNutrient(state.goals.fat)} g`, "fill-fat")}
+        <div class="history-chip-row">
+          <div class="history-chip">${logs.length} ${logs.length === 1 ? "meal" : "meals"}</div>
+          ${renderHistoryProgressChip("Water", `${roundNutrient(waterTotal)} L`, pWater, "history-chip-water")}
+          ${renderHistoryProgressChip("Steps", `${Math.round(stepsTotal)}`, pSteps, "history-chip-steps")}
+        </div>
+        <div class="history-toggle-row">
+          <button class="history-toggle-btn" type="button" onclick="toggleHistoryMeals()">${historyMealsExpanded ? "Hide meals" : "Show meals"}</button>
+        </div>
+        ${historyMealsExpanded ? `
+          <div class="history-meal-list">
+            ${renderHistoryMealGroups(groupedMeals)}
+          </div>
+        ` : ""}
+        <div class="history-note">${escHtml(buildHistorySummaryNote({ totalCal, totalPro, totalCarb, totalFat, waterTotal, stepsTotal, mealCount: logs.length }))}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderHistoryMacroProgress(label, progress, currentValue, goalText, fillClass) {
+  return `
+    <div class="progress-wrap history-progress-wrap">
+      <div class="progress-top">
+        <span class="progress-name" style="font-size:12px">${label}</span>
+        <span class="progress-nums">${currentValue} / ${goalText}</span>
+      </div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill ${fillClass}" style="width:${Math.round(progress)}%"></div></div>
+    </div>
+  `;
+}
+
+function renderHistoryProgressChip(label, value, progress, modifierClass) {
+  return `
+    <div class="history-chip history-progress-chip ${modifierClass}">
+      <div class="history-progress-chip-top">
+        <span>${label}</span>
+        <span>${value}</span>
+      </div>
+      <div class="history-progress-chip-bar"><div class="history-progress-chip-fill" style="width:${Math.round(progress)}%"></div></div>
+    </div>
+  `;
+}
+
+function groupHistoryMealsByTime(logs) {
+  const groups = [
+    { key: "breakfast", label: "Breakfast", icon: "Sun", items: [] },
+    { key: "lunch", label: "Lunch", icon: "Mid", items: [] },
+    { key: "dinner", label: "Dinner", icon: "Moon", items: [] },
+    { key: "snacks", label: "Snacks", icon: "Snack", items: [] }
+  ];
+
+  logs.forEach((log) => {
+    const key = inferMealTimeKey(log);
+    const group = groups.find((entry) => entry.key === key) || groups[3];
+    group.items.push(log);
+  });
+
+  return groups.filter((group) => group.items.length);
+}
+
+function inferMealTimeKey(log) {
+  const hour = getLogHour(log);
+  if (hour >= 5 && hour < 11) {
+    return "breakfast";
+  }
+  if (hour >= 11 && hour < 16) {
+    return "lunch";
+  }
+  if (hour >= 16 && hour < 22) {
+    return "dinner";
+  }
+  return "snacks";
+}
+
+function getLogHour(log) {
+  const timestamp = log?.created_at;
+  if (timestamp) {
+    const parsed = new Date(timestamp);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.getHours();
+    }
+  }
+  return 15;
+}
+
+function renderHistoryMealGroups(groups) {
+  if (!groups.length) {
+    return "<div class=\"history-empty-line\">No meals logged on this day.</div>";
+  }
+
+  return groups.map((group) => `
+    <div class="history-meal-group">
+      <div class="history-group-title"><span class="history-group-icon">${group.icon}</span><span>${group.label}</span></div>
+      ${group.items.map((log) => `
+        <div class="history-meal-row">
+          <div class="history-meal-main">
+            <div class="history-meal-name">${escHtml(getLogDisplayName(log))}</div>
+            <div class="history-meal-meta">
+              <span class="history-dot history-dot-pro"></span><span>${roundNutrient(log.pro || 0)} protein</span>
+              <span class="history-dot history-dot-carb"></span><span>${roundNutrient(log.carb || 0)} carbs</span>
+              <span class="history-dot history-dot-fat"></span><span>${roundNutrient(log.fat || 0)} fat</span>
+            </div>
+          </div>
+          <div class="history-meal-kcal">${Math.round(log.cal || 0)} kcal</div>
+        </div>
+      `).join("")}
+    </div>
+  `).join("");
+}
+
+function buildHistorySummaryNote({ totalCal, totalPro, totalCarb, totalFat, waterTotal, stepsTotal, mealCount }) {
+  if (state.goals.pro > 0 && totalPro >= state.goals.pro) {
+    return "You hit your protein goal today.";
+  }
+  if (state.goals.water > 0 && waterTotal >= state.goals.water) {
+    return "Hydration goal complete for this day.";
+  }
+  if (state.goals.steps > 0 && stepsTotal >= state.goals.steps) {
+    return "Step goal complete for this day.";
+  }
+  if (state.goals.cal > 0 && totalCal >= state.goals.cal) {
+    return "Calories reached your daily target.";
+  }
+  if (mealCount === 0) {
+    return "You tracked water or steps on this day, but no meals were logged.";
+  }
+  if (state.goals.carb > 0 && totalCarb >= state.goals.carb) {
+    return "Carbs hit the target for this day.";
+  }
+  if (state.goals.fat > 0 && totalFat >= state.goals.fat) {
+    return "Fat reached the target for this day.";
+  }
+  return "A steady day of tracking. Review the breakdown above for the details.";
+}
+
+function navigateHistoryDay(direction) {
+  const allDates = [...new Set([
+    ...state.logs.map((entry) => entry.date),
+    ...state.waterLogs.map((entry) => entry.date),
+    ...state.stepLogs.map((entry) => entry.date)
+  ])]
+    .sort()
+    .reverse()
+    .filter((date) => date !== todayStr());
+  if (!allDates.length) {
+    return;
+  }
+  historyDayIndex = clamp(historyDayIndex + direction, 0, allDates.length - 1);
+  renderHistory();
+}
+
+function toggleHistoryMeals() {
+  historyMealsExpanded = !historyMealsExpanded;
+  renderHistory();
+}
+
+function handleHistoryTouchStart(event) {
+  if (currentPage !== "history") {
+    return;
+  }
+  historyTouchStartX = event.changedTouches?.[0]?.clientX || 0;
+  historyTouchStartY = event.changedTouches?.[0]?.clientY || 0;
+}
+
+function handleHistoryTouchEnd(event) {
+  if (currentPage !== "history") {
+    return;
+  }
+  const endX = event.changedTouches?.[0]?.clientX || 0;
+  const endY = event.changedTouches?.[0]?.clientY || 0;
+  const deltaX = endX - historyTouchStartX;
+  const deltaY = endY - historyTouchStartY;
+  if (Math.abs(deltaX) < 48 || Math.abs(deltaY) > 36) {
+    return;
+  }
+  navigateHistoryDay(deltaX < 0 ? 1 : -1);
 }
 
 function showGoalsModal() {
@@ -3480,6 +3651,9 @@ document.addEventListener("DOMContentLoaded", () => {
       completePasswordReset();
     }
   });
+
+  document.getElementById("page-history")?.addEventListener("touchstart", handleHistoryTouchStart, { passive: true });
+  document.getElementById("page-history")?.addEventListener("touchend", handleHistoryTouchEnd, { passive: true });
 
   document.getElementById("ai-quantity")?.addEventListener("input", syncEstimateFromQuantity);
   document.getElementById("ai-grams")?.addEventListener("input", syncEstimateFromGrams);
