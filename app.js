@@ -30,6 +30,7 @@ let isPullTracking = false;
 let startupDelayDone = false;
 let startupAuthReady = false;
 let activeAiPhoto = null;
+let editingLogId = null;
 
 const PULL_REFRESH_TRIGGER = 60;
 const PULL_REFRESH_MAX = 112;
@@ -1434,10 +1435,71 @@ function renderToday() {
         <div class="meal-meta">${Math.round(log.cal)} kcal · ${roundNutrient(log.pro)}g protein · ${roundNutrient(log.carb || 0)}g carbs · ${roundNutrient(log.fat || 0)}g fat</div>
       </div>
       <div class="meal-right">
+        <button class="meal-edit" onclick="openEditLogModal('${log.id}')" title="Edit meal" aria-label="Edit ${escHtml(log.name)}">✎</button>
         <button class="meal-del" onclick="deleteLog('${log.id}')" title="Remove">x</button>
       </div>
     </div>
   `).join("");
+}
+
+function openEditLogModal(id) {
+  const log = state.logs.find((entry) => entry.id === id);
+  if (!log) {
+    showToast("Meal not found");
+    return;
+  }
+
+  editingLogId = id;
+  document.getElementById("edit-log-name").value = log.name || "";
+  document.getElementById("edit-log-cal").value = Math.round(log.cal || 0);
+  document.getElementById("edit-log-pro").value = roundNutrient(log.pro || 0);
+  document.getElementById("edit-log-carb").value = roundNutrient(log.carb || 0);
+  document.getElementById("edit-log-fat").value = roundNutrient(log.fat || 0);
+  document.getElementById("edit-log-status").textContent = "";
+  document.getElementById("overlay-edit-log").classList.add("open");
+}
+
+function saveEditedLog() {
+  if (!editingLogId) {
+    return;
+  }
+
+  const status = document.getElementById("edit-log-status");
+  const name = document.getElementById("edit-log-name").value.trim();
+  const cal = normalizePositiveNumber(document.getElementById("edit-log-cal").value, -1);
+  const pro = normalizePositiveNumber(document.getElementById("edit-log-pro").value, -1);
+  const carb = normalizePositiveNumber(document.getElementById("edit-log-carb").value, -1);
+  const fat = normalizePositiveNumber(document.getElementById("edit-log-fat").value, -1);
+
+  if (!name) {
+    status.textContent = "Enter a meal name.";
+    return;
+  }
+  if (cal < 0 || pro < 0 || carb < 0 || fat < 0) {
+    status.textContent = "Enter valid nutrition values.";
+    return;
+  }
+
+  const index = state.logs.findIndex((entry) => entry.id === editingLogId);
+  if (index < 0) {
+    status.textContent = "Meal not found.";
+    return;
+  }
+
+  state.logs[index] = {
+    ...state.logs[index],
+    name,
+    cal: roundNutrient(cal),
+    pro: roundNutrient(pro),
+    carb: roundNutrient(carb),
+    fat: roundNutrient(fat)
+  };
+
+  saveState();
+  renderToday();
+  renderHistory();
+  closeModal("edit-log");
+  showToast("Meal updated");
 }
 
 function deleteLog(id) {
@@ -2737,6 +2799,10 @@ function closeModal(name) {
   document.getElementById(`overlay-${name}`).classList.remove("open");
   if (name === "goals") {
     document.getElementById("goal-sources-popover").classList.add("hidden");
+  }
+  if (name === "edit-log") {
+    editingLogId = null;
+    document.getElementById("edit-log-status").textContent = "";
   }
 }
 

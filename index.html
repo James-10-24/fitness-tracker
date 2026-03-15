@@ -98,7 +98,7 @@
     </div>
 
     <div class="card">
-      <div class="card-label">Progress</div>
+      <div class="card-label">Nutrition</div>
       <div class="progress-wrap" id="cal-progress-wrap">
         <div class="progress-top">
           <span class="progress-name"><span class="progress-icon" aria-hidden="true">🔥</span><span>Calories</span></span>
@@ -531,6 +531,40 @@
       </div>
       <button class="btn btn-primary" onclick="saveGoals()">Save Goals</button>
       <button class="btn btn-secondary" onclick="closeModal('goals')">Cancel</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay-edit-log" onclick="closeModal('edit-log')">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Edit Meal</div>
+      <div class="form-group">
+        <label class="form-label" for="edit-log-name">Meal Name</label>
+        <input class="form-input" id="edit-log-name" placeholder="e.g. Chicken rice">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="edit-log-cal">Calories (kcal)</label>
+          <input class="form-input" id="edit-log-cal" type="number" min="0" step="1" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-log-pro">Protein (g)</label>
+          <input class="form-input" id="edit-log-pro" type="number" min="0" step="0.1" placeholder="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="edit-log-carb">Carbs (g)</label>
+          <input class="form-input" id="edit-log-carb" type="number" min="0" step="0.1" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-log-fat">Fat (g)</label>
+          <input class="form-input" id="edit-log-fat" type="number" min="0" step="0.1" placeholder="0">
+        </div>
+      </div>
+      <div class="api-status" id="edit-log-status" aria-live="polite"></div>
+      <button class="btn btn-primary" type="button" onclick="saveEditedLog()">Save Changes</button>
+      <button class="btn btn-secondary" type="button" onclick="closeModal('edit-log')">Cancel</button>
     </div>
   </div>
 
