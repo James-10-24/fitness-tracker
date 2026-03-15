@@ -1859,6 +1859,16 @@ h2,
   margin-top: 12px;
 }
 
+.ai-status-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.ai-status-row .api-status {
+  flex: 1;
+}
+
 .estimate-card {
   margin: 0 16px;
   padding: 18px;
@@ -1873,6 +1883,10 @@ h2,
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 14px;
+  margin-bottom: 14px;
+}
+
+.ai-photo-warning {
   margin-bottom: 14px;
 }
 

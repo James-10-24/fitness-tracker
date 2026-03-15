@@ -1787,11 +1787,10 @@ function logFromFood() {
 
 async function requestAiEstimate(options = {}) {
   const query = (options.queryOverride || document.getElementById("ai-food-input").value.trim()).trim();
-  const statusNode = document.getElementById("ai-estimate-status");
   const button = document.getElementById("ai-estimate-btn");
 
   if (!query) {
-    statusNode.textContent = "Enter a food description first.";
+    setAiEstimateStatus("Enter a food description first.");
     return;
   }
 
@@ -1800,7 +1799,7 @@ async function requestAiEstimate(options = {}) {
   }
 
   button.disabled = true;
-  statusNode.textContent = options.statusMessage || "Estimating nutrition...";
+  setAiEstimateStatus(options.statusMessage || "Estimating nutrition...");
 
   try {
     const payload = await postJsonExpectJson(
@@ -1846,12 +1845,12 @@ async function requestAiEstimate(options = {}) {
     document.getElementById("ai-estimate-note").textContent = `AI estimate (${activeAiEstimate.confidence} confidence): ${payload.note}`;
     updateAiQuantityMode();
     document.getElementById("ai-estimate-editor").classList.remove("hidden");
-    statusNode.textContent = "Estimate ready. Adjust any values before saving.";
+    setAiEstimateStatus("Estimate ready. Adjust any values before saving.", true);
   } catch (error) {
     console.error("AI estimate failed", error);
-    statusNode.textContent = /expected pattern/i.test(error?.message || "")
+    setAiEstimateStatus(/expected pattern/i.test(error?.message || "")
       ? "AI estimate returned an invalid value. Please try again."
-      : (error.message || "Estimate failed");
+      : (error.message || "Estimate failed"));
   } finally {
     button.disabled = false;
   }
@@ -1877,20 +1876,19 @@ async function handleAiPhotoSelected(event) {
 }
 
 async function identifyMealFromPhoto(file) {
-  const statusNode = document.getElementById("ai-estimate-status");
   const cameraButton = document.getElementById("ai-photo-camera-btn");
   const libraryButton = document.getElementById("ai-photo-library-btn");
   const estimateButton = document.getElementById("ai-estimate-btn");
 
   if (!file.type.startsWith("image/")) {
-    statusNode.textContent = "Choose a valid meal image first.";
+    setAiEstimateStatus("Choose a valid meal image first.");
     return;
   }
 
   cameraButton.disabled = true;
   libraryButton.disabled = true;
   estimateButton.disabled = true;
-  statusNode.textContent = "Reading your photo...";
+  setAiEstimateStatus("Reading your photo...");
 
   try {
     const dataUrl = await fileToResizedDataUrl(file);
@@ -1920,7 +1918,7 @@ async function identifyMealFromPhoto(file) {
     });
   } catch (error) {
     console.error("AI image identification failed", error);
-    statusNode.textContent = error.message || "Image recognition failed";
+    setAiEstimateStatus(error.message || "Image recognition failed");
   } finally {
     cameraButton.disabled = false;
     libraryButton.disabled = false;
@@ -1954,6 +1952,22 @@ function renderAiPhotoPreview(preview = null) {
 function clearAiPhotoSelection() {
   activeAiPhoto = null;
   renderAiPhotoPreview();
+}
+
+function setAiEstimateStatus(message, showInfo = false) {
+  const statusNode = document.getElementById("ai-estimate-status");
+  const infoButton = document.getElementById("ai-estimate-info-btn");
+  if (statusNode) {
+    statusNode.textContent = message || "";
+  }
+  infoButton?.classList.toggle("hidden", !showInfo);
+  if (!showInfo) {
+    document.getElementById("ai-estimate-sources-popover")?.classList.add("hidden");
+  }
+}
+
+function toggleAiEstimateSourcesInfo() {
+  document.getElementById("ai-estimate-sources-popover")?.classList.toggle("hidden");
 }
 
 function fileToResizedDataUrl(file) {
@@ -2151,7 +2165,7 @@ function resetAiEstimateForm() {
   document.getElementById("ai-fat").value = "";
   document.getElementById("ai-serving-label").value = "";
   document.getElementById("ai-estimate-note").textContent = "";
-  document.getElementById("ai-estimate-status").textContent = "";
+  setAiEstimateStatus("");
   document.getElementById("ai-estimate-editor").classList.add("hidden");
   document.getElementById("ai-save-to-foods").checked = true;
   updateAiQuantityMode();
@@ -2601,6 +2615,7 @@ async function suggestGoals() {
 
 function toggleGoalSourcesInfo() {
   document.getElementById("goal-sources-popover").classList.toggle("hidden");
+  document.getElementById("ai-estimate-sources-popover")?.classList.add("hidden");
 }
 
 function calculateGoalRecommendation({ gender, age, heightCm, weightKg, fitnessGoal, activity }) {
