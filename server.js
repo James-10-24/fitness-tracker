@@ -33,6 +33,10 @@ const server = http.createServer(async (req, res) => {
       await handleEstimateFood(req, res);
       return;
     }
+    if (requestUrl.pathname === "/api/identify-food-image" && req.method === "POST") {
+      await handleIdentifyFoodImage(req, res);
+      return;
+    }
     if (requestUrl.pathname === "/api/suggest-goals" && req.method === "POST") {
       await handleSuggestGoals(req, res);
       return;
@@ -88,6 +92,27 @@ async function handleEstimateFood(req, res) {
     sendJson(res, 200, normalized);
   } catch (error) {
     sendJson(res, 502, { error: error.message || "AI estimate request failed." });
+  }
+}
+
+async function handleIdentifyFoodImage(req, res) {
+  if (!OPENAI_API_KEY) {
+    sendJson(res, 500, { error: "OPENAI_API_KEY is missing. Add it to .env before using AI photo recognition." });
+    return;
+  }
+
+  const body = await readJsonBody(req);
+  const imageDataUrl = typeof body.image_data_url === "string" ? body.image_data_url.trim() : "";
+  if (!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(imageDataUrl)) {
+    sendJson(res, 400, { error: "A valid image data URL is required." });
+    return;
+  }
+
+  try {
+    const recognized = await requestFoodImageRecognition(imageDataUrl);
+    sendJson(res, 200, recognized);
+  } catch (error) {
+    sendJson(res, 502, { error: error.message || "AI image recognition failed." });
   }
 }
 
@@ -228,6 +253,52 @@ async function requestGoalSuggestion(profile) {
   }
 
   return normalizeGoalSuggestion(parsed);
+}
+
+async function requestFoodImageRecognition(imageDataUrl) {
+  const payload = buildFoodImagePayload(imageDataUrl);
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENAI_API_KEY}`
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenAI image recognition request failed", response.status, errorText);
+    let openAiMessage = "AI image recognition request failed.";
+    try {
+      const parsedError = JSON.parse(errorText);
+      openAiMessage = parsedError?.error?.message || openAiMessage;
+    } catch (error) {
+      openAiMessage = errorText || openAiMessage;
+    }
+    throw new Error(openAiMessage);
+  }
+
+  const result = await response.json();
+  const outputText = extractOutputText(result);
+  if (!outputText) {
+    console.error("OpenAI image recognition missing output text", JSON.stringify(result));
+    throw new Error("AI image recognition response was incomplete.");
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(outputText);
+  } catch (error) {
+    console.error("Failed to parse OpenAI image recognition JSON output", outputText);
+    throw new Error("AI image recognition format was invalid.");
+  }
+
+  const normalized = normalizeFoodImageRecognition(parsed);
+  if (!normalized) {
+    throw new Error("AI could not identify a usable food description from that image.");
+  }
+  return normalized;
 }
 
 function buildGoalSuggestionPayload({ gender, age, heightCm, weightKg, fitnessGoal, activity }) {
@@ -493,6 +564,87 @@ function singularizeUnit(unit) {
     return "";
   }
   return unit.replace(/\bpieces\b/gi, "piece").replace(/\beggs\b/gi, "egg").replace(/s$/i, "");
+}
+
+function buildFoodImagePayload(imageDataUrl) {
+  return {
+    model: OPENAI_MODEL,
+    input: [
+      {
+        role: "system",
+        content: [
+          {
+            type: "input_text",
+            text: [
+              "You identify the main food shown in a meal photo and turn it into a short nutrition lookup phrase.",
+              "Return one concise search-friendly description that includes an estimated count only when it is visually clear.",
+              "Prefer concrete food names such as '2 half boiled eggs', 'long black coffee', 'grilled chicken rice', or 'beef steak'.",
+              "Do not invent hidden ingredients or exact calories.",
+              "If multiple foods are visible, return the main meal item or a short combined dish name.",
+              "portion_name must exclude the quantity number. Example: description='4 half boiled eggs', portion_name='eggs'.",
+              "Keep the note short and practical.",
+              "The output must follow the provided JSON schema exactly."
+            ].join(" ")
+          }
+        ]
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: "Identify this meal photo and return a practical food description for nutrition lookup."
+          },
+          {
+            type: "input_image",
+            image_url: imageDataUrl
+          }
+        ]
+      }
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "food_image_detection",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            detected_name: { type: "string" },
+            description: { type: "string" },
+            quantity: { type: "number" },
+            portion_name: { type: "string" },
+            confidence: { type: "string", enum: ["low", "medium", "high"] },
+            note: { type: "string" }
+          },
+          required: ["detected_name", "description", "quantity", "portion_name", "confidence", "note"]
+        }
+      }
+    }
+  };
+}
+
+function normalizeFoodImageRecognition(value) {
+  const detectedName = typeof value.detected_name === "string" ? value.detected_name.trim() : "";
+  const description = typeof value.description === "string" ? value.description.trim() : "";
+  const quantity = Number(value.quantity);
+  const portionName = typeof value.portion_name === "string" ? value.portion_name.trim() : "";
+  const confidence = typeof value.confidence === "string" ? value.confidence.trim().toLowerCase() : "medium";
+  const note = typeof value.note === "string" ? value.note.trim() : "";
+
+  if (!description) {
+    return null;
+  }
+
+  return {
+    detected_name: detectedName || description,
+    description,
+    quantity: Number.isFinite(quantity) && quantity > 0 ? Math.round(quantity * 10) / 10 : 1,
+    portion_name: portionName.replace(/^\s*\d+(?:\.\d+)?\s*/u, "") || "",
+    confidence: ["low", "medium", "high"].includes(confidence) ? confidence : "medium",
+    note: note || "Image-based guess"
+  };
 }
 
 function extractOutputText(responseJson) {

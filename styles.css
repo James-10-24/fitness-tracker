@@ -1868,6 +1868,55 @@ h2,
   box-shadow: 0 18px 38px rgba(15, 23, 42, 0.08);
 }
 
+.ai-photo-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.ai-photo-preview {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(26, 26, 46, 0.08);
+}
+
+.ai-photo-preview-image {
+  width: 88px;
+  height: 88px;
+  border-radius: 14px;
+  object-fit: cover;
+  display: block;
+  background: rgba(26, 26, 46, 0.06);
+}
+
+.ai-photo-preview-meta {
+  min-width: 0;
+}
+
+.ai-photo-preview-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ai-photo-preview-copy {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text2);
+}
+
+.ai-photo-clear-btn {
+  align-self: start;
+}
+
 .goals-helper-card {
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.66);

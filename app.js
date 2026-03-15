@@ -5,6 +5,7 @@ const STORAGE_KEY = "nutrilog_v3";
 const LEGACY_STORAGE_KEY = "nutrilog_v1";
 const AUTH_PREFERENCE_KEY = "viva_ai_auth_pref";
 const AI_ESTIMATE_ENDPOINT = "/api/estimate-food";
+const AI_IMAGE_ENDPOINT = "/api/identify-food-image";
 const OUNCES_TO_GRAMS = 28.3495;
 const CUP_TO_ML = 240;
 
@@ -28,6 +29,7 @@ let isPullRefreshing = false;
 let isPullTracking = false;
 let startupDelayDone = false;
 let startupAuthReady = false;
+let activeAiPhoto = null;
 
 const PULL_REFRESH_TRIGGER = 60;
 const PULL_REFRESH_MAX = 112;
@@ -1236,6 +1238,37 @@ function setNumericInputValue(id, value, formatter = (next) => String(next)) {
   input.value = Number.isFinite(numeric) ? formatter(numeric) : "";
 }
 
+async function postJsonExpectJson(endpoint, body, notFoundMessage) {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  const contentType = response.headers.get("content-type") || "";
+  const rawBody = await response.text();
+  let payload = null;
+  if (contentType.includes("application/json")) {
+    try {
+      payload = JSON.parse(rawBody);
+    } catch (_error) {
+      throw new Error("AI endpoint returned invalid JSON.");
+    }
+  } else {
+    const trimmed = rawBody.trim();
+    if (!response.ok && /The page could not be found|Cannot\s+POST|<!doctype html|<html/i.test(trimmed)) {
+      throw new Error(notFoundMessage);
+    }
+    throw new Error(trimmed || "AI endpoint returned a non-JSON response.");
+  }
+
+  if (!response.ok) {
+    throw new Error(payload?.error || "Request failed");
+  }
+
+  return payload;
+}
+
 function normalizePositiveNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
@@ -1752,8 +1785,8 @@ function logFromFood() {
   setTimeout(() => showPage("today"), 400);
 }
 
-async function requestAiEstimate() {
-  const query = document.getElementById("ai-food-input").value.trim();
+async function requestAiEstimate(options = {}) {
+  const query = (options.queryOverride || document.getElementById("ai-food-input").value.trim()).trim();
   const statusNode = document.getElementById("ai-estimate-status");
   const button = document.getElementById("ai-estimate-btn");
 
@@ -1762,36 +1795,19 @@ async function requestAiEstimate() {
     return;
   }
 
+  if (options.queryOverride) {
+    document.getElementById("ai-food-input").value = query;
+  }
+
   button.disabled = true;
-  statusNode.textContent = "Estimating calories and protein...";
+  statusNode.textContent = options.statusMessage || "Estimating nutrition...";
 
   try {
-    const response = await fetch(AI_ESTIMATE_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query })
-    });
-
-    const contentType = response.headers.get("content-type") || "";
-    const rawBody = await response.text();
-    let payload = null;
-    if (contentType.includes("application/json")) {
-      try {
-        payload = JSON.parse(rawBody);
-      } catch (error) {
-        throw new Error("AI endpoint returned invalid JSON.");
-      }
-    } else {
-      const trimmed = rawBody.trim();
-      if (!response.ok && /The page could not be found|Cannot\s+POST|<!doctype html|<html/i.test(trimmed)) {
-        throw new Error("AI backend is not available on this deployment. /api/estimate-food is returning a page instead of JSON.");
-      }
-      throw new Error(trimmed || "AI endpoint returned a non-JSON response.");
-    }
-
-    if (!response.ok) {
-      throw new Error(payload.error || "Estimate failed");
-    }
+    const payload = await postJsonExpectJson(
+      AI_ESTIMATE_ENDPOINT,
+      { query },
+      "AI backend is not available on this deployment. /api/estimate-food is returning a page instead of JSON."
+    );
 
     const normalizedBaseQuantity = normalizePositiveNumber(payload.base_quantity, 0);
     const normalizedQuantityUnit = payload.quantity_unit || "";
@@ -1839,6 +1855,132 @@ async function requestAiEstimate() {
   } finally {
     button.disabled = false;
   }
+}
+
+function openAiPhotoPicker(source) {
+  const inputId = source === "camera" ? "ai-photo-camera-input" : "ai-photo-library-input";
+  document.getElementById(inputId)?.click();
+}
+
+async function handleAiPhotoSelected(event) {
+  const input = event?.target;
+  const file = input?.files?.[0];
+  if (!file) {
+    return;
+  }
+
+  try {
+    await identifyMealFromPhoto(file);
+  } finally {
+    input.value = "";
+  }
+}
+
+async function identifyMealFromPhoto(file) {
+  const statusNode = document.getElementById("ai-estimate-status");
+  const cameraButton = document.getElementById("ai-photo-camera-btn");
+  const libraryButton = document.getElementById("ai-photo-library-btn");
+  const estimateButton = document.getElementById("ai-estimate-btn");
+
+  if (!file.type.startsWith("image/")) {
+    statusNode.textContent = "Choose a valid meal image first.";
+    return;
+  }
+
+  cameraButton.disabled = true;
+  libraryButton.disabled = true;
+  estimateButton.disabled = true;
+  statusNode.textContent = "Reading your photo...";
+
+  try {
+    const dataUrl = await fileToResizedDataUrl(file);
+    activeAiPhoto = { name: file.name || "meal-photo", dataUrl };
+    renderAiPhotoPreview({ title: "Meal image ready", copy: "Looking at the photo to build a food description..." });
+
+    const payload = await postJsonExpectJson(
+      AI_IMAGE_ENDPOINT,
+      { image_data_url: dataUrl },
+      "AI backend is not available on this deployment. /api/identify-food-image is returning a page instead of JSON."
+    );
+
+    const detectedDescription = String(payload.description || "").trim();
+    if (!detectedDescription) {
+      throw new Error("AI could not identify a food description from that image.");
+    }
+
+    document.getElementById("ai-food-input").value = detectedDescription;
+    renderAiPhotoPreview({
+      title: payload.detected_name || "Photo recognized",
+      copy: `Detected: ${detectedDescription}${payload.note ? ` • ${payload.note}` : ""}`
+    });
+
+    await requestAiEstimate({
+      queryOverride: detectedDescription,
+      statusMessage: "Photo recognized. Estimating nutrition..."
+    });
+  } catch (error) {
+    console.error("AI image identification failed", error);
+    statusNode.textContent = error.message || "Image recognition failed";
+  } finally {
+    cameraButton.disabled = false;
+    libraryButton.disabled = false;
+    estimateButton.disabled = false;
+  }
+}
+
+function renderAiPhotoPreview(preview = null) {
+  const wrap = document.getElementById("ai-photo-preview");
+  const image = document.getElementById("ai-photo-preview-image");
+  const title = document.getElementById("ai-photo-preview-title");
+  const copy = document.getElementById("ai-photo-preview-copy");
+  if (!wrap || !image || !title || !copy) {
+    return;
+  }
+
+  if (!activeAiPhoto) {
+    wrap.classList.add("hidden");
+    image.removeAttribute("src");
+    title.textContent = "Meal image ready";
+    copy.textContent = "AI can turn this photo into a food description before estimating nutrition.";
+    return;
+  }
+
+  image.src = activeAiPhoto.dataUrl;
+  title.textContent = preview?.title || "Meal image ready";
+  copy.textContent = preview?.copy || "AI can turn this photo into a food description before estimating nutrition.";
+  wrap.classList.remove("hidden");
+}
+
+function clearAiPhotoSelection() {
+  activeAiPhoto = null;
+  renderAiPhotoPreview();
+}
+
+function fileToResizedDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const maxSide = 1440;
+        const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext("2d");
+        if (!context) {
+          reject(new Error("Image processing is not available in this browser."));
+          return;
+        }
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.86));
+      };
+      image.onerror = () => reject(new Error("Image could not be read."));
+      image.src = typeof reader.result === "string" ? reader.result : "";
+    };
+    reader.onerror = () => reject(new Error("Image could not be read."));
+    reader.readAsDataURL(file);
+  });
 }
 
 function updateAiQuantityMode() {
@@ -1998,6 +2140,7 @@ function validateAiEditorValues(values) {
 
 function resetAiEstimateForm() {
   activeAiEstimate = null;
+  clearAiPhotoSelection();
   document.getElementById("ai-food-input").value = "";
   document.getElementById("ai-name").value = "";
   document.getElementById("ai-quantity").value = "";
