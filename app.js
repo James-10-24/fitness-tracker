@@ -26,6 +26,8 @@ let pullRefreshStartY = 0;
 let pullRefreshDistance = 0;
 let isPullRefreshing = false;
 let isPullTracking = false;
+let startupDelayDone = false;
+let startupAuthReady = false;
 
 const PULL_REFRESH_TRIGGER = 60;
 const PULL_REFRESH_MAX = 112;
@@ -120,6 +122,18 @@ function renderApp() {
   updateFoodLogInputMode();
   renderHistory();
   updateFab();
+}
+
+function isStartupComplete() {
+  return startupDelayDone && startupAuthReady;
+}
+
+function finishStartupIfReady() {
+  if (!isStartupComplete()) {
+    return;
+  }
+  document.getElementById("startup-screen")?.classList.add("hidden");
+  updateAuthUi();
 }
 
 function isMobileDevice() {
@@ -518,6 +532,12 @@ function updateAuthUi() {
     return;
   }
 
+  if (!isStartupComplete()) {
+    authScreen.classList.add("hidden");
+    accountButton.classList.add("hidden");
+    return;
+  }
+
   const signedIn = !!currentUser;
   const shouldShowAuthScreen = isRecoveryMode || (!signedIn && !isGuestMode) || authScreenForced;
   authScreen.classList.toggle("hidden", !shouldShowAuthScreen);
@@ -602,6 +622,8 @@ async function applySession(session) {
 async function initializeSupabase() {
   if (!window.supabase?.createClient) {
     console.error("Supabase client failed to load");
+    startupAuthReady = true;
+    finishStartupIfReady();
     return;
   }
 
@@ -617,6 +639,8 @@ async function initializeSupabase() {
     console.error("Failed to get session", sessionResult.error);
   }
   await applySession(sessionResult.data.session);
+  startupAuthReady = true;
+  finishStartupIfReady();
 
   supabaseClient.auth.onAuthStateChange((event, session) => {
     if (event === "PASSWORD_RECOVERY") {
@@ -2614,11 +2638,17 @@ document.addEventListener("DOMContentLoaded", () => {
   loadState();
   renderApp();
   updateAuthUi();
+  window.setTimeout(() => {
+    startupDelayDone = true;
+    finishStartupIfReady();
+  }, 2000);
   registerServiceWorker();
   updateInstallUi();
   initializeSupabase().catch((error) => {
     console.error("Supabase initialization failed", error);
     document.getElementById("auth-status").textContent = error.message || "Failed to initialize authentication.";
+    startupAuthReady = true;
+    finishStartupIfReady();
   });
 
   document.getElementById("ai-food-input")?.addEventListener("keydown", (event) => {
