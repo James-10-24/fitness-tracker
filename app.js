@@ -3010,7 +3010,11 @@ function deleteFoodById(id, closeEditor = false) {
 
 function renderHistory() {
   const content = document.getElementById("history-content");
-  const allDates = [...new Set(state.logs.map((entry) => entry.date))]
+  const allDates = [...new Set([
+    ...state.logs.map((entry) => entry.date),
+    ...state.waterLogs.map((entry) => entry.date),
+    ...state.stepLogs.map((entry) => entry.date)
+  ])]
     .sort()
     .reverse()
     .filter((date) => date !== todayStr());
@@ -3022,8 +3026,16 @@ function renderHistory() {
 
   content.innerHTML = allDates.map((date) => {
     const logs = state.logs.filter((entry) => entry.date === date);
+    const waterTotal = state.waterLogs
+      .filter((entry) => entry.date === date)
+      .reduce((sum, entry) => sum + (entry.amount || 0), 0);
+    const stepsTotal = state.stepLogs
+      .filter((entry) => entry.date === date)
+      .reduce((sum, entry) => sum + (entry.amount || 0), 0);
     const totalCal = logs.reduce((sum, log) => sum + (log.cal || 0), 0);
     const totalPro = logs.reduce((sum, log) => sum + (log.pro || 0), 0);
+    const totalCarb = logs.reduce((sum, log) => sum + (log.carb || 0), 0);
+    const totalFat = logs.reduce((sum, log) => sum + (log.fat || 0), 0);
     const label = new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
       weekday: "long",
       month: "long",
@@ -3036,10 +3048,28 @@ function renderHistory() {
       <div class="history-day">
         <div class="history-date">${label}</div>
         <div class="history-card">
-          <div class="history-row">
-            <div class="history-stat"><div class="hval">${Math.round(totalCal)}</div><div class="hunit">kcal</div></div>
-            <div class="history-stat"><div class="hval">${roundNutrient(totalPro)}g</div><div class="hunit">protein</div></div>
-            <div class="history-stat"><div class="hval">${logs.length}</div><div class="hunit">meals</div></div>
+          <div class="history-summary-grid">
+            <div class="history-summary-item">
+              <div class="history-summary-label">Calories</div>
+              <div class="history-summary-value">${Math.round(totalCal)}</div>
+            </div>
+            <div class="history-summary-item">
+              <div class="history-summary-label">Protein</div>
+              <div class="history-summary-value">${roundNutrient(totalPro)}g</div>
+            </div>
+            <div class="history-summary-item">
+              <div class="history-summary-label">Carbs</div>
+              <div class="history-summary-value">${roundNutrient(totalCarb)}g</div>
+            </div>
+            <div class="history-summary-item">
+              <div class="history-summary-label">Fat</div>
+              <div class="history-summary-value">${roundNutrient(totalFat)}g</div>
+            </div>
+          </div>
+          <div class="history-chip-row">
+            <div class="history-chip">${logs.length} ${logs.length === 1 ? "meal" : "meals"}</div>
+            <div class="history-chip">${roundNutrient(waterTotal)} L water</div>
+            <div class="history-chip">${Math.round(stepsTotal)} steps</div>
           </div>
           <div class="progress-wrap" style="margin-bottom:8px">
             <div class="progress-top"><span class="progress-name" style="font-size:12px">Calories</span><span class="progress-nums">${Math.round(pCal)}%</span></div>
@@ -3049,6 +3079,18 @@ function renderHistory() {
             <div class="progress-top"><span class="progress-name" style="font-size:12px">Protein</span><span class="progress-nums">${Math.round(pPro)}%</span></div>
             <div class="progress-bar-bg"><div class="progress-bar-fill fill-pro" style="width:${pPro}%"></div></div>
           </div>
+          ${logs.length ? `
+            <div class="history-meal-list">
+              ${logs.map((log) => `
+                <div class="history-meal-row">
+                  <div class="history-meal-name">${escHtml(getLogDisplayName(log))}</div>
+                  <div class="history-meal-meta">${Math.round(log.cal || 0)} kcal · ${roundNutrient(log.pro || 0)}p · ${roundNutrient(log.carb || 0)}c · ${roundNutrient(log.fat || 0)}f</div>
+                </div>
+              `).join("")}
+            </div>
+          ` : `
+            <div class="history-empty-line">No meals logged on this day.</div>
+          `}
         </div>
       </div>
     `;
