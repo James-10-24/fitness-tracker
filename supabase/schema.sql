@@ -64,6 +64,28 @@ create table if not exists public.water_units (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.ai_food_cache (
+  id uuid primary key default gen_random_uuid(),
+  normalized_query text not null unique,
+  display_query text not null,
+  food_name text not null,
+  estimated_grams numeric not null,
+  calories numeric not null default 0,
+  protein_g numeric not null default 0,
+  carb_g numeric not null default 0,
+  fat_g numeric not null default 0,
+  base_quantity numeric not null default 0,
+  quantity_unit text not null default '',
+  portion_name text not null default '',
+  source_note text not null default '',
+  confidence text not null default 'medium',
+  note text not null default '',
+  hit_count integer not null default 0,
+  last_used_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists foods_user_id_idx on public.foods (user_id);
 create index if not exists meal_logs_user_id_idx on public.meal_logs (user_id);
 create index if not exists meal_logs_logged_on_idx on public.meal_logs (logged_on);
@@ -72,14 +94,16 @@ create index if not exists water_logs_logged_on_idx on public.water_logs (logged
 create index if not exists step_logs_user_id_idx on public.step_logs (user_id);
 create index if not exists step_logs_logged_on_idx on public.step_logs (logged_on);
 create index if not exists water_units_user_id_idx on public.water_units (user_id);
+create index if not exists ai_food_cache_normalized_query_idx on public.ai_food_cache (normalized_query);
 
-grant usage on schema public to authenticated;
+grant usage on schema public to authenticated, anon;
 grant select, insert, update, delete on public.goals to authenticated;
 grant select, insert, update, delete on public.foods to authenticated;
 grant select, insert, update, delete on public.meal_logs to authenticated;
 grant select, insert, update, delete on public.water_logs to authenticated;
 grant select, insert, update, delete on public.step_logs to authenticated;
 grant select, insert, update, delete on public.water_units to authenticated;
+grant select, insert, update on public.ai_food_cache to authenticated, anon;
 
 alter table public.goals enable row level security;
 alter table public.foods enable row level security;
@@ -87,6 +111,7 @@ alter table public.meal_logs enable row level security;
 alter table public.water_logs enable row level security;
 alter table public.step_logs enable row level security;
 alter table public.water_units enable row level security;
+alter table public.ai_food_cache enable row level security;
 
 drop policy if exists "users_manage_own_goals" on public.goals;
 create policy "users_manage_own_goals" on public.goals
@@ -123,3 +148,19 @@ create policy "users_manage_own_water_units" on public.water_units
 for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
+
+drop policy if exists "public_read_ai_food_cache" on public.ai_food_cache;
+create policy "public_read_ai_food_cache" on public.ai_food_cache
+for select
+using (true);
+
+drop policy if exists "public_insert_ai_food_cache" on public.ai_food_cache;
+create policy "public_insert_ai_food_cache" on public.ai_food_cache
+for insert
+with check (true);
+
+drop policy if exists "public_update_ai_food_cache" on public.ai_food_cache;
+create policy "public_update_ai_food_cache" on public.ai_food_cache
+for update
+using (true)
+with check (true);

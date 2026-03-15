@@ -1110,11 +1110,125 @@ function inferQuantityFromServing(serving) {
   };
 }
 
+function normalizeFoodMatchKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function formatFoodBaseLabel(food) {
   if (food.quantityUnit && food.baseQuantity > 0) {
     return `${roundNutrient(food.baseQuantity)} ${formatFoodUnitLabel(food.quantityUnit, getFoodUnitKind(food.quantityUnit), food.baseQuantity)}`;
   }
   return food.serving || `${Math.round(food.grams)} g`;
+}
+
+function findSavedFoodByDescription(query) {
+  const normalizedQuery = normalizeFoodMatchKey(query);
+  if (!normalizedQuery) {
+    return null;
+  }
+  return state.foods.find((food) => normalizeFoodMatchKey(food.name) === normalizedQuery) || null;
+}
+
+async function fetchSharedAiCache(query) {
+  if (!supabaseClient) {
+    return null;
+  }
+  const normalizedQuery = normalizeFoodMatchKey(query);
+  if (!normalizedQuery) {
+    return null;
+  }
+
+  const result = await supabaseClient
+    .from("ai_food_cache")
+    .select("*")
+    .eq("normalized_query", normalizedQuery)
+    .maybeSingle();
+
+  if (result.error) {
+    console.error("Failed to read ai_food_cache", result.error);
+    return null;
+  }
+
+  if (!result.data) {
+    return null;
+  }
+
+  void supabaseClient
+    .from("ai_food_cache")
+    .update({
+      hit_count: Number(result.data.hit_count || 0) + 1,
+      last_used_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", result.data.id);
+
+  return {
+    food_name: result.data.food_name,
+    estimated_grams: result.data.estimated_grams,
+    calories: result.data.calories,
+    protein_g: result.data.protein_g,
+    carb_g: result.data.carb_g,
+    fat_g: result.data.fat_g,
+    base_quantity: result.data.base_quantity,
+    quantity_unit: result.data.quantity_unit,
+    portion_name: result.data.portion_name,
+    source_note: result.data.source_note,
+    confidence: result.data.confidence,
+    note: result.data.note
+  };
+}
+
+async function saveSharedAiCache(query, payload) {
+  if (!supabaseClient) {
+    return;
+  }
+  const normalizedQuery = normalizeFoodMatchKey(query);
+  if (!normalizedQuery) {
+    return;
+  }
+
+  const row = {
+    normalized_query: normalizedQuery,
+    display_query: query.trim(),
+    food_name: payload.food_name || query.trim(),
+    estimated_grams: Math.round(normalizePositiveNumber(payload.estimated_grams, 0)),
+    calories: roundNutrient(payload.calories || 0),
+    protein_g: roundNutrient(payload.protein_g || 0),
+    carb_g: roundNutrient(payload.carb_g || 0),
+    fat_g: roundNutrient(payload.fat_g || 0),
+    base_quantity: roundNutrient(payload.base_quantity || 0),
+    quantity_unit: payload.quantity_unit || "",
+    portion_name: payload.portion_name || "",
+    source_note: payload.source_note || "",
+    confidence: payload.confidence || "medium",
+    note: payload.note || "",
+    last_used_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  const existing = await supabaseClient
+    .from("ai_food_cache")
+    .select("id, hit_count")
+    .eq("normalized_query", normalizedQuery)
+    .maybeSingle();
+
+  if (existing.error && existing.error.code !== "PGRST116") {
+    console.error("Failed to check existing ai_food_cache row", existing.error);
+  }
+
+  row.hit_count = Number(existing.data?.hit_count || 0) + 1;
+
+  const result = await supabaseClient
+    .from("ai_food_cache")
+    .upsert(row, { onConflict: "normalized_query" });
+
+  if (result.error) {
+    console.error("Failed to write ai_food_cache", result.error);
+  }
 }
 
 function normalizeFoodForLibrary({ name, grams, cal, pro, carb, fat, baseQuantity = 0, quantityUnit = "" }) {
@@ -1363,6 +1477,48 @@ function setNumericInputValue(id, value, formatter = (next) => String(next)) {
   }
   const numeric = Number(value);
   input.value = Number.isFinite(numeric) ? formatter(numeric) : "";
+}
+
+function hydrateAiEstimateFromPayload(payload, query, options = {}) {
+  const normalizedBaseQuantity = normalizePositiveNumber(payload.base_quantity, 0);
+  const normalizedQuantityUnit = payload.quantity_unit || "";
+  const resolvedTotalGrams = resolveAiEstimatedTotalGrams({
+    estimatedGrams: normalizePositiveNumber(payload.estimated_grams, 100),
+    baseQuantity: normalizedBaseQuantity,
+    quantityUnit: normalizedQuantityUnit,
+    calories: normalizePositiveNumber(payload.calories, 0),
+    protein: normalizePositiveNumber(payload.protein_g, 0),
+    carbs: normalizePositiveNumber(payload.carb_g, 0),
+    fat: normalizePositiveNumber(payload.fat_g, 0),
+    note: payload.note || ""
+  });
+
+  activeAiEstimate = {
+    baseGrams: resolvedTotalGrams,
+    baseCalories: normalizePositiveNumber(payload.calories, 0),
+    baseProtein: normalizePositiveNumber(payload.protein_g, 0),
+    baseCarb: normalizePositiveNumber(payload.carb_g, 0),
+    baseFat: normalizePositiveNumber(payload.fat_g, 0),
+    baseQuantity: normalizedBaseQuantity,
+    quantityUnit: normalizedQuantityUnit,
+    portionName: payload.portion_name || "",
+    confidence: payload.confidence || "medium",
+    note: payload.note || "",
+    sourceNote: payload.source_note || ""
+  };
+
+  document.getElementById("ai-name").value = payload.food_name || query;
+  setNumericInputValue("ai-quantity", getAiVisibleQuantity(), (next) => String(roundNutrient(next)));
+  setNumericInputValue("ai-grams", activeAiEstimate.baseGrams, (next) => String(Math.round(next)));
+  setNumericInputValue("ai-calories", activeAiEstimate.baseCalories, (next) => String(Math.round(next)));
+  setNumericInputValue("ai-protein", activeAiEstimate.baseProtein, (next) => String(roundNutrient(next)));
+  setNumericInputValue("ai-carb", activeAiEstimate.baseCarb, (next) => String(roundNutrient(next)));
+  setNumericInputValue("ai-fat", activeAiEstimate.baseFat, (next) => String(roundNutrient(next)));
+  document.getElementById("ai-serving-label").value = getAiPortionUnitLabel();
+  document.getElementById("ai-estimate-note").textContent = `AI estimate (${activeAiEstimate.confidence} confidence): ${payload.note}`;
+  updateAiQuantityMode();
+  document.getElementById("ai-estimate-editor").classList.remove("hidden");
+  setAiEstimateStatus(options.statusText || "Estimate ready. Adjust any values before saving.", !!activeAiEstimate.sourceNote);
 }
 
 async function postJsonExpectJson(endpoint, body, notFoundMessage) {
@@ -2059,51 +2215,54 @@ async function requestAiEstimate(options = {}) {
   });
 
   try {
+    const savedFood = findSavedFoodByDescription(query);
+    if (savedFood) {
+      hydrateAiEstimateFromPayload({
+        food_name: savedFood.name,
+        estimated_grams: savedFood.grams,
+        calories: savedFood.cal,
+        protein_g: savedFood.pro,
+        carb_g: savedFood.carb || 0,
+        fat_g: savedFood.fat || 0,
+        base_quantity: savedFood.baseQuantity || 0,
+        quantity_unit: savedFood.quantityUnit || "",
+        portion_name: savedFood.quantityUnit && savedFood.baseQuantity > 0
+          ? formatFoodUnitLabel(savedFood.quantityUnit, getFoodUnitKind(savedFood.quantityUnit), savedFood.baseQuantity)
+          : "g",
+        source_note: "Loaded from your saved My Foods entry instead of making a new AI request.",
+        confidence: "high",
+        note: "Matched an existing saved food with the same description."
+      }, query, {
+        statusText: "Loaded from My Foods. Adjust any values before saving."
+      });
+      trackAmplitudeEvent("ai_estimate_completed", {
+        confidence: "high",
+        has_source_note: true,
+        request_source: "saved_food"
+      });
+      return;
+    }
+
+    const cachedEstimate = await fetchSharedAiCache(query);
+    if (cachedEstimate) {
+      hydrateAiEstimateFromPayload(cachedEstimate, query, {
+        statusText: "Loaded from shared AI cache. Adjust any values before saving."
+      });
+      trackAmplitudeEvent("ai_estimate_completed", {
+        confidence: activeAiEstimate.confidence,
+        has_source_note: !!activeAiEstimate.sourceNote,
+        request_source: "shared_cache"
+      });
+      return;
+    }
+
     const payload = await postJsonExpectJson(
       AI_ESTIMATE_ENDPOINT,
       { query },
       "AI backend is not available on this deployment. /api/estimate-food is returning a page instead of JSON."
     );
-
-    const normalizedBaseQuantity = normalizePositiveNumber(payload.base_quantity, 0);
-    const normalizedQuantityUnit = payload.quantity_unit || "";
-    const resolvedTotalGrams = resolveAiEstimatedTotalGrams({
-      estimatedGrams: normalizePositiveNumber(payload.estimated_grams, 100),
-      baseQuantity: normalizedBaseQuantity,
-      quantityUnit: normalizedQuantityUnit,
-      calories: normalizePositiveNumber(payload.calories, 0),
-      protein: normalizePositiveNumber(payload.protein_g, 0),
-      carbs: normalizePositiveNumber(payload.carb_g, 0),
-      fat: normalizePositiveNumber(payload.fat_g, 0),
-      note: payload.note || ""
-    });
-
-    activeAiEstimate = {
-      baseGrams: resolvedTotalGrams,
-      baseCalories: normalizePositiveNumber(payload.calories, 0),
-      baseProtein: normalizePositiveNumber(payload.protein_g, 0),
-      baseCarb: normalizePositiveNumber(payload.carb_g, 0),
-      baseFat: normalizePositiveNumber(payload.fat_g, 0),
-      baseQuantity: normalizedBaseQuantity,
-      quantityUnit: normalizedQuantityUnit,
-      portionName: payload.portion_name || "",
-      confidence: payload.confidence || "medium",
-      note: payload.note || "",
-      sourceNote: payload.source_note || ""
-    };
-
-    document.getElementById("ai-name").value = payload.food_name || query;
-    setNumericInputValue("ai-quantity", getAiVisibleQuantity(), (next) => String(roundNutrient(next)));
-    setNumericInputValue("ai-grams", activeAiEstimate.baseGrams, (next) => String(Math.round(next)));
-    setNumericInputValue("ai-calories", activeAiEstimate.baseCalories, (next) => String(Math.round(next)));
-    setNumericInputValue("ai-protein", activeAiEstimate.baseProtein, (next) => String(roundNutrient(next)));
-    setNumericInputValue("ai-carb", activeAiEstimate.baseCarb, (next) => String(roundNutrient(next)));
-    setNumericInputValue("ai-fat", activeAiEstimate.baseFat, (next) => String(roundNutrient(next)));
-    document.getElementById("ai-serving-label").value = getAiPortionUnitLabel();
-    document.getElementById("ai-estimate-note").textContent = `AI estimate (${activeAiEstimate.confidence} confidence): ${payload.note}`;
-    updateAiQuantityMode();
-    document.getElementById("ai-estimate-editor").classList.remove("hidden");
-    setAiEstimateStatus("Estimate ready. Adjust any values before saving.", true);
+    void saveSharedAiCache(query, payload);
+    hydrateAiEstimateFromPayload(payload, query);
     trackAmplitudeEvent("ai_estimate_completed", {
       confidence: activeAiEstimate.confidence,
       has_source_note: !!activeAiEstimate.sourceNote,
@@ -2441,7 +2600,7 @@ function resetAiEstimateForm() {
   document.getElementById("ai-estimate-note").textContent = "";
   setAiEstimateStatus("");
   document.getElementById("ai-estimate-editor").classList.add("hidden");
-  document.getElementById("ai-save-to-foods").checked = true;
+  document.getElementById("ai-save-to-foods").checked = false;
   updateAiQuantityMode();
 }
 
