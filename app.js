@@ -1993,6 +1993,18 @@ function submitQuickTrack() {
         ...state.waterLogs[index],
         amount: roundNutrient(amountL)
       };
+    } else if (quickTrackDate && quickTrackDate !== todayStr()) {
+      state.waterLogs = state.waterLogs.filter((entry) => entry.date !== quickTrackDate);
+      if (amountL > 0) {
+        state.waterLogs.push({
+          id: uid(),
+          date: quickTrackDate,
+          amount: roundNutrient(amountL),
+          unitId: "manual",
+          unitName: "Manual",
+          created_at: new Date().toISOString()
+        });
+      }
     } else {
       state.waterLogs.push({
         id: uid(),
@@ -2008,9 +2020,9 @@ function submitQuickTrack() {
     renderHistory();
     closeModal("quick-track");
     triggerWaterCelebration();
-    showToast(quickTrackEntryId ? "Water updated" : "Water added");
+    showToast((quickTrackEntryId || (quickTrackDate && quickTrackDate !== todayStr())) ? "Water updated" : "Water added");
     trackAmplitudeEvent("water_added", {
-      entry_method: quickTrackEntryId ? "history_edit" : "manual",
+      entry_method: (quickTrackEntryId || (quickTrackDate && quickTrackDate !== todayStr())) ? "history_edit" : "manual",
       amount_l: roundNutrient(amountL),
       source_unit: unit
     });
@@ -2033,6 +2045,16 @@ function submitQuickTrack() {
       ...state.stepLogs[index],
       amount
     };
+  } else if (quickTrackDate && quickTrackDate !== todayStr()) {
+    state.stepLogs = state.stepLogs.filter((entry) => entry.date !== quickTrackDate);
+    if (amount > 0) {
+      state.stepLogs.push({
+        id: uid(),
+        date: quickTrackDate,
+        amount,
+        created_at: new Date().toISOString()
+      });
+    }
   } else {
     state.stepLogs.push({
       id: uid(),
@@ -2046,24 +2068,11 @@ function submitQuickTrack() {
   renderHistory();
   closeModal("quick-track");
   triggerStepCelebration();
-  showToast(quickTrackEntryId ? "Steps updated" : "Steps added");
-  trackAmplitudeEvent("steps_added", { amount, entry_method: quickTrackEntryId ? "history_edit" : "manual" });
-}
-
-function deleteWaterLog(id) {
-  state.waterLogs = state.waterLogs.filter((entry) => entry.id !== id);
-  saveState();
-  renderToday();
-  renderHistory();
-  showToast("Water removed");
-}
-
-function deleteStepLog(id) {
-  state.stepLogs = state.stepLogs.filter((entry) => entry.id !== id);
-  saveState();
-  renderToday();
-  renderHistory();
-  showToast("Steps removed");
+  showToast((quickTrackEntryId || (quickTrackDate && quickTrackDate !== todayStr())) ? "Steps updated" : "Steps added");
+  trackAmplitudeEvent("steps_added", {
+    amount,
+    entry_method: (quickTrackEntryId || (quickTrackDate && quickTrackDate !== todayStr())) ? "history_edit" : "manual"
+  });
 }
 
 function resetWaterToday() {
@@ -3154,8 +3163,6 @@ function renderHistory() {
   const pWater = state.goals.water > 0 ? Math.min((waterTotal / state.goals.water) * 100, 100) : 0;
   const pSteps = state.goals.steps > 0 ? Math.min((stepsTotal / state.goals.steps) * 100, 100) : 0;
   const groupedMeals = groupHistoryMealsByTime(logs);
-  const waterEntries = state.waterLogs.filter((entry) => entry.date === date);
-  const stepEntries = state.stepLogs.filter((entry) => entry.date === date);
 
   content.innerHTML = `
     <div class="history-day">
@@ -3192,13 +3199,13 @@ function renderHistory() {
         ${renderHistoryMacroProgress("Fat", pFat, roundNutrient(totalFat), `${roundNutrient(state.goals.fat)} g`, "fill-fat")}
         <div class="history-chip-row">
           <div class="history-chip">${logs.length} ${logs.length === 1 ? "meal" : "meals"}</div>
-          ${renderHistoryProgressChip("Water", `${roundNutrient(waterTotal)} L`, pWater, "history-chip-water")}
-          ${renderHistoryProgressChip("Steps", `${Math.round(stepsTotal)}`, pSteps, "history-chip-steps")}
+          ${renderHistoryProgressChip("Water", `${roundNutrient(waterTotal)} L`, pWater, "history-chip-water", `openHistoryDayOverwrite('water', '${date}')`)}
+          ${renderHistoryProgressChip("Steps", `${Math.round(stepsTotal)}`, pSteps, "history-chip-steps", `openHistoryDayOverwrite('steps', '${date}')`)}
         </div>
         <div class="history-action-row">
           <button class="history-action-btn" type="button" onclick="openCreateLogModal('${date}')">Add Meal</button>
-          <button class="history-action-btn" type="button" onclick="openQuickTrackModal('water', { date: '${date}' })">Add Water</button>
-          <button class="history-action-btn" type="button" onclick="openQuickTrackModal('steps', { date: '${date}' })">Add Steps</button>
+          <button class="history-action-btn" type="button" onclick="openHistoryDayOverwrite('water', '${date}')">Edit Water</button>
+          <button class="history-action-btn" type="button" onclick="openHistoryDayOverwrite('steps', '${date}')">Edit Steps</button>
         </div>
         <div class="history-toggle-row">
           <button class="history-toggle-btn" type="button" onclick="toggleHistoryMeals()">${historyMealsExpanded ? "Hide meals" : "Show meals"}</button>
@@ -3206,8 +3213,6 @@ function renderHistory() {
         ${historyMealsExpanded ? `
           <div class="history-meal-list">
             ${renderHistoryMealGroups(groupedMeals)}
-            ${renderHistoryEntrySection("Water", "Water", waterEntries, "L", "water")}
-            ${renderHistoryEntrySection("Steps", "Step", stepEntries, "steps", "steps")}
           </div>
         ` : ""}
         <div class="history-note">${escHtml(buildHistorySummaryNote({ totalCal, totalPro, totalCarb, totalFat, waterTotal, stepsTotal, mealCount: logs.length }))}</div>
@@ -3228,15 +3233,15 @@ function renderHistoryMacroProgress(label, progress, currentValue, goalText, fil
   `;
 }
 
-function renderHistoryProgressChip(label, value, progress, modifierClass) {
+function renderHistoryProgressChip(label, value, progress, modifierClass, onClick) {
   return `
-    <div class="history-chip history-progress-chip ${modifierClass}">
+    <button class="history-chip history-progress-chip ${modifierClass}" type="button" onclick="${onClick}">
       <div class="history-progress-chip-top">
         <span>${label}</span>
         <span>${value}</span>
       </div>
       <div class="history-progress-chip-bar"><div class="history-progress-chip-fill" style="width:${Math.round(progress)}%"></div></div>
-    </div>
+    </button>
   `;
 }
 
@@ -3313,24 +3318,31 @@ function renderHistoryMealGroups(groups) {
   `).join("");
 }
 
-function renderHistoryEntrySection(title, icon, entries, unitLabel, type) {
-  return `
-    <div class="history-meal-group history-side-group">
-      <div class="history-group-title"><span class="history-group-icon">${icon}</span><span>${title}</span></div>
-      ${entries.length ? entries.map((entry) => `
-        <div class="history-meal-row history-side-row">
-          <div class="history-meal-main">
-            <div class="history-meal-name">${type === "water" ? `${roundNutrient(entry.amount || 0)} ${unitLabel}` : `${Math.round(entry.amount || 0)} ${unitLabel}`}</div>
-            <div class="history-meal-meta">${type === "water" ? "Hydration entry" : "Movement entry"}</div>
-          </div>
-          <div class="history-entry-actions">
-            <button class="history-entry-btn" type="button" onclick="openQuickTrackModal('${type}', { date: '${entry.date}', entryId: '${entry.id}' })" aria-label="Edit ${type}">✎</button>
-            <button class="history-entry-btn danger" type="button" onclick="${type === "water" ? "deleteWaterLog" : "deleteStepLog"}('${entry.id}')" aria-label="Delete ${type}">×</button>
-          </div>
-        </div>
-      `).join("") : `<div class="history-empty-line">No ${title.toLowerCase()} logged on this day.</div>`}
-    </div>
-  `;
+function openHistoryDayOverwrite(type, date) {
+  if (type === "water") {
+    const total = state.waterLogs
+      .filter((entry) => entry.date === date)
+      .reduce((sum, entry) => sum + (entry.amount || 0), 0);
+    openQuickTrackModal("water", { date });
+    if (total >= 1) {
+      document.getElementById("quick-track-water-value").value = roundNutrient(total);
+      document.getElementById("quick-track-water-unit").value = "l";
+    } else {
+      document.getElementById("quick-track-water-value").value = total > 0 ? Math.round(total * 1000) : "";
+      document.getElementById("quick-track-water-unit").value = "ml";
+    }
+    document.getElementById("quick-track-title").textContent = "Set Water";
+    document.getElementById("quick-track-submit-btn").textContent = "Save";
+    return;
+  }
+
+  const total = state.stepLogs
+    .filter((entry) => entry.date === date)
+    .reduce((sum, entry) => sum + (entry.amount || 0), 0);
+  openQuickTrackModal("steps", { date });
+  document.getElementById("quick-track-steps-value").value = total > 0 ? Math.round(total) : "";
+  document.getElementById("quick-track-title").textContent = "Set Steps";
+  document.getElementById("quick-track-submit-btn").textContent = "Save";
 }
 
 function buildHistorySummaryNote({ totalCal, totalPro, totalCarb, totalFat, waterTotal, stepsTotal, mealCount }) {
@@ -3485,6 +3497,16 @@ async function suggestGoals() {
 function toggleGoalSourcesInfo() {
   document.getElementById("goal-sources-popover").classList.toggle("hidden");
   document.getElementById("ai-estimate-sources-popover")?.classList.add("hidden");
+}
+
+function toggleTodayNutritionInfo(key) {
+  document.querySelectorAll(".today-nutrition-info").forEach((node) => {
+    if (node.id === `today-nutrition-info-${key}`) {
+      node.classList.toggle("hidden");
+    } else {
+      node.classList.add("hidden");
+    }
+  });
 }
 
 function calculateGoalRecommendation({ gender, age, heightCm, weightKg, fitnessGoal, activity }) {

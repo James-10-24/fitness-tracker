@@ -104,33 +104,49 @@
       <div class="card-label">Nutrition</div>
       <div class="progress-wrap" id="cal-progress-wrap">
         <div class="progress-top">
-          <span class="progress-name"><span class="progress-icon" aria-hidden="true">🔥</span><span>Calories</span></span>
+          <span class="progress-name progress-name-with-action">
+            <span class="progress-name"><span class="progress-icon" aria-hidden="true">🔥</span><span>Calories</span></span>
+            <button class="mini-icon-btn" type="button" onclick="toggleTodayNutritionInfo('calories')" title="Calories info" aria-label="Calories info">i</button>
+          </span>
           <span class="progress-nums"><span id="prog-cal-curr">0</span> / <span id="prog-cal-goal">2000</span> kcal</span>
         </div>
+        <div class="today-nutrition-info hidden" id="today-nutrition-info-calories">Your daily energy budget. Too little and you'll feel tired and lose muscle. Too much and you gain fat over time. Hit this to maintain a healthy weight.</div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-cal" id="prog-cal-bar" style="width: 0%"></div></div>
         <div class="progress-warning hidden" id="prog-cal-warning">You've hit your calorie limit for today. Time to wind down!</div>
       </div>
       <div class="progress-wrap" id="pro-progress-wrap">
         <div class="progress-top">
-          <span class="progress-name"><span class="progress-icon" aria-hidden="true">🥩</span><span>Protein</span></span>
+          <span class="progress-name progress-name-with-action">
+            <span class="progress-name"><span class="progress-icon" aria-hidden="true">🥩</span><span>Protein</span></span>
+            <button class="mini-icon-btn" type="button" onclick="toggleTodayNutritionInfo('protein')" title="Protein info" aria-label="Protein info">i</button>
+          </span>
           <span class="progress-nums"><span id="prog-pro-curr">0</span> / <span id="prog-pro-goal">150</span> g</span>
         </div>
+        <div class="today-nutrition-info hidden" id="today-nutrition-info-protein">Builds and repairs your muscles. Unlike fat and carbs, your body can't store it — so you need it every single day. Not hitting this is the one you'll feel the most.</div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-pro" id="prog-pro-bar" style="width: 0%"></div></div>
         <div class="progress-warning hidden" id="prog-pro-warning">Protein's maxed out! Your muscles have had enough for today.</div>
       </div>
       <div class="progress-wrap" id="carb-progress-wrap">
         <div class="progress-top">
-          <span class="progress-name"><span class="progress-icon" aria-hidden="true">🍞</span><span>Carbs</span></span>
+          <span class="progress-name progress-name-with-action">
+            <span class="progress-name"><span class="progress-icon" aria-hidden="true">🍞</span><span>Carbs</span></span>
+            <button class="mini-icon-btn" type="button" onclick="toggleTodayNutritionInfo('carbs')" title="Carbs info" aria-label="Carbs info">i</button>
+          </span>
           <span class="progress-nums"><span id="prog-carb-curr">0</span> / <span id="prog-carb-goal">220</span> g</span>
         </div>
+        <div class="today-nutrition-info hidden" id="today-nutrition-info-carbs">Your body and brain's main fuel. Too little and you'll feel sluggish and unfocused. Too much, especially from sugary foods, can lead to weight gain and blood sugar issues.</div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-carb" id="prog-carb-bar" style="width: 0%"></div></div>
         <div class="progress-warning hidden" id="prog-carb-warning">Carb limit reached. Give your energy stores a rest!</div>
       </div>
       <div class="progress-wrap" id="fat-progress-wrap" style="margin-bottom: 0">
         <div class="progress-top">
-          <span class="progress-name"><span class="progress-icon" aria-hidden="true">🧈</span><span>Fat</span></span>
+          <span class="progress-name progress-name-with-action">
+            <span class="progress-name"><span class="progress-icon" aria-hidden="true">🧈</span><span>Fat</span></span>
+            <button class="mini-icon-btn" type="button" onclick="toggleTodayNutritionInfo('fat')" title="Fat info" aria-label="Fat info">i</button>
+          </span>
           <span class="progress-nums"><span id="prog-fat-curr">0</span> / <span id="prog-fat-goal">65</span> g</span>
         </div>
+        <div class="today-nutrition-info hidden" id="today-nutrition-info-fat">More important than most people think. Your body needs fat to absorb vitamins and produce hormones. Too little disrupts your body. Too much of the bad kind (fried, processed) raises your risk of heart disease.</div>
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-fat" id="prog-fat-bar" style="width: 0%"></div></div>
         <div class="progress-warning hidden" id="prog-fat-warning">Fat intake is over the limit. Keep it light for the rest of the day.</div>
       </div>

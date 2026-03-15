@@ -543,6 +543,17 @@ h2,
   gap: 8px;
 }
 
+.today-nutrition-info {
+  margin: 8px 0 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(26, 26, 46, 0.08);
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .progress-icon {
   display: inline-flex;
   align-items: center;
@@ -1882,6 +1893,9 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   flex-direction: column;
   align-items: stretch;
   gap: 5px;
+  border: none;
+  cursor: pointer;
+  text-align: left;
 }
 
 .history-progress-chip-top {
@@ -2068,14 +2082,6 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .history-entry-btn.danger {
   color: var(--danger);
   border-color: rgba(217, 95, 69, 0.2);
-}
-
-.history-side-group {
-  margin-top: 4px;
-}
-
-.history-side-row {
-  align-items: center;
 }
 
 .history-empty-line {
