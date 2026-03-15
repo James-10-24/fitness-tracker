@@ -703,7 +703,36 @@
     </div>
   </div>
 
+  <script>
+    window.__VIVA_APP_BOOTED = false;
+    window.__showStartupBootFailure = function (message) {
+      const status = document.getElementById("startup-status");
+      const errorBox = document.getElementById("startup-error");
+      const continueButton = document.getElementById("startup-continue-btn");
+      const spinner = document.querySelector(".startup-spinner");
+      if (status) {
+        status.textContent = "App failed to start.";
+      }
+      if (spinner) {
+        spinner.classList.add("hidden");
+      }
+      if (errorBox) {
+        errorBox.textContent = message;
+        errorBox.classList.remove("hidden");
+      }
+      if (continueButton) {
+        continueButton.classList.remove("hidden");
+      }
+    };
+    window.addEventListener("load", function () {
+      window.setTimeout(function () {
+        if (!window.__VIVA_APP_BOOTED) {
+          window.__showStartupBootFailure("The app script did not load. Hard refresh the page or reinstall the PWA to refresh cached files.");
+        }
+      }, 2500);
+    });
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js"></script>
+  <script src="app.js" onerror="window.__showStartupBootFailure('app.js failed to load. Hard refresh the page or reinstall the PWA to refresh cached files.')"></script>
 </body>
 </html>

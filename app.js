@@ -1,3 +1,5 @@
+window.__VIVA_APP_BOOTED = true;
+
 const DEFAULT_GOALS = { cal: 2000, pro: 150, carb: 220, fat: 65, water: 2.5, steps: 8000 };
 const SUPABASE_URL = "https://fqylcprwmpgqenhlvfdj.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_vst5ttBTskmLEFK-iKar5A_8qttx1eO";
