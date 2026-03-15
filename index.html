@@ -131,6 +131,9 @@
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-fat" id="prog-fat-bar" style="width: 0%"></div></div>
         <div class="progress-warning hidden" id="prog-fat-warning">Fat intake is over the limit. Keep it light for the rest of the day.</div>
       </div>
+      <div class="today-card-actions">
+        <button class="btn btn-primary" type="button" onclick="openLogFromToday()">Add Meal</button>
+      </div>
     </div>
 
     <div class="card">
@@ -157,6 +160,10 @@
         <div class="progress-bar-bg"><div class="progress-bar-fill fill-steps" id="prog-steps-bar" style="width: 0%"></div></div>
         <div class="progress-success hidden" id="prog-steps-success">Step goal done! You've earned that rest.</div>
       </div>
+      <div class="today-card-actions today-card-actions-split">
+        <button class="btn btn-secondary" type="button" onclick="openQuickTrackModal('water')">+ Water</button>
+        <button class="btn btn-secondary" type="button" onclick="openQuickTrackModal('steps')">+ Steps</button>
+      </div>
     </div>
 
     <div class="card">
@@ -164,7 +171,7 @@
       <div id="today-meal-list">
         <div class="empty-state">
           <div class="empty-icon">Meal</div>
-          No meals logged yet.<br>Tap + to add your first meal.
+          No meals logged yet.<br>Tap Add Meal to log your first meal.
         </div>
       </div>
     </div>
@@ -578,6 +585,37 @@
     </div>
   </div>
 
+  <div class="overlay" id="overlay-quick-track" onclick="closeModal('quick-track')">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="quick-track-title">Add Water</div>
+      <div id="quick-track-water-fields">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="quick-track-water-value">Amount</label>
+            <input class="form-input" id="quick-track-water-value" type="number" min="0.1" step="0.1" placeholder="500">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="quick-track-water-unit">Unit</label>
+            <select class="form-input" id="quick-track-water-unit">
+              <option value="ml">ml</option>
+              <option value="l">L</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="hidden" id="quick-track-steps-fields">
+        <div class="form-group">
+          <label class="form-label" for="quick-track-steps-value">Steps</label>
+          <input class="form-input" id="quick-track-steps-value" type="number" min="1" step="1" placeholder="1000">
+        </div>
+      </div>
+      <div class="api-status" id="quick-track-status" aria-live="polite"></div>
+      <button class="btn btn-primary" type="button" onclick="submitQuickTrack()">Add</button>
+      <button class="btn btn-secondary" type="button" onclick="closeModal('quick-track')">Cancel</button>
+    </div>
+  </div>
+
   <div class="overlay" id="overlay-account" onclick="closeModal('account')">
     <div class="sheet" onclick="event.stopPropagation()">
       <div class="sheet-handle"></div>
@@ -661,44 +699,6 @@
       <div class="step-dust step-dust-two"></div>
     </div>
   </div>
-
-  <button class="fab-menu-backdrop hidden" id="fab-menu-backdrop" onclick="closeFabMenu()" aria-hidden="true"></button>
-  <div class="fab-menu hidden" id="fab-menu" aria-hidden="true">
-    <div class="fab-menu-header">
-      <div class="fab-menu-title">Daily Tracking</div>
-      <div class="fab-menu-subtitle">Add food, water, or steps without leaving Today.</div>
-    </div>
-
-    <div class="fab-menu-section">
-      <div class="fab-menu-section-title">Food</div>
-      <button class="btn btn-primary fab-menu-action" onclick="openLogFromFab()">Add Meal</button>
-    </div>
-
-    <div class="fab-menu-section">
-      <div class="fab-menu-section-title">Steps</div>
-      <label class="form-label" for="quick-steps-input">Add Steps</label>
-      <div class="quick-track-row">
-        <input class="form-input" id="quick-steps-input" type="number" min="100" step="100" value="1000">
-        <button class="btn btn-primary quick-track-btn" onclick="addSteps()">Add</button>
-      </div>
-    </div>
-
-    <div class="fab-menu-section">
-      <div class="fab-menu-section-title">Water</div>
-      <label class="form-label" for="quick-water-manual-input">Add Water Directly (L)</label>
-      <div class="quick-track-row">
-        <input class="form-input" id="quick-water-manual-input" type="number" min="0.1" step="0.1" value="1.2" placeholder="1.2">
-        <button class="btn btn-primary quick-track-btn" onclick="addWaterManual()">Add</button>
-      </div>
-      <div id="water-unit-actions" class="water-action-grid"></div>
-      <div class="quick-track-header-inline">
-        <label class="form-label">Glass & Bottle Volumes</label>
-      </div>
-      <div id="water-unit-list" class="water-unit-list"></div>
-    </div>
-  </div>
-
-  <button class="fab" id="fab-btn" onclick="handleFab()" title="Add">+</button>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js"></script>

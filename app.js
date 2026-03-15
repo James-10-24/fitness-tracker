@@ -33,6 +33,7 @@ let startupDelayDone = false;
 let startupAuthReady = false;
 let activeAiPhoto = null;
 let editingLogId = null;
+let quickTrackMode = "water";
 let amplitudeInitPromise = null;
 let hasTrackedAppOpened = false;
 
@@ -1586,23 +1587,11 @@ function showPage(page) {
 }
 
 function updateFab() {
-  const fab = document.getElementById("fab-btn");
-  if (!fab) {
-    return;
-  }
-  if (currentPage === "log" || currentPage === "history") {
-    closeFabMenu();
-    fab.style.display = "none";
-  } else {
-    fab.style.display = "flex";
-    fab.title = currentPage === "today" ? "Daily Tracking" : "Add";
-  }
+  return;
 }
 
 function handleFab() {
-  if (currentPage === "today") {
-    toggleFabMenu();
-  }
+  return;
 }
 
 function toggleFabMenu() {
@@ -1636,6 +1625,10 @@ function setFabMenuOpen(open) {
 
 function openLogFromFab() {
   closeFabMenu();
+  showPage("log");
+}
+
+function openLogFromToday() {
   showPage("log");
 }
 
@@ -1706,7 +1699,7 @@ function renderToday() {
 
   const list = document.getElementById("today-meal-list");
   if (!logs.length) {
-    list.innerHTML = "<div class=\"empty-state\"><div class=\"empty-icon\">Meal</div>No meals logged yet.<br>Tap + to add your first meal.</div>";
+    list.innerHTML = "<div class=\"empty-state\"><div class=\"empty-icon\">Meal</div>No meals logged yet.<br>Tap Add Meal to log your first meal.</div>";
     return;
   }
 
@@ -1845,41 +1838,54 @@ function deleteLog(id) {
   trackAmplitudeEvent("meal_deleted");
 }
 
-function addWater() {
-  const defaultUnit = state.waterUnits[0];
-  if (!defaultUnit) {
-    showToast("Create a water unit first");
-    return;
-  }
-  addWaterByUnit(defaultUnit.id);
+function openQuickTrackModal(mode) {
+  quickTrackMode = mode;
+  document.getElementById("quick-track-title").textContent = mode === "water" ? "Add Water" : "Add Steps";
+  document.getElementById("quick-track-water-fields").classList.toggle("hidden", mode !== "water");
+  document.getElementById("quick-track-steps-fields").classList.toggle("hidden", mode !== "steps");
+  document.getElementById("quick-track-status").textContent = "";
+  document.getElementById("quick-track-water-value").value = "";
+  document.getElementById("quick-track-water-unit").value = "ml";
+  document.getElementById("quick-track-steps-value").value = "";
+  document.getElementById("overlay-quick-track").classList.add("open");
 }
 
-function addWaterManual() {
-  const amount = normalizePositiveNumber(document.getElementById("quick-water-manual-input").value, 0);
-  if (amount <= 0) {
-    showToast("Enter a valid water amount");
+function submitQuickTrack() {
+  const status = document.getElementById("quick-track-status");
+  status.textContent = "";
+
+  if (quickTrackMode === "water") {
+    const rawAmount = normalizePositiveNumber(document.getElementById("quick-track-water-value").value, 0);
+    const unit = document.getElementById("quick-track-water-unit").value;
+    if (rawAmount <= 0) {
+      status.textContent = "Enter a valid water amount.";
+      return;
+    }
+
+    const amountL = unit === "ml" ? rawAmount / 1000 : rawAmount;
+    state.waterLogs.push({
+      id: uid(),
+      date: todayStr(),
+      amount: roundNutrient(amountL),
+      unitId: "manual",
+      unitName: "Manual"
+    });
+    saveState();
+    renderToday();
+    closeModal("quick-track");
+    triggerWaterCelebration();
+    showToast("Water added");
+    trackAmplitudeEvent("water_added", {
+      entry_method: "manual",
+      amount_l: roundNutrient(amountL),
+      source_unit: unit
+    });
     return;
   }
 
-  state.waterLogs.push({
-    id: uid(),
-    date: todayStr(),
-    amount: roundNutrient(amount),
-    unitId: "manual",
-    unitName: "Manual"
-  });
-  saveState();
-  renderToday();
-  closeFabMenu();
-  triggerWaterCelebration();
-  showToast("Water added");
-  trackAmplitudeEvent("water_added", { entry_method: "manual", amount_l: roundNutrient(amount) });
-}
-
-function addSteps() {
-  const amount = Math.round(normalizePositiveNumber(document.getElementById("quick-steps-input").value, 0));
+  const amount = Math.round(normalizePositiveNumber(document.getElementById("quick-track-steps-value").value, 0));
   if (amount <= 0) {
-    showToast("Enter a valid step amount");
+    status.textContent = "Enter a valid step amount.";
     return;
   }
 
@@ -1890,11 +1896,10 @@ function addSteps() {
   });
   saveState();
   renderToday();
-  document.getElementById("quick-steps-input").value = "1000";
-  closeFabMenu();
+  closeModal("quick-track");
   triggerStepCelebration();
   showToast("Steps added");
-  trackAmplitudeEvent("steps_added", { amount });
+  trackAmplitudeEvent("steps_added", { amount, entry_method: "manual" });
 }
 
 function resetWaterToday() {
@@ -3197,6 +3202,9 @@ function closeModal(name) {
   if (name === "edit-log") {
     editingLogId = null;
     document.getElementById("edit-log-status").textContent = "";
+  }
+  if (name === "quick-track") {
+    document.getElementById("quick-track-status").textContent = "";
   }
 }
 

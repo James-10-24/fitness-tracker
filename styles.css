@@ -1392,6 +1392,20 @@ h2,
   color: var(--accent);
 }
 
+.today-card-actions {
+  margin-top: 16px;
+}
+
+.today-card-actions .btn {
+  width: 100%;
+}
+
+.today-card-actions-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
 .today-install-btn {
   margin-top: 14px;
   width: auto;
