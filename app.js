@@ -39,6 +39,7 @@ let hasTrackedAppOpened = false;
 
 const PULL_REFRESH_TRIGGER = 60;
 const PULL_REFRESH_MAX = 112;
+const STARTUP_AUTH_TIMEOUT_MS = 3500;
 
 function createInitialState() {
   return {
@@ -765,11 +766,19 @@ async function initializeSupabase() {
     }
   });
 
-  const sessionResult = await supabaseClient.auth.getSession();
+  const sessionResult = await withTimeout(
+    supabaseClient.auth.getSession(),
+    STARTUP_AUTH_TIMEOUT_MS,
+    "Authentication startup timed out"
+  );
   if (sessionResult.error) {
     console.error("Failed to get session", sessionResult.error);
   }
-  await applySession(sessionResult.data.session);
+  await withTimeout(
+    applySession(sessionResult.data.session),
+    STARTUP_AUTH_TIMEOUT_MS,
+    "Session restore timed out"
+  );
   startupAuthReady = true;
   finishStartupIfReady();
 
@@ -3244,6 +3253,16 @@ function formatSupabaseError(error) {
   const hint = typeof error.hint === "string" && error.hint.trim() ? error.hint.trim() : "";
   const code = typeof error.code === "string" && error.code.trim() ? error.code.trim() : "";
   return message || details || hint || code || String(error);
+}
+
+function withTimeout(promise, timeoutMs, message) {
+  let timerId;
+  return Promise.race([
+    promise.finally(() => clearTimeout(timerId)),
+    new Promise((_, reject) => {
+      timerId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    })
+  ]);
 }
 
 function escHtml(value) {
