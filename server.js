@@ -369,6 +369,8 @@ function buildEstimatePayload(query, retryInstruction = "") {
     "Examples: eggs should include meaningful fat, oils should include fat, rice and bread should include carbs, meat and fish should include protein.",
     "If the food is mixed, estimate all four macros realistically rather than leaving one at zero unless that macro is truly negligible.",
     "Make calories roughly consistent with the macros using 4 kcal/g for protein and carbs, and 9 kcal/g for fat.",
+    "Return source_note as 1-2 short sentences explaining the basis of the estimate, such as common prepared-food averages, standard serving weights, or nutrition reference patterns used for the assumption.",
+    "Do not mention that you are an AI model. Do not invent exact citations, links, or page numbers. Describe the estimate basis plainly and specifically.",
     "Keep the note short and practical.",
     "The output must follow the provided JSON schema exactly."
   ];
@@ -416,10 +418,11 @@ function buildEstimatePayload(query, retryInstruction = "") {
             base_quantity: { type: "number" },
             quantity_unit: { type: "string" },
             portion_name: { type: "string" },
+            source_note: { type: "string" },
             confidence: { type: "string", enum: ["low", "medium", "high"] },
             note: { type: "string" }
           },
-          required: ["food_name", "estimated_grams", "calories", "protein_g", "carb_g", "fat_g", "base_quantity", "quantity_unit", "portion_name", "confidence", "note"]
+          required: ["food_name", "estimated_grams", "calories", "protein_g", "carb_g", "fat_g", "base_quantity", "quantity_unit", "portion_name", "source_note", "confidence", "note"]
         }
       }
     }
@@ -467,6 +470,7 @@ function normalizeEstimate(value) {
   const baseQuantity = Number(value.base_quantity);
   const quantityUnit = typeof value.quantity_unit === "string" ? singularizeUnit(value.quantity_unit.trim()) : "";
   const portionName = typeof value.portion_name === "string" ? value.portion_name.trim() : "";
+  const sourceNote = typeof value.source_note === "string" ? value.source_note.trim() : "";
   const confidence = typeof value.confidence === "string" ? value.confidence : "medium";
   const note = typeof value.note === "string" ? value.note.trim() : "";
   const grams = normalizeEstimatedTotalGrams({
@@ -494,6 +498,7 @@ function normalizeEstimate(value) {
     base_quantity: Number.isFinite(baseQuantity) && baseQuantity > 0 ? Math.round(baseQuantity * 10) / 10 : 0,
     quantity_unit: Number.isFinite(baseQuantity) && baseQuantity > 0 ? quantityUnit : "",
     portion_name: portionName || buildPortionName(grams, baseQuantity, quantityUnit),
+    source_note: sourceNote || "Estimated from common serving weights and typical nutrition averages for this food.",
     confidence: ["low", "medium", "high"].includes(confidence) ? confidence : "medium",
     note: note || "Estimated from a common serving size."
   };

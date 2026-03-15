@@ -1431,15 +1431,29 @@ function renderToday() {
   list.innerHTML = logs.slice().reverse().map((log) => `
     <div class="meal-item">
       <div>
-        <div class="meal-name">${escHtml(log.name)}</div>
+        <div class="meal-name">${escHtml(getLogDisplayName(log))}</div>
         <div class="meal-meta">${Math.round(log.cal)} kcal · ${roundNutrient(log.pro)}g protein · ${roundNutrient(log.carb || 0)}g carbs · ${roundNutrient(log.fat || 0)}g fat</div>
       </div>
       <div class="meal-right">
-        <button class="meal-edit" onclick="openEditLogModal('${log.id}')" title="Edit meal" aria-label="Edit ${escHtml(log.name)}">✎</button>
+        <button class="meal-edit" onclick="openEditLogModal('${log.id}')" title="Edit meal" aria-label="Edit ${escHtml(getLogDisplayName(log))}">✎</button>
         <button class="meal-del" onclick="deleteLog('${log.id}')" title="Remove">x</button>
       </div>
     </div>
   `).join("");
+}
+
+function getLogDisplayName(log) {
+  if (!log) {
+    return "";
+  }
+  if (log.quantity > 0 && log.portionName) {
+    return buildCustomDisplayName({
+      name: log.name || "",
+      quantity: log.quantity,
+      portionName: log.portionName
+    });
+  }
+  return log.name || "";
 }
 
 function parseMealDisplayName(name) {
@@ -1470,7 +1484,13 @@ function openEditLogModal(id) {
     return;
   }
 
-  const parsed = parseMealDisplayName(log.name);
+  const parsed = log.quantity > 0 || log.portionName
+    ? {
+        name: log.name || "",
+        quantity: normalizePositiveNumber(log.quantity, 0),
+        portionName: log.portionName || ""
+      }
+    : parseMealDisplayName(log.name);
   editingLogId = id;
   document.getElementById("edit-log-name").value = parsed.name || "";
   document.getElementById("edit-log-cal").value = Math.round(log.cal || 0);
@@ -1496,7 +1516,6 @@ function saveEditedLog() {
   const fat = normalizePositiveNumber(document.getElementById("edit-log-fat").value, -1);
   const quantity = normalizePositiveNumber(document.getElementById("edit-log-quantity").value, 0);
   const portionName = document.getElementById("edit-log-portion").value.trim();
-  const displayName = buildCustomDisplayName({ name, quantity, portionName });
 
   if (!name) {
     status.textContent = "Enter a meal name.";
@@ -1515,7 +1534,9 @@ function saveEditedLog() {
 
   state.logs[index] = {
     ...state.logs[index],
-    name: displayName,
+    name,
+    quantity: roundNutrient(quantity),
+    portionName,
     cal: roundNutrient(cal),
     pro: roundNutrient(pro),
     carb: roundNutrient(carb),
@@ -1852,10 +1873,14 @@ function logFromFood() {
     return;
   }
 
+  const portionName = formatFoodUnitLabel(selectedUnit, config.kind, amount);
+
   state.logs.push({
     id: uid(),
     date: todayStr(),
     name: food.name,
+    quantity: roundNutrient(amount),
+    portionName,
     cal: roundNutrient(food.cal * ratio),
     pro: roundNutrient(food.pro * ratio),
     carb: roundNutrient((food.carb || 0) * ratio),
@@ -1920,7 +1945,8 @@ async function requestAiEstimate(options = {}) {
       quantityUnit: normalizedQuantityUnit,
       portionName: payload.portion_name || "",
       confidence: payload.confidence || "medium",
-      note: payload.note || ""
+      note: payload.note || "",
+      sourceNote: payload.source_note || ""
     };
 
     document.getElementById("ai-name").value = payload.food_name || query;
@@ -2046,11 +2072,16 @@ function clearAiPhotoSelection() {
 function setAiEstimateStatus(message, showInfo = false) {
   const statusNode = document.getElementById("ai-estimate-status");
   const infoButton = document.getElementById("ai-estimate-info-btn");
+  const sourceCopy = document.getElementById("ai-estimate-sources-copy");
+  const hasSourceNote = !!activeAiEstimate?.sourceNote;
   if (statusNode) {
     statusNode.textContent = message || "";
   }
-  infoButton?.classList.toggle("hidden", !showInfo);
-  if (!showInfo) {
+  if (sourceCopy) {
+    sourceCopy.textContent = activeAiEstimate?.sourceNote || "Waiting for the AI estimate basis.";
+  }
+  infoButton?.classList.toggle("hidden", !(showInfo && hasSourceNote));
+  if (!(showInfo && hasSourceNote)) {
     document.getElementById("ai-estimate-sources-popover")?.classList.add("hidden");
   }
 }
@@ -2270,6 +2301,8 @@ function logAiEstimate() {
     id: uid(),
     date: todayStr(),
     name: values.name,
+    quantity: roundNutrient(values.quantity),
+    portionName: values.portionName,
     cal: roundNutrient(values.calories),
     pro: roundNutrient(values.protein),
     carb: roundNutrient(values.carb),
@@ -2381,9 +2414,17 @@ function logCustom() {
     return;
   }
 
-  const displayName = buildCustomDisplayName(values);
-
-  state.logs.push({ id: uid(), date: todayStr(), name: displayName, cal: values.cal, pro: values.pro, carb: values.carb, fat: values.fat });
+  state.logs.push({
+    id: uid(),
+    date: todayStr(),
+    name: values.name,
+    quantity: roundNutrient(values.quantity),
+    portionName: values.portionName,
+    cal: values.cal,
+    pro: values.pro,
+    carb: values.carb,
+    fat: values.fat
+  });
   const shouldSave = document.getElementById("custom-save-to-foods")?.checked;
   if (shouldSave) {
     saveCustomValuesToFoods(values);

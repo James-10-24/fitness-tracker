@@ -1871,12 +1871,14 @@ h2,
 
 .ai-status-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
+  margin-top: 12px;
 }
 
 .ai-status-row .api-status {
   flex: 1;
+  margin-top: 0;
 }
 
 .estimate-card {
