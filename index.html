@@ -22,7 +22,10 @@
       <img class="startup-logo" src="icons/icon.svg" alt="Viva.AI logo">
       <div class="startup-title">Viva.AI</div>
       <div class="startup-subtitle">Live. Move. Thrive.</div>
+      <div class="startup-status" id="startup-status">Starting up...</div>
       <div class="startup-spinner" aria-hidden="true"></div>
+      <div class="startup-error hidden" id="startup-error" aria-live="polite"></div>
+      <button class="btn btn-secondary startup-continue hidden" id="startup-continue-btn" type="button" onclick="dismissStartupScreen()">Continue Anyway</button>
     </div>
   </div>
 

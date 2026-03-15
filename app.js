@@ -250,6 +250,35 @@ function isStartupComplete() {
   return startupDelayDone && startupAuthReady;
 }
 
+function setStartupStatus(message) {
+  const status = document.getElementById("startup-status");
+  if (status) {
+    status.textContent = message;
+  }
+}
+
+function showStartupFailure(message) {
+  const errorBox = document.getElementById("startup-error");
+  const continueButton = document.getElementById("startup-continue-btn");
+  const spinner = document.querySelector(".startup-spinner");
+  setStartupStatus("Startup hit a problem.");
+  if (spinner) {
+    spinner.classList.add("hidden");
+  }
+  if (errorBox) {
+    errorBox.textContent = message || "Unknown startup error.";
+    errorBox.classList.remove("hidden");
+  }
+  continueButton?.classList.remove("hidden");
+}
+
+function dismissStartupScreen() {
+  startupDelayDone = true;
+  startupAuthReady = true;
+  document.getElementById("startup-screen")?.classList.add("hidden");
+  updateAuthUi();
+}
+
 function finishStartupIfReady() {
   if (!isStartupComplete()) {
     return;
@@ -752,8 +781,10 @@ async function applySession(session) {
 }
 
 async function initializeSupabase() {
+  setStartupStatus("Restoring your session...");
   if (!window.supabase?.createClient) {
     console.error("Supabase client failed to load");
+    showStartupFailure("Supabase client failed to load.");
     startupAuthReady = true;
     finishStartupIfReady();
     return;
@@ -779,6 +810,7 @@ async function initializeSupabase() {
     STARTUP_AUTH_TIMEOUT_MS,
     "Session restore timed out"
   );
+  setStartupStatus("Ready");
   startupAuthReady = true;
   finishStartupIfReady();
 
@@ -3265,6 +3297,23 @@ function withTimeout(promise, timeoutMs, message) {
   ]);
 }
 
+window.addEventListener("error", (event) => {
+  const message = event?.error?.message || event?.message;
+  if (message) {
+    console.error("Startup runtime error", event.error || message);
+    showStartupFailure(message);
+  }
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  const reason = event?.reason;
+  const message = reason?.message || String(reason || "");
+  if (message) {
+    console.error("Startup unhandled rejection", reason);
+    showStartupFailure(message);
+  }
+});
+
 function escHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -3335,6 +3384,7 @@ window.addEventListener("appinstalled", () => {
 
 document.addEventListener("DOMContentLoaded", () => {
   isGuestMode = getSavedAuthPreference() === "guest";
+  setStartupStatus("Loading your data...");
   loadState();
   renderApp();
   updateAuthUi();
@@ -3347,6 +3397,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initializeSupabase().catch((error) => {
     console.error("Supabase initialization failed", error);
     document.getElementById("auth-status").textContent = error.message || "Failed to initialize authentication.";
+    showStartupFailure(error.message || "Failed to initialize authentication.");
     startupAuthReady = true;
     finishStartupIfReady();
   });

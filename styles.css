@@ -95,6 +95,13 @@ body {
   line-height: 1.5;
 }
 
+.startup-status {
+  margin-top: 14px;
+  color: var(--text2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .startup-spinner {
   width: 38px;
   height: 38px;
@@ -109,6 +116,21 @@ body {
   to {
     transform: rotate(360deg);
   }
+}
+
+.startup-error {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(217, 95, 69, 0.1);
+  color: var(--danger);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.startup-continue {
+  margin-top: 16px;
 }
 
 .auth-screen {
