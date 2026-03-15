@@ -435,7 +435,7 @@ function scheduleCloudSync() {
   cloudSyncTimer = setTimeout(() => {
     syncStateToCloud().catch((error) => {
       console.error("Cloud sync failed", error);
-      showToast("Cloud sync failed");
+      showToast(`Cloud sync failed: ${formatSupabaseError(error)}`);
     });
   }, 300);
 }
@@ -621,7 +621,7 @@ async function loadUserState(userId) {
       setTimeout(() => {
         syncStateToCloud().catch((error) => {
           console.error("Initial import failed", error);
-          showToast("Initial cloud import failed");
+          showToast(`Initial cloud import failed: ${formatSupabaseError(error)}`);
         });
       }, 0);
       showToast("Imported this device data to your account");
@@ -3214,6 +3214,17 @@ function showToast(message) {
   toast.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove("show"), 2000);
+}
+
+function formatSupabaseError(error) {
+  if (!error) {
+    return "Unknown error";
+  }
+  const message = typeof error.message === "string" && error.message.trim() ? error.message.trim() : "";
+  const details = typeof error.details === "string" && error.details.trim() ? error.details.trim() : "";
+  const hint = typeof error.hint === "string" && error.hint.trim() ? error.hint.trim() : "";
+  const code = typeof error.code === "string" && error.code.trim() ? error.code.trim() : "";
+  return message || details || hint || code || String(error);
 }
 
 function escHtml(value) {
