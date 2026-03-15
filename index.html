@@ -547,7 +547,7 @@
   <div class="overlay" id="overlay-edit-log" onclick="closeModal('edit-log')">
     <div class="sheet" onclick="event.stopPropagation()">
       <div class="sheet-handle"></div>
-      <div class="sheet-title">Edit Meal</div>
+      <div class="sheet-title" id="edit-log-title">Edit Meal</div>
       <div class="form-group">
         <label class="form-label" for="edit-log-name">Meal Name</label>
         <input class="form-input" id="edit-log-name" placeholder="e.g. Chicken rice">
@@ -614,7 +614,7 @@
         </div>
       </div>
       <div class="api-status" id="quick-track-status" aria-live="polite"></div>
-      <button class="btn btn-primary" type="button" onclick="submitQuickTrack()">Add</button>
+      <button class="btn btn-primary" id="quick-track-submit-btn" type="button" onclick="submitQuickTrack()">Add</button>
       <button class="btn btn-secondary" type="button" onclick="closeModal('quick-track')">Cancel</button>
     </div>
   </div>

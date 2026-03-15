@@ -35,7 +35,10 @@ let startupDelayDone = false;
 let startupAuthReady = false;
 let activeAiPhoto = null;
 let editingLogId = null;
+let editingLogDate = null;
 let quickTrackMode = "water";
+let quickTrackDate = null;
+let quickTrackEntryId = null;
 let amplitudeInitPromise = null;
 let hasTrackedAppOpened = false;
 let historyDayIndex = 0;
@@ -1833,6 +1836,8 @@ function openEditLogModal(id) {
       }
     : parseMealDisplayName(log.name);
   editingLogId = id;
+  editingLogDate = log.date;
+  document.getElementById("edit-log-title").textContent = "Edit Meal";
   document.getElementById("edit-log-name").value = parsed.name || "";
   document.getElementById("edit-log-cal").value = Math.round(log.cal || 0);
   document.getElementById("edit-log-pro").value = roundNutrient(log.pro || 0);
@@ -1844,8 +1849,23 @@ function openEditLogModal(id) {
   document.getElementById("overlay-edit-log").classList.add("open");
 }
 
+function openCreateLogModal(date = todayStr()) {
+  editingLogId = null;
+  editingLogDate = date;
+  document.getElementById("edit-log-title").textContent = "Add Meal";
+  document.getElementById("edit-log-name").value = "";
+  document.getElementById("edit-log-cal").value = "";
+  document.getElementById("edit-log-pro").value = "";
+  document.getElementById("edit-log-carb").value = "";
+  document.getElementById("edit-log-fat").value = "";
+  document.getElementById("edit-log-quantity").value = "";
+  document.getElementById("edit-log-portion").value = "";
+  document.getElementById("edit-log-status").textContent = "";
+  document.getElementById("overlay-edit-log").classList.add("open");
+}
+
 function saveEditedLog() {
-  if (!editingLogId) {
+  if (!editingLogId && !editingLogDate) {
     return;
   }
 
@@ -1867,31 +1887,47 @@ function saveEditedLog() {
     return;
   }
 
-  const index = state.logs.findIndex((entry) => entry.id === editingLogId);
-  if (index < 0) {
-    status.textContent = "Meal not found.";
-    return;
-  }
+  if (editingLogId) {
+    const index = state.logs.findIndex((entry) => entry.id === editingLogId);
+    if (index < 0) {
+      status.textContent = "Meal not found.";
+      return;
+    }
 
-  state.logs[index] = {
-    ...state.logs[index],
-    name,
-    quantity: roundNutrient(quantity),
-    portionName,
-    cal: roundNutrient(cal),
-    pro: roundNutrient(pro),
-    carb: roundNutrient(carb),
-    fat: roundNutrient(fat)
-  };
+    state.logs[index] = {
+      ...state.logs[index],
+      name,
+      quantity: roundNutrient(quantity),
+      portionName,
+      cal: roundNutrient(cal),
+      pro: roundNutrient(pro),
+      carb: roundNutrient(carb),
+      fat: roundNutrient(fat)
+    };
+  } else {
+    state.logs.push({
+      id: uid(),
+      date: editingLogDate || todayStr(),
+      name,
+      quantity: roundNutrient(quantity),
+      portionName,
+      cal: roundNutrient(cal),
+      pro: roundNutrient(pro),
+      carb: roundNutrient(carb),
+      fat: roundNutrient(fat),
+      created_at: new Date().toISOString()
+    });
+  }
 
   saveState();
   renderToday();
   renderHistory();
   closeModal("edit-log");
-  showToast("Meal updated");
-  trackAmplitudeEvent("meal_edited", {
+  showToast(editingLogId ? "Meal updated" : "Meal added");
+  trackAmplitudeEvent(editingLogId ? "meal_edited" : "meal_added", {
     has_quantity: quantity > 0,
-    has_portion_name: !!portionName
+    has_portion_name: !!portionName,
+    entry_method: editingLogId ? "history_edit" : "history_add"
   });
 }
 
@@ -1904,15 +1940,33 @@ function deleteLog(id) {
   trackAmplitudeEvent("meal_deleted");
 }
 
-function openQuickTrackModal(mode) {
+function openQuickTrackModal(mode, options = {}) {
   quickTrackMode = mode;
-  document.getElementById("quick-track-title").textContent = mode === "water" ? "Add Water" : "Add Steps";
+  quickTrackDate = options.date || todayStr();
+  quickTrackEntryId = options.entryId || null;
+  const isEditing = !!quickTrackEntryId;
+  document.getElementById("quick-track-title").textContent = `${isEditing ? "Edit" : "Add"} ${mode === "water" ? "Water" : "Steps"}`;
+  document.getElementById("quick-track-submit-btn").textContent = isEditing ? "Save" : "Add";
   document.getElementById("quick-track-water-fields").classList.toggle("hidden", mode !== "water");
   document.getElementById("quick-track-steps-fields").classList.toggle("hidden", mode !== "steps");
   document.getElementById("quick-track-status").textContent = "";
-  document.getElementById("quick-track-water-value").value = "";
-  document.getElementById("quick-track-water-unit").value = "ml";
-  document.getElementById("quick-track-steps-value").value = "";
+  if (mode === "water" && quickTrackEntryId) {
+    const entry = state.waterLogs.find((item) => item.id === quickTrackEntryId);
+    const amountL = entry?.amount || 0;
+    if (amountL >= 1) {
+      document.getElementById("quick-track-water-value").value = roundNutrient(amountL);
+      document.getElementById("quick-track-water-unit").value = "l";
+    } else {
+      document.getElementById("quick-track-water-value").value = Math.round(amountL * 1000);
+      document.getElementById("quick-track-water-unit").value = "ml";
+    }
+  } else {
+    document.getElementById("quick-track-water-value").value = "";
+    document.getElementById("quick-track-water-unit").value = "ml";
+  }
+  document.getElementById("quick-track-steps-value").value = mode === "steps" && quickTrackEntryId
+    ? (state.stepLogs.find((item) => item.id === quickTrackEntryId)?.amount || "")
+    : "";
   document.getElementById("overlay-quick-track").classList.add("open");
 }
 
@@ -1929,20 +1983,34 @@ function submitQuickTrack() {
     }
 
     const amountL = unit === "ml" ? rawAmount / 1000 : rawAmount;
-    state.waterLogs.push({
-      id: uid(),
-      date: todayStr(),
-      amount: roundNutrient(amountL),
-      unitId: "manual",
-      unitName: "Manual"
-    });
+    if (quickTrackEntryId) {
+      const index = state.waterLogs.findIndex((entry) => entry.id === quickTrackEntryId);
+      if (index < 0) {
+        status.textContent = "Water entry not found.";
+        return;
+      }
+      state.waterLogs[index] = {
+        ...state.waterLogs[index],
+        amount: roundNutrient(amountL)
+      };
+    } else {
+      state.waterLogs.push({
+        id: uid(),
+        date: quickTrackDate || todayStr(),
+        amount: roundNutrient(amountL),
+        unitId: "manual",
+        unitName: "Manual",
+        created_at: new Date().toISOString()
+      });
+    }
     saveState();
     renderToday();
+    renderHistory();
     closeModal("quick-track");
     triggerWaterCelebration();
-    showToast("Water added");
+    showToast(quickTrackEntryId ? "Water updated" : "Water added");
     trackAmplitudeEvent("water_added", {
-      entry_method: "manual",
+      entry_method: quickTrackEntryId ? "history_edit" : "manual",
       amount_l: roundNutrient(amountL),
       source_unit: unit
     });
@@ -1955,17 +2023,47 @@ function submitQuickTrack() {
     return;
   }
 
-  state.stepLogs.push({
-    id: uid(),
-    date: todayStr(),
-    amount
-  });
+  if (quickTrackEntryId) {
+    const index = state.stepLogs.findIndex((entry) => entry.id === quickTrackEntryId);
+    if (index < 0) {
+      status.textContent = "Step entry not found.";
+      return;
+    }
+    state.stepLogs[index] = {
+      ...state.stepLogs[index],
+      amount
+    };
+  } else {
+    state.stepLogs.push({
+      id: uid(),
+      date: quickTrackDate || todayStr(),
+      amount,
+      created_at: new Date().toISOString()
+    });
+  }
   saveState();
   renderToday();
+  renderHistory();
   closeModal("quick-track");
   triggerStepCelebration();
-  showToast("Steps added");
-  trackAmplitudeEvent("steps_added", { amount, entry_method: "manual" });
+  showToast(quickTrackEntryId ? "Steps updated" : "Steps added");
+  trackAmplitudeEvent("steps_added", { amount, entry_method: quickTrackEntryId ? "history_edit" : "manual" });
+}
+
+function deleteWaterLog(id) {
+  state.waterLogs = state.waterLogs.filter((entry) => entry.id !== id);
+  saveState();
+  renderToday();
+  renderHistory();
+  showToast("Water removed");
+}
+
+function deleteStepLog(id) {
+  state.stepLogs = state.stepLogs.filter((entry) => entry.id !== id);
+  saveState();
+  renderToday();
+  renderHistory();
+  showToast("Steps removed");
 }
 
 function resetWaterToday() {
@@ -3056,6 +3154,8 @@ function renderHistory() {
   const pWater = state.goals.water > 0 ? Math.min((waterTotal / state.goals.water) * 100, 100) : 0;
   const pSteps = state.goals.steps > 0 ? Math.min((stepsTotal / state.goals.steps) * 100, 100) : 0;
   const groupedMeals = groupHistoryMealsByTime(logs);
+  const waterEntries = state.waterLogs.filter((entry) => entry.date === date);
+  const stepEntries = state.stepLogs.filter((entry) => entry.date === date);
 
   content.innerHTML = `
     <div class="history-day">
@@ -3095,12 +3195,19 @@ function renderHistory() {
           ${renderHistoryProgressChip("Water", `${roundNutrient(waterTotal)} L`, pWater, "history-chip-water")}
           ${renderHistoryProgressChip("Steps", `${Math.round(stepsTotal)}`, pSteps, "history-chip-steps")}
         </div>
+        <div class="history-action-row">
+          <button class="history-action-btn" type="button" onclick="openCreateLogModal('${date}')">Add Meal</button>
+          <button class="history-action-btn" type="button" onclick="openQuickTrackModal('water', { date: '${date}' })">Add Water</button>
+          <button class="history-action-btn" type="button" onclick="openQuickTrackModal('steps', { date: '${date}' })">Add Steps</button>
+        </div>
         <div class="history-toggle-row">
           <button class="history-toggle-btn" type="button" onclick="toggleHistoryMeals()">${historyMealsExpanded ? "Hide meals" : "Show meals"}</button>
         </div>
         ${historyMealsExpanded ? `
           <div class="history-meal-list">
             ${renderHistoryMealGroups(groupedMeals)}
+            ${renderHistoryEntrySection("Water", "Water", waterEntries, "L", "water")}
+            ${renderHistoryEntrySection("Steps", "Step", stepEntries, "steps", "steps")}
           </div>
         ` : ""}
         <div class="history-note">${escHtml(buildHistorySummaryNote({ totalCal, totalPro, totalCarb, totalFat, waterTotal, stepsTotal, mealCount: logs.length }))}</div>
@@ -3193,11 +3300,37 @@ function renderHistoryMealGroups(groups) {
               <span class="history-dot history-dot-fat"></span><span>${roundNutrient(log.fat || 0)} fat</span>
             </div>
           </div>
-          <div class="history-meal-kcal">${Math.round(log.cal || 0)} kcal</div>
+          <div class="history-entry-right">
+            <div class="history-meal-kcal">${Math.round(log.cal || 0)} kcal</div>
+            <div class="history-entry-actions">
+              <button class="history-entry-btn" type="button" onclick="openEditLogModal('${log.id}')" aria-label="Edit meal">✎</button>
+              <button class="history-entry-btn danger" type="button" onclick="deleteLog('${log.id}')" aria-label="Delete meal">×</button>
+            </div>
+          </div>
         </div>
       `).join("")}
     </div>
   `).join("");
+}
+
+function renderHistoryEntrySection(title, icon, entries, unitLabel, type) {
+  return `
+    <div class="history-meal-group history-side-group">
+      <div class="history-group-title"><span class="history-group-icon">${icon}</span><span>${title}</span></div>
+      ${entries.length ? entries.map((entry) => `
+        <div class="history-meal-row history-side-row">
+          <div class="history-meal-main">
+            <div class="history-meal-name">${type === "water" ? `${roundNutrient(entry.amount || 0)} ${unitLabel}` : `${Math.round(entry.amount || 0)} ${unitLabel}`}</div>
+            <div class="history-meal-meta">${type === "water" ? "Hydration entry" : "Movement entry"}</div>
+          </div>
+          <div class="history-entry-actions">
+            <button class="history-entry-btn" type="button" onclick="openQuickTrackModal('${type}', { date: '${entry.date}', entryId: '${entry.id}' })" aria-label="Edit ${type}">✎</button>
+            <button class="history-entry-btn danger" type="button" onclick="${type === "water" ? "deleteWaterLog" : "deleteStepLog"}('${entry.id}')" aria-label="Delete ${type}">×</button>
+          </div>
+        </div>
+      `).join("") : `<div class="history-empty-line">No ${title.toLowerCase()} logged on this day.</div>`}
+    </div>
+  `;
 }
 
 function buildHistorySummaryNote({ totalCal, totalPro, totalCarb, totalFat, waterTotal, stepsTotal, mealCount }) {
@@ -3476,9 +3609,12 @@ function closeModal(name) {
   }
   if (name === "edit-log") {
     editingLogId = null;
+    editingLogDate = null;
     document.getElementById("edit-log-status").textContent = "";
   }
   if (name === "quick-track") {
+    quickTrackDate = null;
+    quickTrackEntryId = null;
     document.getElementById("quick-track-status").textContent = "";
   }
 }
