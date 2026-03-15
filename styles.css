@@ -1873,6 +1873,7 @@ h2,
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 14px;
+  margin-bottom: 14px;
 }
 
 .ai-photo-preview {

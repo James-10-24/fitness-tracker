@@ -2750,7 +2750,31 @@ function registerServiceWorker() {
 
   window.addEventListener("load", async () => {
     try {
-      await navigator.serviceWorker.register("./sw.js");
+      let hasPendingRefresh = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (hasPendingRefresh) {
+          return;
+        }
+        hasPendingRefresh = true;
+        window.location.reload();
+      });
+
+      const registration = await navigator.serviceWorker.register("./sw.js");
+      if (registration.waiting) {
+        registration.waiting.postMessage({ type: "SKIP_WAITING" });
+      }
+      registration.addEventListener("updatefound", () => {
+        const worker = registration.installing;
+        if (!worker) {
+          return;
+        }
+        worker.addEventListener("statechange", () => {
+          if (worker.state === "installed" && navigator.serviceWorker.controller) {
+            worker.postMessage({ type: "SKIP_WAITING" });
+          }
+        });
+      });
+      registration.update().catch(() => {});
     } catch (error) {
       console.error("Service worker registration failed", error);
     }
@@ -2784,7 +2808,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.setTimeout(() => {
     startupDelayDone = true;
     finishStartupIfReady();
-  }, 2000);
+  }, 1000);
   registerServiceWorker();
   updateInstallUi();
   initializeSupabase().catch((error) => {
