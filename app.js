@@ -6,6 +6,8 @@ const LEGACY_STORAGE_KEY = "nutrilog_v1";
 const AUTH_PREFERENCE_KEY = "viva_ai_auth_pref";
 const AI_ESTIMATE_ENDPOINT = "/api/estimate-food";
 const AI_IMAGE_ENDPOINT = "/api/identify-food-image";
+const AMPLITUDE_API_KEY = "36b1073a066682c38cec1621502bf5bc";
+const AMPLITUDE_PRODUCTION_HOSTS = new Set(["fitness-tracker-three-ebon.vercel.app"]);
 const OUNCES_TO_GRAMS = 28.3495;
 const CUP_TO_ML = 240;
 
@@ -31,6 +33,8 @@ let startupDelayDone = false;
 let startupAuthReady = false;
 let activeAiPhoto = null;
 let editingLogId = null;
+let amplitudeInitPromise = null;
+let hasTrackedAppOpened = false;
 
 const PULL_REFRESH_TRIGGER = 60;
 const PULL_REFRESH_MAX = 112;
@@ -48,6 +52,7 @@ function createInitialState() {
 
 function saveState() {
   saveLocalState();
+  syncAmplitudeUserProperties();
   if (currentUser && !isApplyingRemoteState) {
     scheduleCloudSync();
   }
@@ -127,6 +132,109 @@ function renderApp() {
   updateFab();
 }
 
+function isAmplitudeEnabled() {
+  return typeof window !== "undefined" && AMPLITUDE_PRODUCTION_HOSTS.has(window.location.hostname);
+}
+
+function hasCustomGoals() {
+  return Object.keys(DEFAULT_GOALS).some((key) => Number(state.goals[key]) !== Number(DEFAULT_GOALS[key]));
+}
+
+function getAnalyticsUserProperties() {
+  return {
+    auth_state: currentUser ? "signed_in" : (isGuestMode ? "guest" : "signed_out"),
+    guest_or_account: currentUser ? "account" : "guest",
+    has_saved_foods: state.foods.length > 0,
+    has_goals_set: hasCustomGoals()
+  };
+}
+
+function loadAmplitudeScript() {
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-amplitude-sdk="true"]');
+    if (existing) {
+      if (window.amplitude?.init) {
+        resolve();
+        return;
+      }
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Amplitude SDK failed to load")), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = `https://cdn.amplitude.com/script/${AMPLITUDE_API_KEY}.js`;
+    script.async = true;
+    script.dataset.amplitudeSdk = "true";
+    script.addEventListener("load", () => resolve(), { once: true });
+    script.addEventListener("error", () => reject(new Error("Amplitude SDK failed to load")), { once: true });
+    document.head.appendChild(script);
+  });
+}
+
+async function ensureAmplitude() {
+  if (!isAmplitudeEnabled()) {
+    return false;
+  }
+  if (window.amplitude?.init && amplitudeInitPromise === null) {
+    amplitudeInitPromise = Promise.resolve(true);
+    return true;
+  }
+  if (amplitudeInitPromise) {
+    return amplitudeInitPromise;
+  }
+
+  amplitudeInitPromise = (async () => {
+    await loadAmplitudeScript();
+    if (!window.amplitude?.init) {
+      throw new Error("Amplitude SDK did not initialize.");
+    }
+    window.amplitude.init(AMPLITUDE_API_KEY, {
+      fetchRemoteConfig: true,
+      autocapture: false
+    });
+    syncAmplitudeUserProperties();
+    return true;
+  })().catch((error) => {
+    console.error("Amplitude initialization failed", error);
+    amplitudeInitPromise = null;
+    return false;
+  });
+
+  return amplitudeInitPromise;
+}
+
+async function syncAmplitudeUserProperties() {
+  if (!(await ensureAmplitude()) || !window.amplitude) {
+    return;
+  }
+
+  if (currentUser?.id) {
+    window.amplitude.setUserId(currentUser.id);
+  } else if (typeof window.amplitude.reset === "function") {
+    window.amplitude.reset();
+  } else if (typeof window.amplitude.setUserId === "function") {
+    window.amplitude.setUserId(null);
+  }
+
+  if (typeof window.amplitude.identify === "function" && typeof window.amplitude.Identify === "function") {
+    const identify = new window.amplitude.Identify();
+    const properties = getAnalyticsUserProperties();
+    Object.entries(properties).forEach(([key, value]) => identify.set(key, value));
+    window.amplitude.identify(identify);
+  }
+}
+
+async function trackAmplitudeEvent(eventName, eventProperties = {}) {
+  if (!(await ensureAmplitude()) || !window.amplitude?.track) {
+    return;
+  }
+  window.amplitude.track(eventName, {
+    ...eventProperties,
+    auth_state: currentUser ? "signed_in" : (isGuestMode ? "guest" : "signed_out")
+  });
+}
+
 function isStartupComplete() {
   return startupDelayDone && startupAuthReady;
 }
@@ -137,6 +245,14 @@ function finishStartupIfReady() {
   }
   document.getElementById("startup-screen")?.classList.add("hidden");
   updateAuthUi();
+  syncAmplitudeUserProperties();
+  if (!hasTrackedAppOpened) {
+    hasTrackedAppOpened = true;
+    trackAmplitudeEvent("app_opened", {
+      has_saved_foods: state.foods.length > 0,
+      has_goals_set: hasCustomGoals()
+    });
+  }
 }
 
 function isMobileDevice() {
@@ -597,6 +713,7 @@ async function applySession(session) {
   if (nextUser && currentUser?.id === nextUser.id && hasLoadedUserState) {
     isGuestMode = false;
     updateAuthUi();
+    syncAmplitudeUserProperties();
     return;
   }
 
@@ -607,6 +724,7 @@ async function applySession(session) {
     setSavedAuthPreference("account");
   }
   updateAuthUi();
+  syncAmplitudeUserProperties();
 
   if (!currentUser) {
     hasLoadedUserState = false;
@@ -682,6 +800,7 @@ async function submitAuth(mode) {
     }
 
     if (mode === "signup" && !result.data.session) {
+      trackAmplitudeEvent("sign_up", { confirmation_required: true });
       status.textContent = "Account created. Check your email to confirm, then sign in.";
       return;
     }
@@ -691,6 +810,7 @@ async function submitAuth(mode) {
     setSavedAuthPreference("account");
     status.textContent = "";
     closeModal("account");
+    trackAmplitudeEvent(mode === "signup" ? "sign_up" : "sign_in", { confirmation_required: false });
   } catch (error) {
     console.error("Auth request failed", error);
     status.textContent = error.message || "Authentication failed.";
@@ -788,14 +908,17 @@ function openInstallModal() {
     copy.textContent = "Add Viva.AI to your home screen so it feels like a real app and opens faster next time.";
     steps.classList.add("hidden");
     actionButton.classList.remove("hidden");
+    trackAmplitudeEvent("install_prompt_opened", { install_mode: "native_prompt" });
   } else if (isIosDevice()) {
     copy.textContent = "On iPhone and iPad, Viva.AI can still be added manually from your browser menu or share sheet even when the browser does not show a one-tap install prompt.";
     steps.classList.remove("hidden");
     actionButton.classList.add("hidden");
+    trackAmplitudeEvent("install_prompt_opened", { install_mode: "ios_manual" });
   } else {
     copy.textContent = "Your browser does not expose the install prompt right now. Open the browser menu and use Add to Home Screen if it is available.";
     steps.classList.add("hidden");
     actionButton.classList.add("hidden");
+    trackAmplitudeEvent("install_prompt_opened", { install_mode: "browser_manual" });
   }
 
   document.getElementById("overlay-install").classList.add("open");
@@ -836,6 +959,7 @@ function continueAsGuest() {
   setSavedAuthPreference("guest");
   document.getElementById("auth-status").textContent = "";
   updateAuthUi();
+  trackAmplitudeEvent("continue_as_guest");
 }
 
 async function saveDisplayName() {
@@ -857,6 +981,7 @@ async function saveDisplayName() {
     currentUser = result.data.user || currentUser;
     updateAuthUi();
     status.textContent = "Name saved.";
+    syncAmplitudeUserProperties();
   } catch (error) {
     console.error("Display name update failed", error);
     status.textContent = error.message || "Failed to save name.";
@@ -883,6 +1008,7 @@ async function logout() {
   authScreenForced = false;
   setSavedAuthPreference("guest");
   setRecoveryMode(false);
+  trackAmplitudeEvent("logout");
 }
 
 function todayStr() {
@@ -1548,6 +1674,10 @@ function saveEditedLog() {
   renderHistory();
   closeModal("edit-log");
   showToast("Meal updated");
+  trackAmplitudeEvent("meal_edited", {
+    has_quantity: quantity > 0,
+    has_portion_name: !!portionName
+  });
 }
 
 function deleteLog(id) {
@@ -1556,6 +1686,7 @@ function deleteLog(id) {
   renderToday();
   renderHistory();
   showToast("Meal removed");
+  trackAmplitudeEvent("meal_deleted");
 }
 
 function addWater() {
@@ -1586,6 +1717,7 @@ function addWaterManual() {
   closeFabMenu();
   triggerWaterCelebration();
   showToast("Water added");
+  trackAmplitudeEvent("water_added", { entry_method: "manual", amount_l: roundNutrient(amount) });
 }
 
 function addSteps() {
@@ -1606,6 +1738,7 @@ function addSteps() {
   closeFabMenu();
   triggerStepCelebration();
   showToast("Steps added");
+  trackAmplitudeEvent("steps_added", { amount });
 }
 
 function resetWaterToday() {
@@ -1709,6 +1842,7 @@ function addWaterByUnit(id) {
   closeFabMenu();
   triggerWaterCelebration();
   showToast(`${unit.name} added`);
+  trackAmplitudeEvent("water_added", { entry_method: normalizeFoodUnit(unit.name) || unit.name.toLowerCase(), amount_l: roundNutrient(unit.ml / 1000) });
 }
 
 function triggerWaterCelebration() {
@@ -1896,6 +2030,12 @@ function logFromFood() {
   renderHistory();
   triggerFoodCelebration();
   showToast("Meal logged");
+  trackAmplitudeEvent("meal_added", {
+    entry_method: "my_foods",
+    portion_kind: config.kind,
+    has_quantity: true,
+    has_portion_name: !!portionName
+  });
   setTimeout(() => showPage("today"), 400);
 }
 
@@ -1914,6 +2054,9 @@ async function requestAiEstimate(options = {}) {
 
   button.disabled = true;
   setAiEstimateStatus(options.statusMessage || "Estimating nutrition...");
+  trackAmplitudeEvent("ai_estimate_requested", {
+    request_source: options.requestSource || (options.queryOverride ? "photo" : "text")
+  });
 
   try {
     const payload = await postJsonExpectJson(
@@ -1961,6 +2104,11 @@ async function requestAiEstimate(options = {}) {
     updateAiQuantityMode();
     document.getElementById("ai-estimate-editor").classList.remove("hidden");
     setAiEstimateStatus("Estimate ready. Adjust any values before saving.", true);
+    trackAmplitudeEvent("ai_estimate_completed", {
+      confidence: activeAiEstimate.confidence,
+      has_source_note: !!activeAiEstimate.sourceNote,
+      request_source: options.requestSource || (options.queryOverride ? "photo" : "text")
+    });
   } catch (error) {
     console.error("AI estimate failed", error);
     setAiEstimateStatus(/expected pattern/i.test(error?.message || "")
@@ -2026,10 +2174,16 @@ async function identifyMealFromPhoto(file) {
       title: payload.detected_name || "Photo recognized",
       copy: `Detected: ${detectedDescription}${payload.note ? ` • ${payload.note}` : ""}`
     });
+    trackAmplitudeEvent("ai_photo_identified", {
+      confidence: payload.confidence || "medium",
+      has_quantity_guess: normalizePositiveNumber(payload.quantity, 0) > 0,
+      has_portion_name: !!payload.portion_name
+    });
 
     await requestAiEstimate({
       queryOverride: detectedDescription,
-      statusMessage: "Photo recognized. Estimating nutrition..."
+      statusMessage: "Photo recognized. Estimating nutrition...",
+      requestSource: "photo"
     });
   } catch (error) {
     console.error("AI image identification failed", error);
@@ -2320,6 +2474,12 @@ function logAiEstimate() {
   renderHistory();
   triggerFoodCelebration();
   showToast(shouldSave ? "Meal logged and saved to My Foods" : "Meal logged");
+  trackAmplitudeEvent("meal_added", {
+    entry_method: "ai",
+    has_quantity: values.quantity > 0,
+    has_portion_name: !!values.portionName,
+    saved_to_my_foods: !!shouldSave
+  });
   setTimeout(() => showPage("today"), 400);
 }
 
@@ -2435,6 +2595,12 @@ function logCustom() {
   renderHistory();
   triggerFoodCelebration();
   showToast(shouldSave ? "Meal logged and saved to My Foods" : "Meal logged");
+  trackAmplitudeEvent("meal_added", {
+    entry_method: "custom",
+    has_quantity: values.quantity > 0,
+    has_portion_name: !!values.portionName,
+    saved_to_my_foods: !!shouldSave
+  });
   setTimeout(() => showPage("today"), 400);
 }
 
@@ -2687,6 +2853,7 @@ function saveGoals() {
   renderToday();
   renderHistory();
   showToast("Goals updated");
+  trackAmplitudeEvent("goals_saved");
 }
 
 function toggleHeightInputs() {
@@ -2947,6 +3114,7 @@ window.addEventListener("appinstalled", () => {
   deferredInstallPrompt = null;
   updateInstallUi();
   closeModal("install");
+  trackAmplitudeEvent("install_completed");
 });
 
 document.addEventListener("DOMContentLoaded", () => {
