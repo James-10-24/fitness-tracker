@@ -87,6 +87,15 @@ function getStorageKey(userId = null) {
   return userId ? `${STORAGE_KEY}:${userId}` : STORAGE_KEY;
 }
 
+function getWaterUnitOwnerKey() {
+  return currentUser?.id || "guest";
+}
+
+function getScopedWaterUnitId(kind, ownerKey = getWaterUnitOwnerKey()) {
+  const safeOwnerKey = String(ownerKey || "guest").replace(/[^a-zA-Z0-9_-]/g, "-");
+  return `${kind}-unit-${safeOwnerKey}`;
+}
+
 function getSavedAuthPreference() {
   return localStorage.getItem(AUTH_PREFERENCE_KEY) || "";
 }
@@ -1038,13 +1047,23 @@ function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-function defaultWaterUnits(existingUnits = []) {
+function defaultWaterUnits(existingUnits = [], ownerKey = getWaterUnitOwnerKey()) {
   const existing = Array.isArray(existingUnits) ? existingUnits : [];
   const glass = existing.find((unit) => String(unit.name).toLowerCase() === "glass");
   const bottle = existing.find((unit) => String(unit.name).toLowerCase() === "bottle");
+  const glassId = getScopedWaterUnitId("glass", ownerKey);
+  const bottleId = getScopedWaterUnitId("bottle", ownerKey);
   return [
-    normalizeWaterUnit({ id: glass?.id || "glass-unit", name: "Glass", ml: glass?.ml || 250 }),
-    normalizeWaterUnit({ id: bottle?.id || "bottle-unit", name: "Bottle", ml: bottle?.ml || 500 })
+    normalizeWaterUnit({
+      id: glass?.id && glass.id !== "glass-unit" ? glass.id : glassId,
+      name: "Glass",
+      ml: glass?.ml || 250
+    }),
+    normalizeWaterUnit({
+      id: bottle?.id && bottle.id !== "bottle-unit" ? bottle.id : bottleId,
+      name: "Bottle",
+      ml: bottle?.ml || 500
+    })
   ];
 }
 
