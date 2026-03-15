@@ -1442,6 +1442,27 @@ function renderToday() {
   `).join("");
 }
 
+function parseMealDisplayName(name) {
+  const raw = String(name || "").trim();
+  const match = raw.match(/^(.*?)(?:\s*\((.+)\))?$/);
+  const baseName = match?.[1]?.trim() || raw;
+  const detail = match?.[2]?.trim() || "";
+  if (!detail) {
+    return { name: baseName, quantity: 0, portionName: "" };
+  }
+
+  const quantityMatch = detail.match(/^(\d+(?:\.\d+)?)\s+(.+)$/);
+  if (quantityMatch) {
+    return {
+      name: baseName,
+      quantity: normalizePositiveNumber(quantityMatch[1], 0),
+      portionName: quantityMatch[2].trim()
+    };
+  }
+
+  return { name: baseName, quantity: 0, portionName: detail };
+}
+
 function openEditLogModal(id) {
   const log = state.logs.find((entry) => entry.id === id);
   if (!log) {
@@ -1449,12 +1470,15 @@ function openEditLogModal(id) {
     return;
   }
 
+  const parsed = parseMealDisplayName(log.name);
   editingLogId = id;
-  document.getElementById("edit-log-name").value = log.name || "";
+  document.getElementById("edit-log-name").value = parsed.name || "";
   document.getElementById("edit-log-cal").value = Math.round(log.cal || 0);
   document.getElementById("edit-log-pro").value = roundNutrient(log.pro || 0);
   document.getElementById("edit-log-carb").value = roundNutrient(log.carb || 0);
   document.getElementById("edit-log-fat").value = roundNutrient(log.fat || 0);
+  document.getElementById("edit-log-quantity").value = parsed.quantity > 0 ? roundNutrient(parsed.quantity) : "";
+  document.getElementById("edit-log-portion").value = parsed.portionName || "";
   document.getElementById("edit-log-status").textContent = "";
   document.getElementById("overlay-edit-log").classList.add("open");
 }
@@ -1470,6 +1494,9 @@ function saveEditedLog() {
   const pro = normalizePositiveNumber(document.getElementById("edit-log-pro").value, -1);
   const carb = normalizePositiveNumber(document.getElementById("edit-log-carb").value, -1);
   const fat = normalizePositiveNumber(document.getElementById("edit-log-fat").value, -1);
+  const quantity = normalizePositiveNumber(document.getElementById("edit-log-quantity").value, 0);
+  const portionName = document.getElementById("edit-log-portion").value.trim();
+  const displayName = buildCustomDisplayName({ name, quantity, portionName });
 
   if (!name) {
     status.textContent = "Enter a meal name.";
@@ -1488,7 +1515,7 @@ function saveEditedLog() {
 
   state.logs[index] = {
     ...state.logs[index],
-    name,
+    name: displayName,
     cal: roundNutrient(cal),
     pro: roundNutrient(pro),
     carb: roundNutrient(carb),

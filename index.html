@@ -562,6 +562,16 @@
           <input class="form-input" id="edit-log-fat" type="number" min="0" step="0.1" placeholder="0">
         </div>
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="edit-log-quantity">Quantity</label>
+          <input class="form-input" id="edit-log-quantity" type="number" min="0" step="0.1" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-log-portion">Portion Name</label>
+          <input class="form-input" id="edit-log-portion" placeholder="e.g. eggs, cups, slices">
+        </div>
+      </div>
       <div class="api-status" id="edit-log-status" aria-live="polite"></div>
       <button class="btn btn-primary" type="button" onclick="saveEditedLog()">Save Changes</button>
       <button class="btn btn-secondary" type="button" onclick="closeModal('edit-log')">Cancel</button>
