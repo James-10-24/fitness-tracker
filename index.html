@@ -102,6 +102,13 @@
 
     <div class="card">
       <div class="card-label">Nutrition</div>
+      <div class="empty-state hidden" id="nutrition-empty-state">
+        <div class="empty-icon">Goals</div>
+        Set your nutrition goals to track calories, protein, carbs, and fat.
+        <div class="today-card-actions">
+          <button class="btn btn-secondary" type="button" onclick="showGoalsModal()">Edit Goals</button>
+        </div>
+      </div>
       <div class="progress-wrap" id="cal-progress-wrap">
         <div class="progress-top">
           <span class="progress-name progress-name-with-action">

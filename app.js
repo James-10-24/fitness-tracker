@@ -1645,7 +1645,7 @@ function showPage(page) {
   }
   if (page === "log") {
     updateLogTabs();
-    switchLogTab(state.foods.length ? "from-foods" : "ai-estimate");
+    switchLogTab("ai-estimate");
     renderFoodPicker();
   }
   if (page === "history") {
@@ -1726,6 +1726,17 @@ function renderToday() {
   const goalFat = state.goals.fat;
   const goalWater = state.goals.water;
   const goalSteps = state.goals.steps;
+  const goalsConfigured = hasCustomGoals();
+
+  document.getElementById("nutrition-empty-state").classList.toggle("hidden", goalsConfigured);
+  [
+    "cal-progress-wrap",
+    "pro-progress-wrap",
+    "carb-progress-wrap",
+    "fat-progress-wrap"
+  ].forEach((id) => {
+    document.getElementById(id).classList.toggle("hidden", !goalsConfigured);
+  });
 
   document.getElementById("prog-cal-curr").textContent = Math.round(totalCal);
   document.getElementById("prog-cal-goal").textContent = goalCal;
@@ -2253,8 +2264,8 @@ function updateLogTabs() {
     return;
   }
 
-  if (hasFoods && !activeTab) {
-    switchLogTab("from-foods");
+  if (!activeTab) {
+    switchLogTab("ai-estimate");
   }
 }
 
