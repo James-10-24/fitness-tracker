@@ -1239,7 +1239,7 @@ h2,
 }
 
 .today-meal-group + .today-meal-group {
-  margin-top: 14px;
+  margin-top: 22px;
 }
 
 .today-meal-group-title {
@@ -1248,7 +1248,7 @@ h2,
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  margin-bottom: 2px;
+  margin-bottom: 10px;
 }
 
 .meal-item {
@@ -1853,14 +1853,14 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   background: var(--surface-strong);
   border: 1px solid rgba(255, 255, 255, 0.7);
   border-radius: var(--radius);
-  padding: 14px;
+  padding: 18px;
 }
 
 .history-summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
 .history-summary-item {
@@ -1873,39 +1873,42 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text2);
-  margin-bottom: 3px;
+  margin-bottom: 6px;
 }
 
 .history-summary-value {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .history-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: stretch;
 }
 
 .history-chip {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 4px 10px;
+  justify-content: center;
+  min-height: 30px;
+  padding: 6px 12px;
   border-radius: 999px;
   background: rgba(26, 26, 46, 0.06);
   color: var(--text2);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .history-progress-chip {
-  min-width: 112px;
+  min-width: 0;
+  width: 100%;
   flex-direction: column;
   align-items: stretch;
-  gap: 5px;
+  gap: 6px;
   border: none;
   cursor: pointer;
   text-align: left;
@@ -1916,6 +1919,7 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  font-size: 12px;
 }
 
 .history-progress-chip-bar {
@@ -1941,20 +1945,20 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .history-progress-wrap {
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .history-toggle-row {
   display: flex;
   justify-content: flex-end;
-  margin-top: 2px;
+  margin-top: 8px;
 }
 
 .history-action-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .history-action-btn {
@@ -2002,6 +2006,10 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   gap: 8px;
 }
 
+.history-meal-group + .history-meal-group {
+  margin-top: 14px;
+}
+
 .history-group-title {
   display: inline-flex;
   align-items: center;
@@ -2011,6 +2019,7 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  margin-bottom: 8px;
 }
 
 .history-group-icon {
