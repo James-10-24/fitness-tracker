@@ -90,6 +90,43 @@ create table if not exists public.ai_food_cache (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.workout_custom_exercises (
+  id text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  name text not null,
+  muscle_group text not null,
+  input_type text not null,
+  equipment text not null default 'Bodyweight',
+  is_custom boolean not null default true,
+  instructions text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.workout_routines (
+  id text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  name text not null,
+  weekdays jsonb not null default '[]'::jsonb,
+  exercises jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.workout_sessions (
+  id text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  routine_id text,
+  routine_name text not null default 'Freeform Workout',
+  logged_on date not null,
+  duration_seconds integer not null default 0,
+  total_volume numeric not null default 0,
+  exercise_logs jsonb not null default '[]'::jsonb,
+  personal_bests jsonb not null default '[]'::jsonb,
+  is_freeform boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists foods_user_id_idx on public.foods (user_id);
 create index if not exists meal_logs_user_id_idx on public.meal_logs (user_id);
 create index if not exists meal_logs_logged_on_idx on public.meal_logs (logged_on);
@@ -99,6 +136,10 @@ create index if not exists step_logs_user_id_idx on public.step_logs (user_id);
 create index if not exists step_logs_logged_on_idx on public.step_logs (logged_on);
 create index if not exists water_units_user_id_idx on public.water_units (user_id);
 create index if not exists ai_food_cache_normalized_query_idx on public.ai_food_cache (normalized_query);
+create index if not exists workout_custom_exercises_user_id_idx on public.workout_custom_exercises (user_id);
+create index if not exists workout_routines_user_id_idx on public.workout_routines (user_id);
+create index if not exists workout_sessions_user_id_idx on public.workout_sessions (user_id);
+create index if not exists workout_sessions_logged_on_idx on public.workout_sessions (logged_on);
 
 grant usage on schema public to authenticated, anon;
 grant select, insert, update, delete on public.goals to authenticated;
@@ -107,6 +148,9 @@ grant select, insert, update, delete on public.meal_logs to authenticated;
 grant select, insert, update, delete on public.water_logs to authenticated;
 grant select, insert, update, delete on public.step_logs to authenticated;
 grant select, insert, update, delete on public.water_units to authenticated;
+grant select, insert, update, delete on public.workout_custom_exercises to authenticated;
+grant select, insert, update, delete on public.workout_routines to authenticated;
+grant select, insert, update, delete on public.workout_sessions to authenticated;
 grant select, insert, update on public.ai_food_cache to authenticated, anon;
 
 alter table public.goals enable row level security;
@@ -116,6 +160,9 @@ alter table public.water_logs enable row level security;
 alter table public.step_logs enable row level security;
 alter table public.water_units enable row level security;
 alter table public.ai_food_cache enable row level security;
+alter table public.workout_custom_exercises enable row level security;
+alter table public.workout_routines enable row level security;
+alter table public.workout_sessions enable row level security;
 
 drop policy if exists "users_manage_own_goals" on public.goals;
 create policy "users_manage_own_goals" on public.goals
@@ -149,6 +196,24 @@ with check (auth.uid() = user_id);
 
 drop policy if exists "users_manage_own_water_units" on public.water_units;
 create policy "users_manage_own_water_units" on public.water_units
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "users_manage_own_workout_custom_exercises" on public.workout_custom_exercises;
+create policy "users_manage_own_workout_custom_exercises" on public.workout_custom_exercises
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "users_manage_own_workout_routines" on public.workout_routines;
+create policy "users_manage_own_workout_routines" on public.workout_routines
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "users_manage_own_workout_sessions" on public.workout_sessions;
+create policy "users_manage_own_workout_sessions" on public.workout_sessions
 for all
 using (auth.uid() = user_id)
 with check (auth.uid() = user_id);

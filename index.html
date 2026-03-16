@@ -382,6 +382,22 @@
     <div id="history-content"></div>
   </div>
 
+  <div class="page" id="page-workouts">
+    <div class="page-header">
+      <div class="page-title serif">Workouts</div>
+      <div class="page-subtitle">Track routines, sessions, and progress</div>
+    </div>
+    <div class="workout-resume-banner hidden" id="workout-resume-banner"></div>
+    <div class="tab-row workout-tab-row">
+      <button class="tab-pill active" id="workout-tab-home" type="button" onclick="switchWorkoutTab('home')">Home</button>
+      <button class="tab-pill" id="workout-tab-history" type="button" onclick="switchWorkoutTab('history')">History</button>
+      <button class="tab-pill" id="workout-tab-progress" type="button" onclick="switchWorkoutTab('progress')">Progress</button>
+    </div>
+    <div class="workout-view active" id="workout-view-home"></div>
+    <div class="workout-view" id="workout-view-history"></div>
+    <div class="workout-view" id="workout-view-progress"></div>
+  </div>
+
   <nav class="nav">
     <button class="nav-btn active" id="nav-today" onclick="showPage('today')">
       <div class="nav-icon">
@@ -394,6 +410,12 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12c1.7-3.3 5-6 7-7 2 1 5.3 3.7 7 7-1.7 3.3-5 6-7 7-2-1-5.3-3.7-7-7Z"/><path d="M9.5 12h5"/><path d="M8 9.5h8"/><path d="M8 14.5h8"/></svg>
       </div>
       Meals
+    </button>
+    <button class="nav-btn" id="nav-workouts" onclick="showPage('workouts')">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9v6"/><path d="M18 9v6"/><path d="M3 10h3v4H3z"/><path d="M18 10h3v4h-3z"/><path d="M9 7v10"/><path d="M15 7v10"/><path d="M9 12h6"/></svg>
+      </div>
+      Workout
     </button>
     <button class="nav-btn" id="nav-history" onclick="showPage('history')">
       <div class="nav-icon">
@@ -694,6 +716,105 @@
     </div>
   </div>
 
+  <div class="overlay" id="overlay-workout-builder" onclick="closeModal('workout-builder')">
+    <div class="sheet workout-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="workout-builder-title">New Routine</div>
+      <div class="form-group">
+        <label class="form-label" for="workout-builder-name">Routine Name</label>
+        <input class="form-input" id="workout-builder-name" placeholder="e.g. Push Day">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Weekdays</label>
+        <div class="workout-weekday-row" id="workout-builder-weekdays"></div>
+      </div>
+      <button class="btn btn-secondary" type="button" id="workout-template-btn" onclick="toggleWorkoutTemplatePicker()">Start from Template</button>
+      <div class="workout-template-picker hidden" id="workout-template-picker"></div>
+      <div class="workout-builder-list" id="workout-builder-exercises"></div>
+      <button class="btn btn-secondary" type="button" onclick="openExerciseLibrary('routine')">Add Exercise</button>
+      <div class="api-status" id="workout-builder-status" aria-live="polite"></div>
+      <button class="btn btn-primary" type="button" onclick="saveWorkoutRoutine()">Save Routine</button>
+      <button class="btn btn-secondary" type="button" onclick="closeModal('workout-builder')">Cancel</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay-exercise-library" onclick="closeModal('exercise-library')">
+    <div class="sheet workout-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title" id="exercise-library-title">Exercise Library</div>
+      <div class="search-wrap">
+        <span class="search-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </span>
+        <input class="search-input" id="exercise-library-search" placeholder="Search exercises..." oninput="renderExerciseLibrary()">
+      </div>
+      <div class="workout-filter-row" id="exercise-library-filters"></div>
+      <div class="workout-library-list" id="exercise-library-list"></div>
+      <button class="btn btn-secondary" type="button" onclick="openCustomExerciseModal()">Create Custom Exercise</button>
+      <button class="btn btn-secondary" type="button" onclick="closeModal('exercise-library')">Close</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay-custom-exercise" onclick="closeModal('custom-exercise')">
+    <div class="sheet workout-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Create Custom Exercise</div>
+      <div class="form-group">
+        <label class="form-label" for="custom-exercise-name">Name</label>
+        <input class="form-input" id="custom-exercise-name" placeholder="e.g. Cable Y Raise">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="custom-exercise-muscle">Muscle Group</label>
+          <select class="form-input" id="custom-exercise-muscle"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="custom-exercise-equipment">Equipment</label>
+          <input class="form-input" id="custom-exercise-equipment" placeholder="e.g. Cable">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="custom-exercise-input-type">Input Type</label>
+        <select class="form-input" id="custom-exercise-input-type">
+          <option value="reps_weight">Reps + Weight</option>
+          <option value="time">Time</option>
+          <option value="distance">Distance</option>
+          <option value="distance_time">Distance + Time</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="custom-exercise-instructions">Instructions</label>
+        <textarea class="form-input workout-textarea" id="custom-exercise-instructions" placeholder="Optional coaching notes"></textarea>
+      </div>
+      <div class="api-status" id="custom-exercise-status" aria-live="polite"></div>
+      <button class="btn btn-primary" type="button" onclick="saveCustomExercise()">Save Exercise</button>
+      <button class="btn btn-secondary" type="button" onclick="closeModal('custom-exercise')">Cancel</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay-active-workout" onclick="closeModal('active-workout')">
+    <div class="sheet workout-sheet workout-sheet-fullscreen" onclick="event.stopPropagation()">
+      <div class="workout-active-root" id="active-workout-root"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay-workout-jump" onclick="closeModal('workout-jump')">
+    <div class="sheet workout-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Session Exercises</div>
+      <div class="workout-jump-list" id="workout-jump-list"></div>
+      <button class="btn btn-secondary" type="button" onclick="closeModal('workout-jump')">Close</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay-workout-summary" onclick="closeModal('workout-summary')">
+    <div class="sheet workout-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Workout Summary</div>
+      <div id="workout-summary-root"></div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <div class="food-cheer hidden" id="food-cheer" aria-hidden="true">
@@ -771,5 +892,6 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="app.js" onerror="window.__showStartupBootFailure('app.js failed to load. Hard refresh the page or reinstall the PWA to refresh cached files.')"></script>
+  <script src="workouts.js" onerror="window.__showStartupBootFailure('workouts.js failed to load. Hard refresh the page or reinstall the PWA to refresh cached files.')"></script>
 </body>
 </html>
