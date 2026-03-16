@@ -2,7 +2,7 @@
   "name": "viva-ai-pwa",
   "private": true,
   "version": "1.0.0",
-  "description": "Viva.AI PWA with an AI-backed nutrition estimate endpoint",
+  "description": "Hale PWA with an AI-backed nutrition estimate endpoint",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"

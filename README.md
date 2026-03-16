@@ -1,6 +1,6 @@
-# Viva.AI PWA
+# Hale PWA
 
-Viva.AI is a mobile-first progressive web app for logging meals, movement, water, and macros. Live. Move. Thrive. The app works in guest mode with local storage, and optionally uses Supabase for simple email/password accounts and per-user data sync, plus a Node backend that calls the OpenAI API for nutrition estimates.
+Hale is a mobile-first progressive web app for logging meals, movement, water, and macros. Live. Move. Thrive. The app works in guest mode with local storage, and optionally uses Supabase for simple email/password accounts and per-user data sync, plus a Node backend that calls the OpenAI API for nutrition estimates.
 
 ## Files
 

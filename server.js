@@ -55,7 +55,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Viva.AI running at http://localhost:${PORT}`);
+  console.log(`Hale running at http://localhost:${PORT}`);
 });
 
 server.on("error", (error) => {

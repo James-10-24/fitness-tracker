@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Viva.AI">
+  <meta name="apple-mobile-web-app-title" content="Hale">
   <meta name="theme-color" content="#FDF6F0">
-  <title>Viva.AI</title>
+  <title>Hale</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -19,8 +19,8 @@
 <body>
   <div class="startup-screen" id="startup-screen" aria-hidden="true">
     <div class="startup-card">
-      <img class="startup-logo" src="icons/icon.svg" alt="Viva.AI logo">
-      <div class="startup-title">Viva.AI</div>
+      <img class="startup-logo" src="icons/icon.svg" alt="Hale logo">
+      <div class="startup-title">Hale</div>
       <div class="startup-subtitle">Live. Move. Thrive.</div>
       <div class="startup-status" id="startup-status">Starting up...</div>
       <div class="startup-spinner" aria-hidden="true"></div>
@@ -32,9 +32,9 @@
   <div class="auth-screen hidden" id="auth-screen">
     <div class="auth-card">
       <div class="auth-brand">
-        <img class="auth-logo" src="icons/icon.svg" alt="Viva.AI logo">
+        <img class="auth-logo" src="icons/icon.svg" alt="Hale logo">
         <div>
-          <div class="auth-title">Viva.AI</div>
+          <div class="auth-title">Hale</div>
           <div class="auth-subtitle">Live. Move. Thrive. Sign in to keep your meals, goals, and tracking private to your account.</div>
         </div>
       </div>
@@ -74,7 +74,7 @@
         <button class="btn btn-primary" type="button" onclick="submitAuth('signin')">Sign In</button>
         <button class="btn btn-secondary" type="button" onclick="submitAuth('signup')">Create Account</button>
       </div>
-      <button class="btn btn-secondary auth-install-btn hidden" id="auth-install-btn" type="button" onclick="openInstallModal()">Install Viva.AI App</button>
+      <button class="btn btn-secondary auth-install-btn hidden" id="auth-install-btn" type="button" onclick="openInstallModal()">Install Hale App</button>
       <button class="btn btn-secondary auth-guest-btn" id="auth-guest-btn" type="button" onclick="continueAsGuest()">Continue Without Account</button>
       <div class="api-status auth-status" id="auth-status" aria-live="polite"></div>
     </div>
@@ -92,7 +92,7 @@
     <div class="page-header">
       <div class="page-title serif" id="today-greeting">Good morning</div>
       <div class="page-subtitle" id="today-date"></div>
-      <button class="btn btn-secondary today-install-btn hidden" id="today-install-btn" type="button" onclick="openInstallModal()">Install Viva.AI App</button>
+      <button class="btn btn-secondary today-install-btn hidden" id="today-install-btn" type="button" onclick="openInstallModal()">Install Hale App</button>
     </div>
 
     <div class="goals-bar" onclick="showGoalsModal()" role="button" tabindex="0">
@@ -704,12 +704,12 @@
   <div class="overlay" id="overlay-install" onclick="closeModal('install')">
     <div class="sheet" onclick="event.stopPropagation()">
       <div class="sheet-handle"></div>
-      <div class="sheet-title" id="install-title">Install Viva.AI</div>
+      <div class="sheet-title" id="install-title">Install Hale</div>
       <div class="account-email" id="install-copy"></div>
       <div class="install-steps hidden" id="install-steps">
         <div class="install-step"><span class="install-step-num">1</span><span>Open the browser menu or share sheet.</span></div>
         <div class="install-step"><span class="install-step-num">2</span><span>Select <strong>Add to Home Screen</strong> or the closest install option shown by your browser.</span></div>
-        <div class="install-step"><span class="install-step-num">3</span><span>Confirm to install Viva.AI like a normal app.</span></div>
+        <div class="install-step"><span class="install-step-num">3</span><span>Confirm to install Hale like a normal app.</span></div>
       </div>
       <button class="btn btn-primary hidden" id="install-action-btn" type="button" onclick="promptPwaInstall()">Add to Home Screen</button>
       <button class="btn btn-secondary" type="button" onclick="closeModal('install')">Close</button>

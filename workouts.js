@@ -147,11 +147,9 @@
   let workoutProgressExerciseId = "";
   let workoutSummaryDraft = null;
   let workoutDragIndex = -1;
-  let workoutTimerHandle = null;
   let workoutTouchStartX = 0;
   let workoutTouchStartY = 0;
   let workoutSetHoldHandle = null;
-  let lastRestNotifiedAt = 0;
 
   const originalCreateInitialState = createInitialState;
   createInitialState = function () {
@@ -421,8 +419,6 @@
       routineName: String(draft?.routineName || "Freeform Workout"),
       date: draft?.date || todayStr(),
       startedAt: draft?.startedAt || new Date().toISOString(),
-      pausedAt: draft?.pausedAt || null,
-      pauseAccumulatedMs: Math.max(0, Number(draft?.pauseAccumulatedMs || 0)),
       currentExerciseIndex: clamp(Number(draft?.currentExerciseIndex || 0), 0, Math.max((draft?.sessionExercises?.length || 1) - 1, 0)),
       sessionExercises: Array.isArray(draft?.sessionExercises)
         ? draft.sessionExercises.map((item, index) => normalizeRoutineExercise(item, index)).filter(Boolean)
@@ -431,18 +427,8 @@
         ? draft.exerciseLogs.map(normalizeExerciseLog).filter(Boolean)
         : [],
       personalBests: Array.isArray(draft?.personalBests) ? draft.personalBests.map(normalizeWorkoutPr) : [],
-      restTimer: draft?.restTimer ? normalizeWorkoutRestTimer(draft.restTimer) : null,
+      durationSeconds: Math.max(0, Math.round(draft?.durationSeconds || 0)),
       isFreeform: !!draft?.isFreeform
-    };
-  }
-
-  function normalizeWorkoutRestTimer(restTimer) {
-    return {
-      exerciseIndex: clamp(Number(restTimer?.exerciseIndex || 0), 0, 999),
-      setIndex: clamp(Number(restTimer?.setIndex || 0), 0, 999),
-      endAt: restTimer?.endAt || new Date().toISOString(),
-      seconds: Math.max(0, Number(restTimer?.seconds || 0)),
-      notified: !!restTimer?.notified
     };
   }
 
@@ -521,7 +507,7 @@
   }
 
   function estimateRoutineDurationMinutes(routine) {
-    const seconds = (routine.exercises || []).reduce((sum, item) => sum + ((item.defaultSets || 0) * 40) + Math.max(((item.defaultSets || 1) - 1), 0) * (item.restSeconds || 0), 0);
+    const seconds = (routine.exercises || []).reduce((sum, item) => sum + ((item.defaultSets || 0) * 45), 0);
     return Math.max(10, Math.round(seconds / 60));
   }
 
@@ -550,7 +536,6 @@
     renderWorkoutSummary();
     renderWorkoutJumpList();
     hydrateCustomExerciseFields();
-    ensureWorkoutTimers();
   }
 
   function switchWorkoutTab(tab) {
@@ -783,20 +768,14 @@
                 <div class="workout-builder-row-name">${escHtml(exercise?.name || "Exercise")}</div>
                 <div class="workout-builder-row-meta">${escHtml(exercise?.muscleGroup || "")}</div>
               </div>
-              <div class="workout-builder-row-stats">${item.defaultSets} sets · ${formatRestSeconds(item.restSeconds)}</div>
+              <div class="workout-builder-row-stats">${item.defaultSets} sets</div>
               <div class="workout-drag-handle">↕</div>
             </button>
             ${expanded ? `
               <div class="workout-builder-row-edit">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label class="form-label">Default Sets</label>
-                    <input class="form-input" type="number" min="1" step="1" value="${item.defaultSets}" oninput="updateWorkoutBuilderExercise(${index}, 'defaultSets', this.value)">
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label">Rest Time (sec)</label>
-                    <input class="form-input" type="number" min="0" step="15" value="${item.restSeconds}" oninput="updateWorkoutBuilderExercise(${index}, 'restSeconds', this.value)">
-                  </div>
+                <div class="form-group">
+                  <label class="form-label">Default Sets</label>
+                  <input class="form-input" type="number" min="1" step="1" value="${item.defaultSets}" oninput="updateWorkoutBuilderExercise(${index}, 'defaultSets', this.value)">
                 </div>
               </div>
             ` : ""}
@@ -852,9 +831,6 @@
     }
     if (field === "defaultSets") {
       workoutBuilderDraft.exercises[index].defaultSets = normalizePositiveInteger(value, 1);
-    }
-    if (field === "restSeconds") {
-      workoutBuilderDraft.exercises[index].restSeconds = Math.max(0, normalizePositiveInteger(value, 0));
     }
   }
 
@@ -1118,13 +1094,11 @@
       routineName: "Freeform Workout",
       date: todayStr(),
       startedAt: new Date().toISOString(),
-      pausedAt: null,
-      pauseAccumulatedMs: 0,
       currentExerciseIndex: 0,
       sessionExercises: [],
       exerciseLogs: [],
       personalBests: [],
-      restTimer: null,
+      durationSeconds: 0,
       isFreeform: true
     });
     saveState();
@@ -1165,13 +1139,11 @@
       routineName: routine.name,
       date: todayStr(),
       startedAt: new Date().toISOString(),
-      pausedAt: null,
-      pauseAccumulatedMs: 0,
       currentExerciseIndex: 0,
       sessionExercises,
       exerciseLogs,
       personalBests: [],
-      restTimer: null,
+      durationSeconds: 0,
       isFreeform: false
     });
   }
@@ -1207,8 +1179,6 @@
   function openActiveWorkout() {
     document.getElementById("overlay-active-workout").classList.add("open");
     renderActiveWorkout();
-    ensureWorkoutTimers();
-    maybeAskWorkoutNotificationPermission();
   }
 
   function resumeWorkoutDraft() {
@@ -1228,7 +1198,6 @@
     state.activeWorkoutDraft = null;
     workoutSummaryDraft = null;
     saveState();
-    stopWorkoutTimers();
     closeModal("active-workout");
     closeModal("workout-summary");
     renderWorkoutPage();
@@ -1253,17 +1222,13 @@
     const currentExerciseMeta = currentExercise ? getExerciseById(currentExercise.exerciseId) : null;
     const currentLog = currentExercise ? ensureWorkoutExerciseLog(draft.currentExerciseIndex) : null;
     const lastExerciseLog = currentExercise ? findLatestSessionForExercise(currentExercise.exerciseId)?.exerciseLogs?.find((log) => log.exerciseId === currentExercise.exerciseId) : null;
-    const timerText = formatDuration(getActiveWorkoutElapsedSeconds(draft));
-    const restBanner = renderRestTimerBanner(draft);
-
     root.innerHTML = `
       <div class="workout-active-header">
         <div>
           <div class="workout-active-routine">${escHtml(draft.routineName || "Workout")}</div>
-          <div class="workout-active-timer" id="active-workout-timer">${timerText}</div>
+          <div class="workout-active-timer">Manual tracking</div>
         </div>
         <div class="workout-inline-actions">
-          <button class="btn btn-secondary" type="button" onclick="toggleActiveWorkoutPause()">${draft.pausedAt ? "Resume" : "Pause"}</button>
           <button class="btn btn-primary" type="button" onclick="finishActiveWorkoutPrompt()">Finish</button>
         </div>
       </div>
@@ -1274,7 +1239,6 @@
         </div>
       </div>
       ${totalExercises ? renderCurrentWorkoutExercise(currentExerciseMeta, currentExercise, currentLog, lastExerciseLog) : renderEmptyActiveWorkoutState()}
-      ${restBanner}
     `;
   }
 
@@ -1446,7 +1410,6 @@
       draft.personalBests.push(prHit);
       showToast(`New PR: ${prHit.label}`);
     }
-    startWorkoutRestTimer(routineExercise?.restSeconds || 0, draft.currentExerciseIndex, setIndex);
     saveState();
     renderActiveWorkout();
   }
@@ -1518,147 +1481,11 @@
     return result;
   }
 
-  function startWorkoutRestTimer(seconds, exerciseIndex, setIndex) {
-    if (!state.activeWorkoutDraft || seconds <= 0) {
-      if (state.activeWorkoutDraft) {
-        state.activeWorkoutDraft.restTimer = null;
-      }
-      return;
-    }
-    state.activeWorkoutDraft.restTimer = {
-      exerciseIndex,
-      setIndex,
-      endAt: new Date(Date.now() + (seconds * 1000)).toISOString(),
-      seconds,
-      notified: false
-    };
-    saveState();
-    ensureWorkoutTimers();
-  }
-
-  function skipWorkoutRestTimer() {
-    if (!state.activeWorkoutDraft) {
-      return;
-    }
-    state.activeWorkoutDraft.restTimer = null;
-    saveState();
-    renderActiveWorkout();
-  }
-
-  function renderRestTimerBanner(draft) {
-    if (!draft.restTimer) {
-      return "";
-    }
-    const remaining = Math.max(0, Math.ceil((new Date(draft.restTimer.endAt).getTime() - Date.now()) / 1000));
-    return `
-      <div class="workout-rest-banner ${remaining <= 0 ? "done" : ""}">
-        <div>
-          <div class="workout-rest-title">Rest Timer</div>
-          <div class="workout-rest-time" id="active-workout-rest-time">${remaining > 0 ? `${formatDuration(remaining)} remaining` : "Rest over — time for your next set."}</div>
-        </div>
-        <button class="btn btn-secondary" type="button" onclick="skipWorkoutRestTimer()">Skip</button>
-      </div>
-    `;
-  }
-
-  function ensureWorkoutTimers() {
-    if (workoutTimerHandle) {
-      clearInterval(workoutTimerHandle);
-      workoutTimerHandle = null;
-    }
-    if (!state.activeWorkoutDraft) {
-      return;
-    }
-    workoutTimerHandle = window.setInterval(() => {
-      tickWorkoutTimers();
-    }, 1000);
-    tickWorkoutTimers();
-  }
-
-  function stopWorkoutTimers() {
-    if (workoutTimerHandle) {
-      clearInterval(workoutTimerHandle);
-      workoutTimerHandle = null;
-    }
-  }
-
-  function tickWorkoutTimers() {
-    const draft = state.activeWorkoutDraft;
-    if (!draft) {
-      stopWorkoutTimers();
-      return;
-    }
-
-    const timerNode = document.getElementById("active-workout-timer");
-    if (timerNode) {
-      timerNode.textContent = formatDuration(getActiveWorkoutElapsedSeconds(draft));
-    }
-
-    if (draft.restTimer) {
-      const remaining = Math.max(0, Math.ceil((new Date(draft.restTimer.endAt).getTime() - Date.now()) / 1000));
-      const restNode = document.getElementById("active-workout-rest-time");
-      if (restNode) {
-        restNode.textContent = remaining > 0 ? `${formatDuration(remaining)} remaining` : "Rest over — time for your next set.";
-      }
-      if (remaining <= 0 && !draft.restTimer.notified) {
-        draft.restTimer.notified = true;
-        notifyWorkoutRestComplete();
-        lastRestNotifiedAt = Date.now();
-        saveState();
-      }
-    }
-  }
-
-  function maybeAskWorkoutNotificationPermission() {
-    if (!("Notification" in window)) {
-      return;
-    }
-    if (Notification.permission === "default") {
-      Notification.requestPermission().catch(() => {});
-    }
-  }
-
-  function notifyWorkoutRestComplete() {
-    if (!("Notification" in window) || Notification.permission !== "granted") {
-      showToast("Rest over — time for your next set.");
-      return;
-    }
-    if (Date.now() - lastRestNotifiedAt < 2000) {
-      return;
-    }
-    new Notification("Rest over — time for your next set.");
-  }
-
-  function formatRestSeconds(seconds) {
-    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-  }
-
   function formatDuration(totalSeconds) {
     const seconds = Math.max(0, Math.round(totalSeconds || 0));
     const mins = Math.floor(seconds / 60);
     const remainder = seconds % 60;
     return `${mins}:${String(remainder).padStart(2, "0")}`;
-  }
-
-  function getActiveWorkoutElapsedSeconds(draft) {
-    const startedAt = new Date(draft.startedAt).getTime();
-    const now = draft.pausedAt ? new Date(draft.pausedAt).getTime() : Date.now();
-    return Math.max(0, Math.round((now - startedAt - (draft.pauseAccumulatedMs || 0)) / 1000));
-  }
-
-  function toggleActiveWorkoutPause() {
-    const draft = state.activeWorkoutDraft;
-    if (!draft) {
-      return;
-    }
-    if (draft.pausedAt) {
-      draft.pauseAccumulatedMs += Date.now() - new Date(draft.pausedAt).getTime();
-      draft.pausedAt = null;
-    } else {
-      draft.pausedAt = new Date().toISOString();
-    }
-    saveState();
-    renderActiveWorkout();
   }
 
   function jumpWorkoutExercise(delta) {
@@ -1814,7 +1641,7 @@
 
     const summarySession = normalizeWorkoutSession({
       ...draft,
-      durationSeconds: getActiveWorkoutElapsedSeconds(draft),
+      durationSeconds: draft.durationSeconds || 0,
       created_at: draft.startedAt
     });
     workoutSummaryDraft = buildWorkoutSummary(summarySession);
@@ -1862,7 +1689,12 @@
     const { session, durationSeconds, totalVolume, exerciseCount, completedSetCount, personalBests } = workoutSummaryDraft;
     root.innerHTML = `
       <div class="workout-summary-grid">
-        <div class="history-summary-item"><div class="history-summary-label">Duration</div><div class="history-summary-value">${formatDuration(durationSeconds)}</div></div>
+        <div class="history-summary-item">
+          <div class="history-summary-label">Duration</div>
+          <div class="history-summary-value">
+            <input class="form-input" id="workout-summary-duration-minutes" type="number" min="0" step="1" placeholder="Minutes" value="${durationSeconds > 0 ? Math.round(durationSeconds / 60) : ""}">
+          </div>
+        </div>
         <div class="history-summary-item"><div class="history-summary-label">Volume</div><div class="history-summary-value">${Math.round(totalVolume)} kg</div></div>
         <div class="history-summary-item"><div class="history-summary-label">Exercises</div><div class="history-summary-value">${exerciseCount}</div></div>
         <div class="history-summary-item"><div class="history-summary-label">Sets</div><div class="history-summary-value">${completedSetCount}</div></div>
@@ -1912,13 +1744,16 @@
     if (!workoutSummaryDraft) {
       return;
     }
-    const session = normalizeWorkoutSession(workoutSummaryDraft.session);
+    const durationMinutes = Math.max(0, normalizePositiveInteger(document.getElementById("workout-summary-duration-minutes")?.value, 0));
+    const session = normalizeWorkoutSession({
+      ...workoutSummaryDraft.session,
+      durationSeconds: durationMinutes * 60
+    });
     state.workoutSessions.push(session);
     state.workoutSessions.sort((a, b) => new Date(a.created_at || `${a.date}T12:00:00`).getTime() - new Date(b.created_at || `${b.date}T12:00:00`).getTime());
     state.activeWorkoutDraft = null;
     workoutSummaryDraft = null;
     saveState();
-    stopWorkoutTimers();
     closeModal("workout-summary");
     closeModal("active-workout");
     renderWorkoutPage();
@@ -1929,7 +1764,6 @@
     workoutSummaryDraft = null;
     state.activeWorkoutDraft = null;
     saveState();
-    stopWorkoutTimers();
     closeModal("workout-summary");
     closeModal("active-workout");
     renderWorkoutPage();
@@ -1988,7 +1822,7 @@
         <button class="workout-session-head" type="button" onclick="toggleWorkoutHistorySession('${session.id}')">
           <div>
             <div class="workout-session-name">${escHtml(session.routineName || "Freeform Workout")}</div>
-            <div class="workout-session-meta">${new Date(`${session.date}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · ${formatDuration(session.durationSeconds)} · ${totalVolume} kg · ${session.exerciseLogs.length} exercises</div>
+            <div class="workout-session-meta">${new Date(`${session.date}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · ${session.durationSeconds > 0 ? formatDuration(session.durationSeconds) : "Manual"} · ${totalVolume} kg · ${session.exerciseLogs.length} exercises</div>
           </div>
           <div>${expanded ? "−" : "+"}</div>
         </button>
@@ -2266,7 +2100,6 @@
   window.startFreeformWorkout = startFreeformWorkout;
   window.resumeWorkoutDraft = resumeWorkoutDraft;
   window.discardWorkoutDraft = discardWorkoutDraft;
-  window.toggleActiveWorkoutPause = toggleActiveWorkoutPause;
   window.jumpWorkoutExercise = jumpWorkoutExercise;
   window.openWorkoutJump = openWorkoutJump;
   window.jumpToWorkoutExercise = jumpToWorkoutExercise;
@@ -2277,7 +2110,6 @@
   window.openWorkoutSetMenu = openWorkoutSetMenu;
   window.startWorkoutSetHold = startWorkoutSetHold;
   window.cancelWorkoutSetHold = cancelWorkoutSetHold;
-  window.skipWorkoutRestTimer = skipWorkoutRestTimer;
   window.finishActiveWorkoutPrompt = finishActiveWorkoutPrompt;
   window.saveFinishedWorkout = saveFinishedWorkout;
   window.discardFinishedWorkout = discardFinishedWorkout;

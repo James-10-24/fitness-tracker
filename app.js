@@ -990,15 +990,15 @@ function openInstallModal() {
     return;
   }
 
-  title.textContent = "Install Viva.AI";
+  title.textContent = "Install Hale";
 
   if (deferredInstallPrompt) {
-    copy.textContent = "Add Viva.AI to your home screen so it feels like a real app and opens faster next time.";
+    copy.textContent = "Add Hale to your home screen so it feels like a real app and opens faster next time.";
     steps.classList.add("hidden");
     actionButton.classList.remove("hidden");
     trackAmplitudeEvent("install_prompt_opened", { install_mode: "native_prompt" });
   } else if (isIosDevice()) {
-    copy.textContent = "On iPhone and iPad, Viva.AI can still be added manually from your browser menu or share sheet even when the browser does not show a one-tap install prompt.";
+    copy.textContent = "On iPhone and iPad, Hale can still be added manually from your browser menu or share sheet even when the browser does not show a one-tap install prompt.";
     steps.classList.remove("hidden");
     actionButton.classList.add("hidden");
     trackAmplitudeEvent("install_prompt_opened", { install_mode: "ios_manual" });
