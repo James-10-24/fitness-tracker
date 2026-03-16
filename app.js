@@ -122,11 +122,31 @@ function normalizeAppState(rawState) {
   const nextState = { ...createInitialState(), ...(rawState || {}) };
   nextState.waterLogs = Array.isArray(nextState.waterLogs) ? nextState.waterLogs : [];
   nextState.stepLogs = Array.isArray(nextState.stepLogs) ? nextState.stepLogs : [];
-  nextState.logs = Array.isArray(nextState.logs) ? nextState.logs : [];
+  nextState.logs = Array.isArray(nextState.logs) ? nextState.logs.map(normalizeLogRecord) : [];
   nextState.waterUnits = defaultWaterUnits(nextState.waterUnits);
   nextState.foods = Array.isArray(nextState.foods) ? nextState.foods.map(normalizeFoodRecord) : [];
   nextState.goals = { ...DEFAULT_GOALS, ...(nextState.goals || {}) };
   return nextState;
+}
+
+function normalizeLogRecord(log) {
+  const normalizedSection = normalizeMealSection(log?.mealSection || log?.meal_section || "");
+  const normalizedOrder = normalizePositiveInteger(log?.mealOrder ?? log?.meal_order ?? 0, 0);
+  return {
+    ...(log || {}),
+    mealSection: normalizedSection,
+    mealOrder: normalizedOrder
+  };
+}
+
+function normalizeMealSection(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["breakfast", "lunch", "dinner"].includes(normalized) ? normalized : "";
+}
+
+function normalizePositiveInteger(value, fallback = 0) {
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function hasMeaningfulData(candidateState) {
@@ -531,6 +551,10 @@ async function syncStateToCloud() {
       user_id: userId,
       logged_on: log.date,
       name: log.name,
+      quantity: roundNutrient(log.quantity || 0),
+      portion_name: log.portionName || "",
+      meal_section: normalizeMealSection(log.mealSection || ""),
+      meal_order: normalizePositiveInteger(log.mealOrder, 0),
       cal: roundNutrient(log.cal),
       pro: roundNutrient(log.pro),
       carb: roundNutrient(log.carb || 0),
@@ -624,6 +648,10 @@ async function loadUserState(userId) {
         id: row.id,
         date: row.logged_on,
         name: row.name,
+        quantity: row.quantity,
+        portionName: row.portion_name || "",
+        mealSection: row.meal_section || "",
+        mealOrder: row.meal_order || 0,
         cal: row.cal,
         pro: row.pro,
         carb: row.carb,
@@ -1783,16 +1811,22 @@ function renderToday() {
     return;
   }
 
-  list.innerHTML = logs.slice().reverse().map((log) => `
-    <div class="meal-item">
-      <div>
-        <div class="meal-name">${escHtml(getLogDisplayName(log))}</div>
-        <div class="meal-meta">${Math.round(log.cal)} kcal · ${roundNutrient(log.pro)}g protein · ${roundNutrient(log.carb || 0)}g carbs · ${roundNutrient(log.fat || 0)}g fat</div>
-      </div>
-      <div class="meal-right">
-        <button class="meal-edit" onclick="openEditLogModal('${log.id}')" title="Edit meal" aria-label="Edit ${escHtml(getLogDisplayName(log))}">✎</button>
-        <button class="meal-del" onclick="deleteLog('${log.id}')" title="Remove">x</button>
-      </div>
+  const groupedMeals = groupMealsByTime(logs.slice().reverse());
+  list.innerHTML = groupedMeals.map((group) => `
+    <div class="today-meal-group">
+      <div class="today-meal-group-title">${group.label}</div>
+      ${group.items.map((log) => `
+        <div class="meal-item">
+          <div>
+            <div class="meal-name">${escHtml(getLogDisplayName(log))}</div>
+            <div class="meal-meta">${Math.round(log.cal)} kcal · ${roundNutrient(log.pro)}g protein · ${roundNutrient(log.carb || 0)}g carbs · ${roundNutrient(log.fat || 0)}g fat</div>
+          </div>
+          <div class="meal-right">
+            <button class="meal-edit" onclick="openEditLogModal('${log.id}')" title="Edit meal" aria-label="Edit ${escHtml(getLogDisplayName(log))}">✎</button>
+            <button class="meal-del" onclick="deleteLog('${log.id}')" title="Remove">x</button>
+          </div>
+        </div>
+      `).join("")}
     </div>
   `).join("");
 }
@@ -1809,6 +1843,16 @@ function getLogDisplayName(log) {
     });
   }
   return log.name || "";
+}
+
+function getLogMealSection(log) {
+  return normalizeMealSection(log?.mealSection || "") || inferMealTimeKey(log);
+}
+
+function getLogSortTimestamp(log) {
+  const timestamp = log?.created_at || `${log?.date || todayStr()}T12:00:00`;
+  const parsed = new Date(timestamp);
+  return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
 }
 
 function parseMealDisplayName(name) {
@@ -1856,6 +1900,8 @@ function openEditLogModal(id) {
   document.getElementById("edit-log-fat").value = roundNutrient(log.fat || 0);
   document.getElementById("edit-log-quantity").value = parsed.quantity > 0 ? roundNutrient(parsed.quantity) : "";
   document.getElementById("edit-log-portion").value = parsed.portionName || "";
+  document.getElementById("edit-log-section").value = normalizeMealSection(log.mealSection || "");
+  document.getElementById("edit-log-order").value = normalizePositiveInteger(log.mealOrder, 0) || "";
   document.getElementById("edit-log-status").textContent = "";
   document.getElementById("overlay-edit-log").classList.add("open");
 }
@@ -1871,6 +1917,8 @@ function openCreateLogModal(date = todayStr()) {
   document.getElementById("edit-log-fat").value = "";
   document.getElementById("edit-log-quantity").value = "";
   document.getElementById("edit-log-portion").value = "";
+  document.getElementById("edit-log-section").value = "";
+  document.getElementById("edit-log-order").value = "";
   document.getElementById("edit-log-status").textContent = "";
   document.getElementById("overlay-edit-log").classList.add("open");
 }
@@ -1888,6 +1936,8 @@ function saveEditedLog() {
   const fat = normalizePositiveNumber(document.getElementById("edit-log-fat").value, -1);
   const quantity = normalizePositiveNumber(document.getElementById("edit-log-quantity").value, 0);
   const portionName = document.getElementById("edit-log-portion").value.trim();
+  const mealSection = normalizeMealSection(document.getElementById("edit-log-section").value);
+  const mealOrder = normalizePositiveInteger(document.getElementById("edit-log-order").value, 0);
 
   if (!name) {
     status.textContent = "Enter a meal name.";
@@ -1910,6 +1960,8 @@ function saveEditedLog() {
       name,
       quantity: roundNutrient(quantity),
       portionName,
+      mealSection,
+      mealOrder,
       cal: roundNutrient(cal),
       pro: roundNutrient(pro),
       carb: roundNutrient(carb),
@@ -1922,6 +1974,8 @@ function saveEditedLog() {
       name,
       quantity: roundNutrient(quantity),
       portionName,
+      mealSection,
+      mealOrder,
       cal: roundNutrient(cal),
       pro: roundNutrient(pro),
       carb: roundNutrient(carb),
@@ -2360,6 +2414,8 @@ function logFromFood() {
     name: food.name,
     quantity: roundNutrient(amount),
     portionName,
+    mealSection: "",
+    mealOrder: 0,
     cal: roundNutrient(food.cal * ratio),
     pro: roundNutrient(food.pro * ratio),
     carb: roundNutrient((food.carb || 0) * ratio),
@@ -2805,6 +2861,8 @@ function logAiEstimate() {
     name: values.name,
     quantity: roundNutrient(values.quantity),
     portionName: values.portionName,
+    mealSection: "",
+    mealOrder: 0,
     cal: roundNutrient(values.calories),
     pro: roundNutrient(values.protein),
     carb: roundNutrient(values.carb),
@@ -2928,6 +2986,8 @@ function logCustom() {
     name: values.name,
     quantity: roundNutrient(values.quantity),
     portionName: values.portionName,
+    mealSection: "",
+    mealOrder: 0,
     cal: values.cal,
     pro: values.pro,
     carb: values.carb,
@@ -3173,7 +3233,7 @@ function renderHistory() {
   const pFat = state.goals.fat > 0 ? Math.min((totalFat / state.goals.fat) * 100, 100) : 0;
   const pWater = state.goals.water > 0 ? Math.min((waterTotal / state.goals.water) * 100, 100) : 0;
   const pSteps = state.goals.steps > 0 ? Math.min((stepsTotal / state.goals.steps) * 100, 100) : 0;
-  const groupedMeals = groupHistoryMealsByTime(logs);
+  const groupedMeals = groupMealsByTime(logs);
 
   content.innerHTML = `
     <div class="history-day">
@@ -3256,18 +3316,34 @@ function renderHistoryProgressChip(label, value, progress, modifierClass, onClic
   `;
 }
 
-function groupHistoryMealsByTime(logs) {
+function groupMealsByTime(logs) {
   const groups = [
-    { key: "breakfast", label: "Breakfast", icon: "Sun", items: [] },
-    { key: "lunch", label: "Lunch", icon: "Mid", items: [] },
-    { key: "dinner", label: "Dinner", icon: "Moon", items: [] },
-    { key: "snacks", label: "Snacks", icon: "Snack", items: [] }
+    { key: "breakfast", label: "Breakfast", items: [] },
+    { key: "lunch", label: "Lunch", items: [] },
+    { key: "dinner", label: "Dinner", items: [] }
   ];
 
   logs.forEach((log) => {
-    const key = inferMealTimeKey(log);
-    const group = groups.find((entry) => entry.key === key) || groups[3];
+    const key = getLogMealSection(log);
+    const group = groups.find((entry) => entry.key === key) || groups[1];
     group.items.push(log);
+  });
+
+  groups.forEach((group) => {
+    group.items.sort((a, b) => {
+      const aOrder = normalizePositiveInteger(a.mealOrder, 0);
+      const bOrder = normalizePositiveInteger(b.mealOrder, 0);
+      if (aOrder && bOrder && aOrder !== bOrder) {
+        return aOrder - bOrder;
+      }
+      if (aOrder && !bOrder) {
+        return -1;
+      }
+      if (!aOrder && bOrder) {
+        return 1;
+      }
+      return getLogSortTimestamp(a) - getLogSortTimestamp(b);
+    });
   });
 
   return groups.filter((group) => group.items.length);
@@ -3275,16 +3351,13 @@ function groupHistoryMealsByTime(logs) {
 
 function inferMealTimeKey(log) {
   const hour = getLogHour(log);
-  if (hour >= 5 && hour < 11) {
+  if (hour < 12) {
     return "breakfast";
   }
-  if (hour >= 11 && hour < 16) {
+  if (hour < 17) {
     return "lunch";
   }
-  if (hour >= 16 && hour < 22) {
-    return "dinner";
-  }
-  return "snacks";
+  return "dinner";
 }
 
 function getLogHour(log) {
@@ -3305,7 +3378,7 @@ function renderHistoryMealGroups(groups) {
 
   return groups.map((group) => `
     <div class="history-meal-group">
-      <div class="history-group-title"><span class="history-group-icon">${group.icon}</span><span>${group.label}</span></div>
+      <div class="history-group-title"><span>${group.label}</span></div>
       ${group.items.map((log) => `
         <div class="history-meal-row">
           <div class="history-meal-main">

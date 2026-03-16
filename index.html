@@ -605,6 +605,21 @@
           <input class="form-input" id="edit-log-portion" placeholder="e.g. eggs, cups, slices">
         </div>
       </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="edit-log-section">Meal Section</label>
+          <select class="form-input" id="edit-log-section">
+            <option value="">Auto by time</option>
+            <option value="breakfast">Breakfast</option>
+            <option value="lunch">Lunch</option>
+            <option value="dinner">Dinner</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="edit-log-order">Order In Section</label>
+          <input class="form-input" id="edit-log-order" type="number" min="1" step="1" placeholder="Auto">
+        </div>
+      </div>
       <div class="api-status" id="edit-log-status" aria-live="polite"></div>
       <button class="btn btn-primary" type="button" onclick="saveEditedLog()">Save Changes</button>
       <button class="btn btn-secondary" type="button" onclick="closeModal('edit-log')">Cancel</button>

@@ -1238,6 +1238,19 @@ h2,
   100% { opacity: 0; }
 }
 
+.today-meal-group + .today-meal-group {
+  margin-top: 14px;
+}
+
+.today-meal-group-title {
+  color: var(--text2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
 .meal-item {
   display: flex;
   align-items: center;
