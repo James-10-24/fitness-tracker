@@ -815,6 +815,16 @@
     </div>
   </div>
 
+  <div id="overlay-action-sheet" class="overlay" role="dialog" aria-modal="true" onclick="closeActionSheet()">
+    <div class="action-sheet" onclick="event.stopPropagation()">
+      <div class="action-sheet-title" id="action-sheet-title"></div>
+      <div class="action-sheet-body" id="action-sheet-body"></div>
+      <button class="btn btn-secondary action-sheet-cancel"
+              type="button"
+              onclick="closeActionSheet()">Cancel</button>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <div class="food-cheer hidden" id="food-cheer" aria-hidden="true">

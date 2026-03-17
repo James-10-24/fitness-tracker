@@ -150,6 +150,7 @@
   let workoutTouchStartX = 0;
   let workoutTouchStartY = 0;
   let workoutSetHoldHandle = null;
+  let actionSheetActions = [];
 
   const originalCreateInitialState = createInitialState;
   createInitialState = function () {
@@ -213,6 +214,69 @@
       workoutSummaryDraft = null;
     }
   };
+
+  function openActionSheet(title, actions, options = {}) {
+    const overlay = document.getElementById("overlay-action-sheet");
+    const titleEl = document.getElementById("action-sheet-title");
+    const bodyEl = document.getElementById("action-sheet-body");
+    if (!overlay || !titleEl || !bodyEl) {
+      return;
+    }
+
+    const safeActions = Array.isArray(actions) ? actions.filter(Boolean) : [];
+    actionSheetActions = safeActions;
+    titleEl.textContent = title || "";
+    bodyEl.innerHTML = `
+      ${options.message ? `<div class="action-sheet-message">${escHtml(options.message)}</div>` : ""}
+      ${safeActions.map((action, index) => `
+        <button
+          class="action-sheet-btn action-sheet-btn--${action.style || "default"}"
+          type="button"
+          data-action-index="${index}">
+          ${escHtml(action.label)}
+        </button>
+      `).join("")}
+    `;
+
+    bodyEl.querySelectorAll("[data-action-index]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const index = Number(button.getAttribute("data-action-index"));
+        const action = actionSheetActions[index];
+        closeActionSheet();
+        if (action?.onClick) {
+          action.onClick();
+        }
+      });
+    });
+
+    overlay.classList.add("open");
+  }
+
+  function closeActionSheet() {
+    const overlay = document.getElementById("overlay-action-sheet");
+    const titleEl = document.getElementById("action-sheet-title");
+    const bodyEl = document.getElementById("action-sheet-body");
+    if (overlay) {
+      overlay.classList.remove("open");
+    }
+    if (titleEl) {
+      titleEl.textContent = "";
+    }
+    if (bodyEl) {
+      bodyEl.innerHTML = "";
+    }
+    actionSheetActions = [];
+  }
+
+  function openConfirmActionSheet(title, message, confirmLabel, onConfirm, confirmStyle = "default") {
+    openActionSheet(title, [
+      {
+        label: confirmLabel,
+        style: confirmStyle,
+        onClick: onConfirm
+      }
+    ], { message });
+  }
 
   const originalSyncStateToCloud = syncStateToCloud;
   syncStateToCloud = async function () {
@@ -883,15 +947,20 @@
     if (!workoutBuilderDraft?.exercises[index]) {
       return;
     }
-    if (!window.confirm("Remove this exercise from the routine?")) {
-      return;
-    }
-    workoutBuilderDraft.exercises.splice(index, 1);
-    workoutBuilderDraft.exercises.forEach((item, itemIndex) => {
-      item.order = itemIndex + 1;
-    });
-    workoutBuilderExpandedIndex = -1;
-    renderWorkoutBuilder();
+    openConfirmActionSheet(
+      "Remove Exercise",
+      "Remove this exercise from the routine?",
+      "Remove",
+      () => {
+        workoutBuilderDraft.exercises.splice(index, 1);
+        workoutBuilderDraft.exercises.forEach((item, itemIndex) => {
+          item.order = itemIndex + 1;
+        });
+        workoutBuilderExpandedIndex = -1;
+        renderWorkoutBuilder();
+      },
+      "destructive"
+    );
   }
 
   function openExerciseLibrary(context = "browse", targetExerciseIndex = -1) {
@@ -1192,18 +1261,23 @@
     if (!state.activeWorkoutDraft) {
       return;
     }
-    if (!window.confirm("Discard the unfinished workout?")) {
-      return;
-    }
-    state.activeWorkoutDraft = null;
-    workoutSummaryDraft = null;
-    saveState();
-    closeModal("active-workout");
-    closeModal("workout-summary");
-    renderWorkoutPage();
-    if (!fromBanner) {
-      showToast("Workout discarded");
-    }
+    openConfirmActionSheet(
+      "Discard Workout",
+      "Discard the unfinished workout?",
+      "Discard Workout",
+      () => {
+        state.activeWorkoutDraft = null;
+        workoutSummaryDraft = null;
+        saveState();
+        closeModal("active-workout");
+        closeModal("workout-summary");
+        renderWorkoutPage();
+        if (!fromBanner) {
+          showToast("Workout discarded");
+        }
+      },
+      "destructive"
+    );
   }
 
   function renderActiveWorkout() {
@@ -1601,21 +1675,50 @@
     if (!set) {
       return;
     }
-    const choice = window.prompt("Type warmup, working, dropset, or delete", set.type);
-    if (!choice) {
-      return;
-    }
-    if (choice.toLowerCase() === "delete") {
-      if (log.sets.length <= 1) {
-        showToast("Keep at least one set");
-        return;
+    openActionSheet("Set Options", [
+      {
+        label: "Warmup",
+        style: set.type === "warmup" ? "default" : "muted",
+        onClick: () => {
+          set.type = "warmup";
+          saveState();
+          renderActiveWorkout();
+        }
+      },
+      {
+        label: "Working",
+        style: set.type === "working" ? "default" : "muted",
+        onClick: () => {
+          set.type = "working";
+          saveState();
+          renderActiveWorkout();
+        }
+      },
+      {
+        label: "Dropset",
+        style: set.type === "dropset" ? "default" : "muted",
+        onClick: () => {
+          set.type = "dropset";
+          saveState();
+          renderActiveWorkout();
+        }
+      },
+      {
+        label: "Delete Set",
+        style: "destructive",
+        onClick: () => {
+          if (log.sets.length <= 1) {
+            showToast("Keep at least one set");
+            return;
+          }
+          log.sets.splice(setIndex, 1);
+          saveState();
+          renderActiveWorkout();
+        }
       }
-      log.sets.splice(setIndex, 1);
-    } else {
-      set.type = normalizeSetType(choice.toLowerCase());
-    }
-    saveState();
-    renderActiveWorkout();
+    ], {
+      message: `Set ${setIndex + 1}`
+    });
   }
 
   function areWorkingSetsComplete(sets) {
@@ -1635,18 +1738,21 @@
     const message = incomplete
       ? "Some working sets are still incomplete. Finish workout anyway?"
       : "Finish this workout?";
-    if (!window.confirm(message)) {
-      return;
-    }
-
-    const summarySession = normalizeWorkoutSession({
-      ...draft,
-      durationSeconds: draft.durationSeconds || 0,
-      created_at: draft.startedAt
-    });
-    workoutSummaryDraft = buildWorkoutSummary(summarySession);
-    document.getElementById("overlay-workout-summary").classList.add("open");
-    renderWorkoutSummary();
+    openConfirmActionSheet(
+      "Finish Workout",
+      message,
+      "Finish Workout",
+      () => {
+        const summarySession = normalizeWorkoutSession({
+          ...draft,
+          durationSeconds: draft.durationSeconds || 0,
+          created_at: draft.startedAt
+        });
+        workoutSummaryDraft = buildWorkoutSummary(summarySession);
+        document.getElementById("overlay-workout-summary").classList.add("open");
+        renderWorkoutSummary();
+      }
+    );
   }
 
   function buildWorkoutSummary(session) {
@@ -2116,4 +2222,6 @@
   window.toggleWorkoutHistorySession = toggleWorkoutHistorySession;
   window.renderWorkoutProgressSearchResults = renderWorkoutProgressSearchResults;
   window.selectWorkoutProgressExercise = selectWorkoutProgressExercise;
+  window.openActionSheet = openActionSheet;
+  window.closeActionSheet = closeActionSheet;
 })();

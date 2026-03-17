@@ -2967,6 +2967,70 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   background: var(--accent2);
 }
 
+.action-sheet {
+  width: min(100%, 520px);
+  margin-top: auto;
+  background: var(--card);
+  border-radius: 28px 28px 0 0;
+  padding: 18px 18px calc(18px + var(--safe-bottom));
+  box-shadow: 0 -18px 48px rgba(17, 24, 39, 0.16);
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+}
+
+.action-sheet-title {
+  font-size: 20px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--text);
+}
+
+.action-sheet-body {
+  display: grid;
+  gap: 10px;
+}
+
+.action-sheet-message {
+  color: var(--text2);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: center;
+  margin-bottom: 2px;
+}
+
+.action-sheet-btn {
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  padding: 15px 16px;
+  font-size: 15px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--text);
+}
+
+.action-sheet-btn--default {
+  background: rgba(255, 107, 53, 0.12);
+  border-color: rgba(255, 107, 53, 0.2);
+  color: var(--accent);
+}
+
+.action-sheet-btn--destructive {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.16);
+  color: #c2410c;
+}
+
+.action-sheet-btn--muted {
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--text2);
+}
+
+.action-sheet-cancel {
+  margin-top: 2px;
+}
+
 @media (max-width: 380px) {
   .workout-active-header,
   .workout-active-progress,
