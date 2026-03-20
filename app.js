@@ -134,6 +134,7 @@ function normalizeLogRecord(log) {
   const normalizedOrder = normalizePositiveInteger(log?.mealOrder ?? log?.meal_order ?? 0, 0);
   return {
     ...(log || {}),
+    time: normalizeTimeValue(log?.time || log?.logged_time || ""),
     mealSection: normalizedSection,
     mealOrder: normalizedOrder
   };
@@ -550,6 +551,7 @@ async function syncStateToCloud() {
       id: log.id,
       user_id: userId,
       logged_on: log.date,
+      logged_time: normalizeTimeValue(log.time || ""),
       name: log.name,
       quantity: roundNutrient(log.quantity || 0),
       portion_name: log.portionName || "",
@@ -647,6 +649,7 @@ async function loadUserState(userId) {
       logs: (logsResult.data || []).map((row) => ({
         id: row.id,
         date: row.logged_on,
+        time: row.logged_time || "",
         name: row.name,
         quantity: row.quantity,
         portionName: row.portion_name || "",
@@ -1103,6 +1106,37 @@ function todayStr() {
   const now = new Date();
   const local = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
   return local.toISOString().slice(0, 10);
+}
+
+function currentLocalTimeStr() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
+
+function currentLocalDateTimeIso() {
+  const now = new Date();
+  const local = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
+  return local.toISOString().slice(0, 19);
+}
+
+function normalizeTimeValue(value) {
+  const raw = String(value || "").trim();
+  return /^\d{2}:\d{2}$/.test(raw) ? raw : "";
+}
+
+function getLogTimeValue(log) {
+  const explicitTime = normalizeTimeValue(log?.time || log?.logged_time || "");
+  if (explicitTime) {
+    return explicitTime;
+  }
+  const timestamp = log?.created_at;
+  if (timestamp) {
+    const parsed = new Date(timestamp);
+    if (!Number.isNaN(parsed.getTime())) {
+      return `${String(parsed.getHours()).padStart(2, "0")}:${String(parsed.getMinutes()).padStart(2, "0")}`;
+    }
+  }
+  return "";
 }
 
 function todayLogs() {
@@ -1850,7 +1884,10 @@ function getLogMealSection(log) {
 }
 
 function getLogSortTimestamp(log) {
-  const timestamp = log?.created_at || `${log?.date || todayStr()}T12:00:00`;
+  const explicitTime = getLogTimeValue(log);
+  const timestamp = explicitTime
+    ? `${log?.date || todayStr()}T${explicitTime}:00`
+    : (log?.created_at || `${log?.date || todayStr()}T12:00:00`);
   const parsed = new Date(timestamp);
   return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
 }
@@ -1900,6 +1937,7 @@ function openEditLogModal(id) {
   document.getElementById("edit-log-fat").value = roundNutrient(log.fat || 0);
   document.getElementById("edit-log-quantity").value = parsed.quantity > 0 ? roundNutrient(parsed.quantity) : "";
   document.getElementById("edit-log-portion").value = parsed.portionName || "";
+  document.getElementById("edit-log-time").value = getLogTimeValue(log) || currentLocalTimeStr();
   document.getElementById("edit-log-section").value = normalizeMealSection(log.mealSection || "");
   document.getElementById("edit-log-order").value = normalizePositiveInteger(log.mealOrder, 0) || "";
   document.getElementById("edit-log-status").textContent = "";
@@ -1917,6 +1955,7 @@ function openCreateLogModal(date = todayStr()) {
   document.getElementById("edit-log-fat").value = "";
   document.getElementById("edit-log-quantity").value = "";
   document.getElementById("edit-log-portion").value = "";
+  document.getElementById("edit-log-time").value = currentLocalTimeStr();
   document.getElementById("edit-log-section").value = "";
   document.getElementById("edit-log-order").value = "";
   document.getElementById("edit-log-status").textContent = "";
@@ -1936,6 +1975,7 @@ function saveEditedLog() {
   const fat = normalizePositiveNumber(document.getElementById("edit-log-fat").value, -1);
   const quantity = normalizePositiveNumber(document.getElementById("edit-log-quantity").value, 0);
   const portionName = document.getElementById("edit-log-portion").value.trim();
+  const time = normalizeTimeValue(document.getElementById("edit-log-time").value);
   const mealSection = normalizeMealSection(document.getElementById("edit-log-section").value);
   const mealOrder = normalizePositiveInteger(document.getElementById("edit-log-order").value, 0);
 
@@ -1958,6 +1998,7 @@ function saveEditedLog() {
     state.logs[index] = {
       ...state.logs[index],
       name,
+      time,
       quantity: roundNutrient(quantity),
       portionName,
       mealSection,
@@ -1972,6 +2013,7 @@ function saveEditedLog() {
       id: uid(),
       date: editingLogDate || todayStr(),
       name,
+      time,
       quantity: roundNutrient(quantity),
       portionName,
       mealSection,
@@ -1980,7 +2022,7 @@ function saveEditedLog() {
       pro: roundNutrient(pro),
       carb: roundNutrient(carb),
       fat: roundNutrient(fat),
-      created_at: new Date().toISOString()
+      created_at: currentLocalDateTimeIso()
     });
   }
 
@@ -2411,6 +2453,7 @@ function logFromFood() {
   state.logs.push({
     id: uid(),
     date: todayStr(),
+    time: currentLocalTimeStr(),
     name: food.name,
     quantity: roundNutrient(amount),
     portionName,
@@ -2419,7 +2462,8 @@ function logFromFood() {
     cal: roundNutrient(food.cal * ratio),
     pro: roundNutrient(food.pro * ratio),
     carb: roundNutrient((food.carb || 0) * ratio),
-    fat: roundNutrient((food.fat || 0) * ratio)
+    fat: roundNutrient((food.fat || 0) * ratio),
+    created_at: currentLocalDateTimeIso()
   });
 
   saveState();
@@ -2858,6 +2902,7 @@ function logAiEstimate() {
   state.logs.push({
     id: uid(),
     date: todayStr(),
+    time: currentLocalTimeStr(),
     name: values.name,
     quantity: roundNutrient(values.quantity),
     portionName: values.portionName,
@@ -2866,7 +2911,8 @@ function logAiEstimate() {
     cal: roundNutrient(values.calories),
     pro: roundNutrient(values.protein),
     carb: roundNutrient(values.carb),
-    fat: roundNutrient(values.fat)
+    fat: roundNutrient(values.fat),
+    created_at: currentLocalDateTimeIso()
   });
 
   const shouldSave = document.getElementById("ai-save-to-foods")?.checked;
@@ -2983,6 +3029,7 @@ function logCustom() {
   state.logs.push({
     id: uid(),
     date: todayStr(),
+    time: currentLocalTimeStr(),
     name: values.name,
     quantity: roundNutrient(values.quantity),
     portionName: values.portionName,
@@ -2991,7 +3038,8 @@ function logCustom() {
     cal: values.cal,
     pro: values.pro,
     carb: values.carb,
-    fat: values.fat
+    fat: values.fat,
+    created_at: currentLocalDateTimeIso()
   });
   const shouldSave = document.getElementById("custom-save-to-foods")?.checked;
   if (shouldSave) {
@@ -3361,12 +3409,9 @@ function inferMealTimeKey(log) {
 }
 
 function getLogHour(log) {
-  const timestamp = log?.created_at;
-  if (timestamp) {
-    const parsed = new Date(timestamp);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.getHours();
-    }
+  const explicitTime = getLogTimeValue(log);
+  if (explicitTime) {
+    return Number.parseInt(explicitTime.slice(0, 2), 10);
   }
   return 15;
 }

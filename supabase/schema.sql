@@ -31,6 +31,7 @@ create table if not exists public.meal_logs (
   id text primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
   logged_on date not null,
+  logged_time text not null default '',
   name text not null,
   quantity numeric not null default 0,
   portion_name text not null default '',
@@ -42,6 +43,9 @@ create table if not exists public.meal_logs (
   fat numeric not null default 0,
   created_at timestamptz not null default now()
 );
+
+alter table public.meal_logs
+  add column if not exists logged_time text not null default '';
 
 create table if not exists public.water_logs (
   id text primary key,
