@@ -3057,12 +3057,12 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .health-tab-row {
-  overflow-x: auto;
-  padding-bottom: 2px;
-  margin-bottom: 16px;
-  gap: 10px;
-  flex-wrap: nowrap;
-  scrollbar-width: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0 20px 16px;
+  padding: 6px;
+  overflow: hidden;
 }
 
 .health-tab-row::-webkit-scrollbar {
@@ -3070,8 +3070,10 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .health-tab-row .tab-pill {
-  flex: 0 0 auto;
-  min-width: max-content;
+  flex: initial;
+  min-width: 0;
+  white-space: nowrap;
+  padding-inline: 10px;
 }
 
 .health-sheet {

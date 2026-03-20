@@ -975,13 +975,13 @@
     const dueToday = getDueTodayMedications();
     const active = state.medications.filter((item) => item.isActive);
     const inactive = state.medications.filter((item) => !item.isActive);
+    const hasAnyMedication = active.length || inactive.length;
     return `
       ${renderHealthTopBar('Medications', 'Add Medication', 'openMedicationModal()')}
       ${dueToday.length ? `<div class="card health-card"><div class="card-label">Due Today</div><div class="health-pill-row">${dueToday.map((item) => `<button class="health-pill" type="button" onclick="markMedicationTaken('${item.id}')">✓ ${escHtml(item.name)} ${escHtml(item.dose || '')}</button>`).join('')}</div></div>` : ''}
-      <div class="health-section-title-wrap"><div class="health-section-title">Active</div></div>
-      <div class="health-list">${active.length ? active.map((item) => renderMedicationCard(item)).join('') : renderHealthEmptyCard('No active medications.', 'Add Medication', 'openMedicationModal()')}</div>
-      <div class="health-section-title-wrap"><div class="health-section-title">Inactive / Past</div></div>
-      <div class="health-list">${inactive.length ? inactive.map((item) => renderMedicationCard(item)).join('') : renderHealthEmptyCard('No past medications yet.')}</div>
+      ${!hasAnyMedication ? renderHealthEmptyCard('No medications yet.', 'Add Medication', 'openMedicationModal()') : ''}
+      ${active.length ? `<div class="health-section-title-wrap"><div class="health-section-title">Active</div></div><div class="health-list">${active.map((item) => renderMedicationCard(item)).join('')}</div>` : ''}
+      ${inactive.length ? `<div class="health-section-title-wrap"><div class="health-section-title">Inactive / Past</div></div><div class="health-list">${inactive.map((item) => renderMedicationCard(item)).join('')}</div>` : ''}
     `;
   }
 
