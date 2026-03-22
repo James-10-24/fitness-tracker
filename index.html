@@ -908,6 +908,26 @@
     </div>
   </div>
 
+  <div class="overlay" id="overlay-plate-calc" onclick="closeModal('plate-calc')">
+    <div class="sheet workout-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title">Plate Calculator</div>
+      <div class="form-group">
+        <label class="form-label">Target Weight (kg)</label>
+        <input class="form-input" id="plate-calc-target" type="number" step="0.5" min="0" placeholder="e.g. 100" oninput="renderPlateCalcResult()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Bar Weight</label>
+        <div class="segmented-control">
+          <button class="segmented-btn active" type="button" onclick="setPlateCalcBar(20, this)">Standard 20kg</button>
+          <button class="segmented-btn" type="button" onclick="setPlateCalcBar(15, this)">Women's 15kg</button>
+          <button class="segmented-btn" type="button" onclick="setPlateCalcBar(10, this)">EZ Bar 10kg</button>
+        </div>
+      </div>
+      <div id="plate-calc-result" class="plate-calc-result"></div>
+    </div>
+  </div>
+
   <div id="overlay-action-sheet" class="overlay" role="dialog" aria-modal="true" onclick="closeActionSheet()">
     <div class="action-sheet" onclick="event.stopPropagation()">
       <div class="action-sheet-title" id="action-sheet-title"></div>

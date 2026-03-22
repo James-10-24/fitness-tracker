@@ -3037,6 +3037,13 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   padding-bottom: 4px;
 }
 
+.workout-library-filter-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
 .workout-weekday-pill,
 .workout-filter-pill {
   border: 1px solid var(--border);
@@ -3314,7 +3321,7 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .workout-set-inputs {
   margin-top: 10px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   align-items: center;
 }
@@ -3419,6 +3426,12 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   margin-bottom: 4px;
 }
 
+.workout-session-difficulty {
+  margin-top: 4px;
+  color: var(--accent);
+  font-size: 12px;
+}
+
 .workout-session-set-list,
 .workout-streak-metrics {
   display: grid;
@@ -3487,6 +3500,255 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .workout-month-dot.done {
   background: var(--accent2);
+}
+
+.workout-archived-section {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.workout-archived-toggle {
+  width: 100%;
+  border: none;
+  background: transparent;
+  display: flex;
+  justify-content: space-between;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 0 6px;
+}
+
+.workout-routine-card--archived {
+  opacity: 0.88;
+}
+
+/* Copy set button */
+.workout-copy-btn {
+  width: auto;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 16px;
+  flex: 0 0 auto;
+}
+
+/* Undo button in active workout header */
+.workout-undo-btn {
+  width: auto;
+  min-width: 0;
+  padding: 7px 14px;
+  font-size: 13px;
+  flex: 0 0 auto;
+}
+
+/* Swap exercise button */
+.workout-swap-btn {
+  width: auto;
+  min-width: 0;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+/* RPE picker */
+.workout-rpe-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 0 4px;
+  border-top: 1px solid var(--border);
+  animation: fadeSlideDown 0.2s ease;
+}
+
+@keyframes fadeSlideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.workout-rpe-label {
+  font-size: 12px;
+  color: var(--text2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.workout-rpe-options {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.workout-rpe-btn {
+  border: 1.5px solid var(--border);
+  background: rgba(255,255,255,0.8);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.workout-rpe-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.workout-rpe-skip {
+  color: var(--text2);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.workout-set-rpe-display {
+  font-size: 11px;
+  color: var(--text2);
+  text-align: right;
+  padding-top: 2px;
+}
+
+/* Stagnation alert */
+.workout-stagnation-alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(217, 119, 6, 0.07);
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  border-left: 3px solid #d97706;
+  margin-top: 8px;
+}
+
+.workout-stagnation-tip {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+/* Muscle group volume balance bars */
+.workout-volume-balance-card {
+  margin: 0 16px 14px;
+}
+
+.workout-volume-bars {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.workout-volume-bar-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 52px;
+  align-items: center;
+  gap: 8px;
+}
+
+.workout-volume-bar-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  text-align: right;
+}
+
+.workout-volume-bar-track {
+  height: 8px;
+  background: rgba(24,33,47,0.07);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.workout-volume-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: inherit;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.workout-volume-bar-value {
+  font-size: 11px;
+  color: var(--text2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Plate calculator */
+.plate-calc-result {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.plate-calc-side-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+
+.plate-calc-plates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.plate-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.plate-pill--25 { background: #dc2626; }
+.plate-pill--20 { background: #2563eb; }
+.plate-pill--15 { background: #d97706; }
+.plate-pill--10 { background: #16a34a; }
+.plate-pill--5 { background: var(--text2); }
+.plate-pill--2_5 { background: #dc2626; opacity: 0.7; }
+.plate-pill--1_25 { background: #9ca3af; }
+
+/* Difficulty rating */
+.workout-difficulty-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.workout-difficulty-btn {
+  border: 1.5px solid var(--border);
+  background: rgba(255,255,255,0.8);
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  color: var(--text2);
+}
+
+.workout-difficulty-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+/* Export button row */
+.workout-export-row {
+  padding: 16px 16px 8px;
+  display: flex;
+  justify-content: center;
+}
+
+.workout-export-row .btn {
+  width: auto;
+  min-width: 160px;
 }
 
 .action-sheet {
