@@ -3763,7 +3763,7 @@ function buildGoalRecommendationNote(fitnessGoal, activity, olderAdult = false) 
     very: "very active"
   }[activity] || "moderately active";
   const ageSuffix = olderAdult ? " Protein is set slightly higher to support muscle retention in adults 65+." : "";
-  return `Suggested from NIH/National Academies guidance for a ${activityCopy} routine and ${goalCopy}.${ageSuffix} You can still edit any target manually.`;
+  return `Calculated from Mifflin-St Jeor energy needs, a gender-aware calorie floor, and macro targets tuned for a ${activityCopy} routine and ${goalCopy}. Water uses drinking-water guidance rather than total fluid intake.${ageSuffix} You can still edit any target manually.`;
 }
 
 function clamp(value, min, max) {
