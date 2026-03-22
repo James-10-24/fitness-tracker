@@ -494,7 +494,8 @@
       routineId: draft?.routineId || null,
       routineName: String(draft?.routineName || "Freeform Workout"),
       date: draft?.date || todayStr(),
-      startedAt: draft?.startedAt || new Date().toISOString(),
+      created_at: draft?.created_at || new Date().toISOString(),
+      startedAt: draft?.startedAt || null,
       currentExerciseIndex: clamp(Number(draft?.currentExerciseIndex || 0), 0, Math.max((draft?.sessionExercises?.length || 1) - 1, 0)),
       sessionExercises: Array.isArray(draft?.sessionExercises)
         ? draft.sessionExercises.map((item, index) => normalizeRoutineExercise(item, index)).filter(Boolean)
@@ -1239,7 +1240,8 @@
       routineId: null,
       routineName: "Freeform Workout",
       date: todayStr(),
-      startedAt: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      startedAt: null,
       currentExerciseIndex: 0,
       sessionExercises: [],
       exerciseLogs: [],
@@ -1284,7 +1286,8 @@
       routineId: routine.id,
       routineName: routine.name,
       date: todayStr(),
-      startedAt: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      startedAt: null,
       currentExerciseIndex: 0,
       sessionExercises,
       exerciseLogs,
@@ -1377,16 +1380,18 @@
     const currentExerciseMeta = currentExercise ? getExerciseById(currentExercise.exerciseId) : null;
     const currentLog = currentExercise ? ensureWorkoutExerciseLog(draft.currentExerciseIndex) : null;
     const lastExerciseLog = currentExercise ? findLatestSessionForExercise(currentExercise.exerciseId)?.exerciseLogs?.find((log) => log.exerciseId === currentExercise.exerciseId) : null;
+    const timerRunning = !!draft.startedAt;
     root.innerHTML = `
       <div class="workout-active-header">
         <div>
           <div class="workout-active-routine">${escHtml(draft.routineName || "Workout")}</div>
           <div class="workout-active-timer" id="active-workout-elapsed">
-            ${formatElapsedTime(draft.startedAt)}
+            ${formatElapsedTime(draft)}
           </div>
         </div>
         <div class="workout-inline-actions">
-          <button class="btn btn-primary" type="button" onclick="finishActiveWorkoutPrompt()">Finish</button>
+          <button class="btn btn-${timerRunning ? "secondary" : "primary"}" type="button" onclick="${timerRunning ? "pauseActiveWorkoutTimer()" : "startActiveWorkoutTimer()"}">${timerRunning ? "Pause" : "Start"}</button>
+          <button class="btn btn-secondary" type="button" onclick="stopActiveWorkoutTimer()">Stop</button>
         </div>
       </div>
       <div class="workout-active-progress">
@@ -1399,12 +1404,17 @@
     `;
 
     clearInterval(workoutElapsedInterval);
+    if (!draft.startedAt) {
+      workoutElapsedInterval = null;
+      return;
+    }
     workoutElapsedInterval = setInterval(() => {
       const el = document.getElementById("active-workout-elapsed");
-      if (el && state.activeWorkoutDraft?.startedAt) {
-        el.textContent = formatElapsedTime(state.activeWorkoutDraft.startedAt);
+      if (el && state.activeWorkoutDraft) {
+        el.textContent = formatElapsedTime(state.activeWorkoutDraft);
       } else {
         clearInterval(workoutElapsedInterval);
+        workoutElapsedInterval = null;
       }
     }, 1000);
   }
@@ -1720,10 +1730,61 @@
     return `${mins}:${String(remainder).padStart(2, "0")}`;
   }
 
-  function formatElapsedTime(startedAt) {
-    if (!startedAt) return "0:00";
-    const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
-    return formatDuration(Math.max(0, elapsed));
+  function getWorkoutElapsedSeconds(draft) {
+    if (!draft) {
+      return 0;
+    }
+    const baseElapsed = Math.max(0, Math.round(draft.durationSeconds || 0));
+    if (!draft.startedAt) {
+      return baseElapsed;
+    }
+    const runningElapsed = Math.floor((Date.now() - new Date(draft.startedAt).getTime()) / 1000);
+    return Math.max(0, baseElapsed + runningElapsed);
+  }
+
+  function finalizeWorkoutElapsed(draft) {
+    if (!draft) {
+      return 0;
+    }
+    draft.durationSeconds = getWorkoutElapsedSeconds(draft);
+    draft.startedAt = null;
+    return draft.durationSeconds;
+  }
+
+  function formatElapsedTime(draft) {
+    return formatDuration(getWorkoutElapsedSeconds(draft));
+  }
+
+  function startActiveWorkoutTimer() {
+    const draft = state.activeWorkoutDraft;
+    if (!draft || draft.startedAt) {
+      return;
+    }
+    draft.startedAt = new Date().toISOString();
+    saveState();
+    renderActiveWorkout();
+  }
+
+  function pauseActiveWorkoutTimer() {
+    const draft = state.activeWorkoutDraft;
+    if (!draft?.startedAt) {
+      return;
+    }
+    finalizeWorkoutElapsed(draft);
+    saveState();
+    renderActiveWorkout();
+  }
+
+  function stopActiveWorkoutTimer() {
+    const draft = state.activeWorkoutDraft;
+    if (!draft) {
+      return;
+    }
+    if (draft.startedAt) {
+      finalizeWorkoutElapsed(draft);
+      saveState();
+    }
+    finishActiveWorkoutPrompt();
   }
 
   function jumpWorkoutExercise(delta) {
@@ -1951,6 +2012,10 @@
     if (!draft) {
       return;
     }
+    if (draft.startedAt) {
+      finalizeWorkoutElapsed(draft);
+      saveState();
+    }
     const incomplete = draft.exerciseLogs.some((log) => !areWorkingSetsComplete(log.sets || []));
     const message = incomplete
       ? "Some working sets are still incomplete. Finish workout anyway?"
@@ -1963,7 +2028,7 @@
         const summarySession = normalizeWorkoutSession({
           ...draft,
           durationSeconds: draft.durationSeconds || 0,
-          created_at: draft.startedAt
+          created_at: draft.created_at || new Date().toISOString()
         });
         workoutSummaryDraft = buildWorkoutSummary(summarySession);
         document.getElementById("overlay-workout-summary").classList.add("open");
@@ -2529,6 +2594,9 @@
   window.startRoutineWorkout = startRoutineWorkout;
   window.startFreeformWorkout = startFreeformWorkout;
   window.resumeWorkoutDraft = resumeWorkoutDraft;
+  window.startActiveWorkoutTimer = startActiveWorkoutTimer;
+  window.pauseActiveWorkoutTimer = pauseActiveWorkoutTimer;
+  window.stopActiveWorkoutTimer = stopActiveWorkoutTimer;
   window.discardWorkoutDraft = discardWorkoutDraft;
   window.jumpWorkoutExercise = jumpWorkoutExercise;
   window.openWorkoutJump = openWorkoutJump;
