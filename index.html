@@ -779,6 +779,15 @@
         <button class="btn btn-primary" type="button" onclick="saveDisplayName()">Save Name</button>
         <div class="api-status" id="account-status" aria-live="polite"></div>
         <button class="btn btn-secondary" type="button" onclick="logout()">Log Out</button>
+
+        <div class="account-danger-zone">
+          <div class="account-danger-label">Danger Zone</div>
+          <p class="account-danger-desc">Permanently delete your account and all associated data. This action is irreversible.</p>
+          <button class="btn btn-danger" id="account-delete-btn" type="button" onclick="promptDeleteAccount()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:-2px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            Delete Account &amp; All Data
+          </button>
+        </div>
       </div>
       <button class="btn btn-secondary" type="button" onclick="closeModal('account')">Close</button>
     </div>

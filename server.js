@@ -7,6 +7,11 @@ loadEnvFile(path.join(__dirname, ".env"));
 const PORT = Number(process.env.PORT || 8080);
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+// These must be in .env — never expose the service role key to the frontend
+// SUPABASE_URL=https://xxxx.supabase.co
+// SUPABASE_SERVICE_ROLE_KEY=eyJ...
+const SUPABASE_URL = process.env.SUPABASE_URL || "";
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const PUBLIC_DIR = __dirname;
 
 const MIME_TYPES = {
@@ -52,6 +57,11 @@ const server = http.createServer(async (req, res) => {
     }
     if (requestUrl.pathname === "/api/health-content" && req.method === "POST") {
       const handler = require("./api/health-content.js");
+      await handler(req, res);
+      return;
+    }
+    if (requestUrl.pathname === "/api/delete-account" && req.method === "POST") {
+      const handler = require("./api/delete-account.js");
       await handler(req, res);
       return;
     }

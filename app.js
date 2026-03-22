@@ -1079,6 +1079,22 @@ async function saveDisplayName() {
   }
 }
 
+function openConfirmActionSheet(title, message, confirmLabel, onConfirm, options = {}) {
+  if (typeof window.openActionSheet === "function") {
+    window.openActionSheet(title, [
+      {
+        label: options.confirmLabel || confirmLabel,
+        style: options.destructive ? "destructive" : (options.confirmStyle || "default"),
+        onClick: onConfirm
+      }
+    ], { message });
+    return;
+  }
+  if (window.confirm(message)) {
+    onConfirm();
+  }
+}
+
 async function logout() {
   if (!supabaseClient) {
     return;
@@ -1088,6 +1104,12 @@ async function logout() {
     showToast(result.error.message || "Logout failed");
     return;
   }
+
+  if (currentUser?.id) {
+    try { localStorage.removeItem(getStorageKey(currentUser.id)); } catch (_e) {}
+  }
+  try { localStorage.removeItem("hale_learn_cache"); } catch (_e) {}
+
   closeModal("account");
   document.getElementById("auth-email").value = "";
   document.getElementById("auth-password").value = "";
@@ -1100,6 +1122,98 @@ async function logout() {
   setSavedAuthPreference("guest");
   setRecoveryMode(false);
   trackAmplitudeEvent("logout");
+}
+
+function promptDeleteAccount() {
+  openConfirmActionSheet(
+    "Delete Account",
+    "This will permanently delete your account and wipe ALL data — meals, workouts, health records, goals, and custom foods. This cannot be undone.",
+    "Delete My Account",
+    confirmDeleteAccount,
+    { destructive: true, confirmLabel: "Delete My Account", cancelLabel: "Keep Account" }
+  );
+}
+
+async function confirmDeleteAccount() {
+  if (!supabaseClient) return;
+
+  const statusEl = document.getElementById("account-status");
+  const deleteBtn = document.getElementById("account-delete-btn");
+
+  if (statusEl) statusEl.textContent = "Deleting your account…";
+  if (deleteBtn) deleteBtn.disabled = true;
+
+  try {
+    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError || !sessionData?.session?.access_token) {
+      throw new Error("Could not retrieve session. Please sign in again.");
+    }
+    const jwt = sessionData.session.access_token;
+
+    const response = await fetch("/api/delete-account", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`
+      }
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "Account deletion failed. Please try again.");
+    }
+
+    wipeAllLocalData();
+
+    try { await supabaseClient.auth.signOut(); } catch (_e) {}
+
+    closeModal("account");
+    state = createInitialState();
+    currentUser = null;
+    hasLoadedUserState = false;
+    clearTimeout(cloudSyncTimer);
+    isGuestMode = true;
+    authScreenForced = false;
+    setRecoveryMode(false);
+    try { localStorage.removeItem(AUTH_PREFERENCE_KEY); } catch (_e) {}
+    renderApp();
+    updateAuthUi();
+    showToast("Your account and all data have been deleted.");
+  } catch (err) {
+    if (statusEl) statusEl.textContent = err.message || "Deletion failed. Please try again.";
+    if (deleteBtn) deleteBtn.disabled = false;
+  }
+}
+
+function wipeAllLocalData() {
+  const KNOWN_KEYS = [
+    "nutrilog_v3",
+    "nutrilog_v1",
+    "viva_ai_auth_pref",
+    "hale_learn_cache"
+  ];
+
+  const allKeys = [];
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key) allKeys.push(key);
+    }
+  } catch (_e) {}
+
+  const toRemove = allKeys.filter((key) =>
+    KNOWN_KEYS.includes(key)
+    || key.startsWith("nutrilog_v3:")
+    || key.startsWith("nutrilog_v1:")
+    || key.startsWith("hale_")
+    || key.startsWith("viva_ai_")
+  );
+
+  toRemove.forEach((key) => {
+    try { localStorage.removeItem(key); } catch (_e) {}
+  });
+
+  try { sessionStorage.clear(); } catch (_e) {}
 }
 
 function todayStr() {
@@ -4034,3 +4148,5 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("touchend", handlePullTouchEnd, { passive: true });
   document.addEventListener("touchcancel", handlePullTouchEnd, { passive: true });
 });
+
+window.promptDeleteAccount = promptDeleteAccount;
