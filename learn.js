@@ -203,11 +203,22 @@
     if (!article) return;
 
     const meta = CATEGORY_META[article.category] || CATEGORY_META.health;
+
+    // Set category pill in nav
     const categoryEl = document.getElementById("article-reader-category");
-    const contentEl = document.getElementById("article-reader-content");
     if (categoryEl) {
       categoryEl.innerHTML = `<span class="learn-category-pill" style="--cat-color:${meta.color}">${meta.icon}${escHtml(capitalise(article.category))}</span>`;
     }
+
+    // Set accent bar colour
+    const accentBar = document.getElementById("article-reader-accent-bar");
+    if (accentBar) {
+      accentBar.style.background = meta.color;
+      accentBar.style.opacity = "0.7";
+    }
+
+    // Render article content
+    const contentEl = document.getElementById("article-reader-content");
     if (contentEl) {
       contentEl.innerHTML = `
         <h2 class="article-reader-title">${escHtml(article.title)}</h2>
@@ -216,43 +227,75 @@
           <span class="article-reader-dot">·</span>
           <span>${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
         </div>
-        <div class="article-reader-body">${renderArticleBody(article.body)}</div>
+        <div class="article-reader-divider"></div>
+        ${renderArticleBody(article.body)}
         <div class="article-relevance-box">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <span>Why this article? ${escHtml(article.relevanceReason)}</span>
         </div>
         <div class="article-reader-tags">${(article.tags || []).map((tag) => `<span class="learn-tag">${escHtml(tag)}</span>`).join("")}</div>
       `;
+      // Scroll content area back to top
+      contentEl.scrollTop = 0;
     }
 
+    // Open overlay with slide-in animation
     const overlay = document.getElementById("overlay-article-reader");
     if (overlay) {
-      overlay.classList.remove("hidden");
-      overlay.classList.add("open");
-      overlay.scrollTop = 0;
+      overlay.classList.remove("hidden", "closing");
+      // Force a paint before adding 'open' so the transition fires from translateX(100%)
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          overlay.classList.add("open");
+        });
+      });
     }
   }
 
   function closeArticleReader() {
     const overlay = document.getElementById("overlay-article-reader");
-    if (overlay) {
+    if (!overlay) return;
+    overlay.classList.add("closing");
+    overlay.classList.remove("open");
+    // Wait for slide-out animation to finish before hiding
+    const onEnd = () => {
+      overlay.classList.remove("closing");
       overlay.classList.add("hidden");
-      overlay.classList.remove("open");
-    }
+      overlay.removeEventListener("transitionend", onEnd);
+    };
+    overlay.addEventListener("transitionend", onEnd);
+    // Fallback in case transitionend doesn't fire
+    setTimeout(() => {
+      if (overlay.classList.contains("closing")) {
+        overlay.classList.remove("closing");
+        overlay.classList.add("hidden");
+      }
+    }, 380);
   }
 
   function renderArticleBody(body) {
     if (!body) return "";
-    return body.split("\n").map((line) => {
+    const lines = body.split("\n");
+    const html = [];
+    let inList = false;
+
+    lines.forEach((line) => {
       if (line.startsWith("## ")) {
-        return `<h3 class="article-body-heading">${escHtml(line.slice(3))}</h3>`;
+        if (inList) { html.push("</ul>"); inList = false; }
+        html.push(`<h3 class="article-body-heading">${escHtml(line.slice(3))}</h3>`);
+      } else if (line.startsWith("- ")) {
+        if (!inList) { html.push('<ul class="article-body-list">'); inList = true; }
+        html.push(`<li class="article-body-li">${renderInline(line.slice(2))}</li>`);
+      } else if (line.trim() === "") {
+        if (inList) { html.push("</ul>"); inList = false; }
+      } else {
+        if (inList) { html.push("</ul>"); inList = false; }
+        html.push(`<p class="article-body-p">${renderInline(line)}</p>`);
       }
-      if (line.startsWith("- ")) {
-        return `<li class="article-body-li">${renderInline(line.slice(2))}</li>`;
-      }
-      if (line.trim() === "") return "";
-      return `<p class="article-body-p">${renderInline(line)}</p>`;
-    }).join("");
+    });
+
+    if (inList) html.push("</ul>");
+    return html.join("");
   }
 
   function renderInline(text) {
