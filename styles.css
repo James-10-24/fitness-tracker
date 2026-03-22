@@ -2749,17 +2749,40 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   margin-bottom: 14px;
 }
 
+/* Today's Routine card gets an energetic accent glow */
+.workout-home-card:first-child::after {
+  content: "";
+  position: absolute;
+  top: -30px;
+  right: -30px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
 .workout-inline-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin-top: 14px;
 }
 
 .workout-inline-actions .btn {
+  flex: 1;
   width: auto;
+  padding: 9px 14px;
+  font-size: 14px;
+  white-space: nowrap;
 }
 
-.workout-assigned-card,
+/* Assigned (today's) card — lives inside .card, so no double border */
+.workout-assigned-card {
+  padding: 4px 0 0;
+}
+
+/* Routine list items — distinct cards within the list */
 .workout-routine-card,
 .workout-session-card,
 .workout-template-card,
@@ -2773,20 +2796,62 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   background: rgba(255, 255, 255, 0.78);
 }
 
-.workout-assigned-card,
-.workout-routine-card,
+.workout-routine-card {
+  padding: 14px;
+  border-left: 3px solid var(--accent);
+  transition: box-shadow 0.15s;
+}
+.workout-routine-card:hover {
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.1);
+}
+
 .workout-template-card,
 .workout-summary-exercise {
   padding: 14px;
 }
 
-.workout-assigned-title,
+/* Routine card internal layout */
+.workout-routine-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.workout-routine-head > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+.workout-routine-head .workout-inline-actions {
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  margin-top: 0;
+}
+.workout-routine-head .workout-inline-actions .btn {
+  padding: 7px 14px;
+  font-size: 13px;
+}
+
+/* Hero title for Today's Routine */
+.workout-assigned-title {
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.workout-assigned-meta {
+  margin-bottom: 2px;
+}
+
 .workout-routine-name,
 .workout-current-title,
 .workout-session-name,
 .workout-summary-exercise-name,
 .workout-template-name {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -2844,45 +2909,65 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .workout-home-actions {
   margin-top: 14px;
   display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
+}
+.workout-home-actions .btn:first-child {
+  grid-column: 1 / -1;
 }
 
 .workout-week-bar {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
+  gap: 4px;
+  padding: 4px 0;
 }
 
 .workout-week-day {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
 }
 
 .workout-week-dot {
-  width: 14px;
-  height: 14px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  border: 1.5px solid var(--border);
-  background: rgba(26, 26, 46, 0.06);
+  border: 2px solid var(--border);
+  background: transparent;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
 .workout-week-dot.done {
   background: var(--accent-green);
   border-color: var(--accent-green);
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.28);
+}
+
+.workout-week-dot.missed {
+  background: rgba(26, 26, 46, 0.04);
+  border-color: rgba(26, 26, 46, 0.12);
 }
 
 .workout-week-day.today .workout-week-dot {
-  width: 18px;
-  height: 18px;
+  width: 32px;
+  height: 32px;
   background: var(--accent);
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.22);
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.18), 0 3px 10px rgba(249, 115, 22, 0.35);
 }
 
 .workout-week-label {
   font-size: 11px;
+  font-weight: 500;
   color: var(--text2);
+  letter-spacing: 0.01em;
+}
+
+.workout-week-day.today .workout-week-label {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .workout-weekday-row,
@@ -3434,13 +3519,28 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   cursor: pointer;
 }
 
+/* ── Health page ────────────────────────────────────────────── */
+
+#page-health .page-header {
+  padding-bottom: 14px;
+}
+
+#page-health .page-subtitle {
+  font-size: 14px;
+  margin-top: 2px;
+}
+
 .health-tab-row {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  margin: 0 20px 16px;
-  padding: 6px;
-  overflow: hidden;
+  display: flex;
+  gap: 5px;
+  margin: 0 16px 16px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(24, 33, 47, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(24, 33, 47, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .health-tab-row::-webkit-scrollbar {
@@ -3448,10 +3548,21 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .health-tab-row .tab-pill {
-  flex: initial;
+  flex: 1;
   min-width: 0;
   white-space: nowrap;
-  padding-inline: 10px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  color: var(--text2);
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+}
+
+.health-tab-row .tab-pill.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(249, 115, 22, 0.3);
 }
 
 .health-sheet {
@@ -3543,36 +3654,61 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .health-top-bar {
   align-items: center;
-  margin: 0 28px 14px;
+  margin: 0 16px 14px;
+  /* Override goals-bar orange treatment — health sections use a clean divider style */
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(24, 33, 47, 0.07);
+  border-radius: 0;
+  padding: 4px 0 12px;
+  box-shadow: none;
+  transition: none;
+}
+
+.health-top-bar.goals-bar:active {
+  background: transparent;
+}
+
+.health-top-bar .goals-bar-text {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
 }
 
 .health-top-bar-action {
-  border: 0;
-  background: none;
-  color: var(--accent);
-  font-size: 15px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  padding: 0;
+  padding: 7px 16px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.25);
+  transition: opacity 0.15s, transform 0.15s;
 }
 
 .health-top-bar-action:active {
-  opacity: 0.75;
+  opacity: 0.85;
+  transform: scale(0.97);
 }
 
 .health-section-title-wrap {
-  margin: 6px 28px 0;
+  margin: 6px 16px 0;
 }
 
 #health-content > .card {
-  margin-left: 28px;
-  margin-right: 28px;
+  margin-left: 16px;
+  margin-right: 16px;
 }
 
 .health-list {
   display: grid;
-  gap: 14px;
-  padding: 0 28px;
+  gap: 12px;
+  padding: 0 16px;
 }
 
 .health-list .card {
@@ -3580,18 +3716,20 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .health-empty-card {
-  min-height: 128px;
+  min-height: 140px;
   display: grid;
   align-content: center;
-  gap: 12px;
+  gap: 14px;
+  border: 1.5px dashed rgba(24, 33, 47, 0.11);
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .health-empty-state {
   text-align: center;
   color: var(--text2);
-  font-size: 15px;
-  line-height: 1.5;
-  padding: 8px 6px;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 8px 12px;
 }
 
 .health-empty-state--compact {
@@ -3602,6 +3740,7 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .health-card {
   padding: 18px;
   gap: 14px;
+  transition: box-shadow 0.2s;
 }
 
 .health-card-header {
@@ -3621,15 +3760,33 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   cursor: default;
 }
 
+.health-card-header:not(.static)::after {
+  content: "";
+  display: block;
+  width: 18px;
+  height: 18px;
+  background: rgba(24, 33, 47, 0.06);
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-left: 4px;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 10px;
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .health-card-header > div:first-child {
   min-width: 0;
   flex: 1;
 }
 
 .health-card-title {
-  font-size: 17px;
+  font-family: var(--font-heading);
+  font-size: 19px;
   font-weight: 700;
-  line-height: 1.35;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
 }
 
 .health-card-meta,
@@ -3743,46 +3900,60 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .health-status-dots {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   flex-wrap: wrap;
   justify-content: flex-end;
   flex: 0 0 auto;
-  max-width: 96px;
+  max-width: 112px;
 }
 
 .health-status-dot {
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: rgba(24, 33, 47, 0.08);
+  border: 1.5px solid rgba(24, 33, 47, 0.14);
 }
 
 .health-status-dot.normal {
   background: #32a071;
+  border-color: #32a071;
 }
 
 .health-status-dot.borderline {
   background: #d7a53a;
+  border-color: #d7a53a;
 }
 
 .health-status-dot.alert {
   background: #d95f45;
+  border-color: #d95f45;
 }
 
 .health-status-dot.critical {
   background: #b42318;
+  border-color: #b42318;
+  box-shadow: 0 0 0 2px rgba(180, 35, 24, 0.2);
+  animation: health-critical-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes health-critical-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(180, 35, 24, 0.2); }
+  50%       { box-shadow: 0 0 0 4px rgba(180, 35, 24, 0.08), 0 0 0 2px rgba(180, 35, 24, 0.35); }
 }
 
 .health-disclaimer {
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  border-left: 2px solid rgba(24, 33, 47, 0.12);
   color: var(--text2);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 11.5px;
+  line-height: 1.6;
   margin-bottom: 14px;
+  opacity: 0.75;
+  font-style: italic;
 }
 
 .health-disclaimer--small {
@@ -3796,15 +3967,24 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .health-marker-item {
   padding: 12px 14px;
-  border-radius: 18px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.72);
+  border-radius: 12px;
+  border: 1px solid rgba(24, 33, 47, 0.07);
+  border-left: 3px solid #32a071;
+  background: rgba(255, 255, 255, 0.8);
   display: grid;
   gap: 8px;
+  transition: box-shadow 0.18s, transform 0.18s;
+}
+
+.health-marker-item:hover {
+  box-shadow: 0 4px 14px rgba(24, 33, 47, 0.09);
+  transform: translateY(-1px);
 }
 
 .health-marker-item.is-flagged {
-  border-color: rgba(217, 95, 69, 0.24);
+  border-color: rgba(217, 95, 69, 0.15);
+  border-left-color: #d95f45;
+  background: linear-gradient(to right, rgba(217, 95, 69, 0.04), rgba(255, 255, 255, 0.8));
 }
 
 .health-marker-top {
@@ -3814,11 +3994,25 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   align-items: flex-start;
 }
 
-.health-marker-name,
-.health-mini-title,
-.health-home-label,
-.health-section-title {
+.health-marker-name {
   font-weight: 700;
+  font-size: 14px;
+}
+
+.health-mini-title {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text2);
+}
+
+.health-home-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text2);
 }
 
 .health-marker-value {
@@ -3870,10 +4064,11 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .health-insight-card,
 .health-review-card {
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(123, 94, 167, 0.18);
-  background: rgba(123, 94, 167, 0.08);
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  border-left: 3px solid rgba(37, 99, 235, 0.6);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.06) 0%, rgba(255, 255, 255, 0.6) 100%);
   display: grid;
   gap: 12px;
 }
@@ -3882,8 +4077,30 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   border: 0;
   background: transparent;
   color: var(--ai-accent);
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 14px;
   text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  cursor: pointer;
+}
+
+.health-insight-toggle::before {
+  content: "";
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  background: rgba(37, 99, 235, 0.1);
+  border-radius: 6px;
+  flex-shrink: 0;
+  /* Sparkle/AI icon */
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 24 24' fill='%232563eb' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z'/%3E%3Ccircle cx='19' cy='4' r='1.5' fill='%232563eb' opacity='.5'/%3E%3Ccircle cx='5' cy='19' r='1' fill='%232563eb' opacity='.4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 12px;
 }
 
 .health-insight-group ul {
@@ -4024,25 +4241,54 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .health-pill {
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.78);
-  padding: 10px 14px;
+  border: 1.5px solid rgba(22, 163, 74, 0.3);
+  background: rgba(22, 163, 74, 0.06);
+  padding: 9px 16px;
   font-weight: 600;
-  color: var(--text);
+  font-size: 14px;
+  color: #166534;
   text-align: left;
+  transition: background 0.15s, transform 0.12s;
 }
 
-.health-home-row,
+.health-pill:hover {
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.health-pill:active {
+  transform: scale(0.97);
+}
+
+.health-home-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .health-latest-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 10px;
+}
+
+.health-latest-grid > div {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(24, 33, 47, 0.08);
+  border-top: 2px solid rgba(249, 115, 22, 0.25);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 2px;
 }
 
 .health-home-value {
-  font-size: 20px;
-  font-weight: 800;
-  line-height: 1.2;
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 2px 0 2px;
 }
 
 .health-home-block,
@@ -4053,29 +4299,32 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .health-refill-bar {
-  height: 8px;
+  height: 7px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(24, 33, 47, 0.07);
   overflow: hidden;
-  border: 1px solid var(--border);
 }
 
 .health-refill-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  background: linear-gradient(90deg, var(--accent-green), #22c55e);
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .health-med-card--prescription {
-  border-color: rgba(26, 26, 46, 0.14);
+  border-left: 3px solid #2563eb;
+  background: linear-gradient(to right, rgba(37, 99, 235, 0.03), transparent 60%);
 }
 
 .health-med-card--supplement {
-  border-color: rgba(122, 140, 120, 0.26);
+  border-left: 3px solid #16a34a;
+  background: linear-gradient(to right, rgba(22, 163, 74, 0.03), transparent 60%);
 }
 
 .health-med-card--otc {
-  border-color: rgba(196, 149, 122, 0.3);
+  border-left: 3px solid #d97706;
+  background: linear-gradient(to right, rgba(217, 119, 6, 0.03), transparent 60%);
 }
 
 .health-checkbox-list {
@@ -4089,12 +4338,12 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .health-section-title {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   color: var(--text2);
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  font-size: 11px;
-  font-weight: 500;
+  letter-spacing: 0.09em;
+  font-size: 10.5px;
+  font-weight: 700;
 }
 
 .health-history-row .health-card-header {
