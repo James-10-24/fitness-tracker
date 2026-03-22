@@ -3620,6 +3620,73 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   min-width: 120px;
 }
 
+/* Scan button row */
+.health-upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+/* Photo preview wrapper */
+.health-photo-preview-wrap {
+  position: relative;
+  display: inline-block;
+  margin-top: 8px;
+}
+
+.health-report-photo {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  object-fit: contain;
+}
+
+.health-photo-remove-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.health-photo-remove-btn:hover {
+  background: rgba(0,0,0,0.75);
+}
+
+/* Scan status message */
+#health-blood-scan-status {
+  font-size: 13px;
+  margin-top: 8px;
+  min-height: 20px;
+}
+
+#health-blood-scan-status.success {
+  color: var(--accent-green);
+}
+
+#health-blood-scan-status.error {
+  color: #dc2626;
+}
+
+/* Custom marker rows appended from scan */
+.health-marker-category-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text2);
+  padding: 12px 0 6px;
+}
+
 .health-status-dots {
   display: flex;
   gap: 6px;

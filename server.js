@@ -41,6 +41,11 @@ const server = http.createServer(async (req, res) => {
       await handleAnalyzeBloodTest(req, res);
       return;
     }
+    if (requestUrl.pathname === "/api/scan-blood-report" && req.method === "POST") {
+      const handler = require("./api/scan-blood-report.js");
+      await handler(req, res);
+      return;
+    }
     if (requestUrl.pathname === "/api/suggest-goals" && req.method === "POST") {
       await handleSuggestGoals(req, res);
       return;

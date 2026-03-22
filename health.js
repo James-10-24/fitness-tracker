@@ -1,6 +1,7 @@
 (function () {
   const HEALTH_DISCLAIMER = "Hale helps you track and understand your health data. This is not medical advice. Always discuss your results with a qualified healthcare professional.";
   const HEALTH_ANALYSIS_ENDPOINT = "/api/analyze-blood-test";
+  const HEALTH_SCAN_ENDPOINT = "/api/scan-blood-report";
   const HEALTH_PROFILE_HEIGHT_KEY = "hale_profile_height_cm";
   const MEDICATION_NOTIFICATION_CACHE_KEY = "hale_health_notification_cache";
   const HEALTH_TABS = ["blood", "body", "medications", "visits"];
@@ -26,6 +27,37 @@
     weekly: "Weekly",
     as_needed: "As needed",
     custom: "Custom"
+  };
+  const MARKER_ALIASES = {
+    "cholesterol-total": ["total chol", "tchol", "chol total", "tot cholesterol", "total cholesterol"],
+    "cholesterol-ldl": ["ldl", "ldl-c", "ldl chol", "low density lipoprotein", "ldl cholesterol"],
+    "cholesterol-hdl": ["hdl", "hdl-c", "hdl chol", "high density lipoprotein", "hdl cholesterol"],
+    "cholesterol-triglycerides": ["trig", "triglycerides", "trigs", "tg"],
+    "cholesterol-non-hdl": ["non-hdl", "non hdl chol", "non hdl cholesterol"],
+    "glucose-fasting": ["fasting glucose", "fasting blood glucose", "fbg", "fpg", "glucose fasting"],
+    "glucose-hba1c": ["hba1c", "hb a1c", "a1c", "glycated haemoglobin", "glycated hemoglobin", "glycohaemoglobin"],
+    "glucose-random": ["random glucose", "random blood glucose", "glucose random", "rbs"],
+    "blood-haemoglobin": ["haemoglobin", "hemoglobin", "hb", "hgb"],
+    "blood-haematocrit": ["haematocrit", "hematocrit", "hct", "pcv"],
+    "blood-wbc": ["wbc", "white blood cell", "white cell count", "wcc", "leucocytes", "leukocytes", "total wbc"],
+    "blood-platelets": ["platelets", "plt", "platelet count", "thrombocytes"],
+    "blood-rbc": ["rbc", "red blood cell", "red cell count", "erythrocytes"],
+    "liver-alt": ["alt", "alanine aminotransferase", "alanine transaminase", "sgpt"],
+    "liver-ast": ["ast", "aspartate aminotransferase", "aspartate transaminase", "sgot"],
+    "liver-ggt": ["ggt", "gamma gt", "gamma-glutamyl transferase", "gamma glutamyl"],
+    "liver-alp": ["alp", "alkaline phosphatase", "alk phos", "alkphos"],
+    "liver-creatinine": ["creatinine", "creat", "serum creatinine"],
+    "liver-egfr": ["egfr", "estimated gfr", "gfr", "glomerular filtration"],
+    "liver-uric-acid": ["uric acid", "urate", "serum urate", "serum uric acid"],
+    "thyroid-tsh": ["tsh", "thyroid stimulating hormone", "thyrotropin"],
+    "thyroid-ft3": ["free t3", "ft3", "free triiodothyronine", "fT3"],
+    "thyroid-ft4": ["free t4", "ft4", "free thyroxine", "fT4"],
+    vitd: ["vitamin d", "vit d", "25-oh vitamin d", "25-hydroxyvitamin d", "25ohd", "calcidiol"],
+    vitb12: ["vitamin b12", "vit b12", "b12", "cobalamin", "cyanocobalamin"],
+    folate: ["folate", "folic acid", "serum folate", "rbc folate"],
+    ferritin: ["ferritin", "serum ferritin"],
+    "serum-iron": ["serum iron", "iron", "fe", "serum fe"],
+    tibc: ["tibc", "total iron binding capacity", "transferrin saturation"]
   };
 
   const BUILTIN_BLOOD_MARKERS = [
@@ -159,8 +191,13 @@
               <div class="health-upload-actions">
                 <button class="btn btn-secondary" type="button" onclick="document.getElementById('health-blood-photo-input').click()">Attach Report Photo</button>
                 <input class="hidden" id="health-blood-photo-input" type="file" accept="image/*" onchange="handleBloodReportPhoto(event)">
+                <button class="btn btn-primary hidden" id="health-blood-scan-btn" type="button" onclick="scanBloodReportPhoto()">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:-2px"><path d="M3 7V5a2 2 0 012-2h2"/><path d="M17 3h2a2 2 0 012 2v2"/><path d="M21 17v2a2 2 0 01-2 2h-2"/><path d="M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+                  Scan &amp; Prefill
+                </button>
               </div>
               <div id="health-blood-photo-preview"></div>
+              <div class="api-status" id="health-blood-scan-status"></div>
             </div>
             <div class="health-step-view hidden" id="health-blood-view-2">
               <div class="health-disclaimer">${escHtml(HEALTH_DISCLAIMER)}</div>
@@ -1279,17 +1316,219 @@
 
   function renderBloodPhotoPreview() {
     const container = document.getElementById('health-blood-photo-preview');
-    if (!container) {
-      return;
+    const scanBtn = document.getElementById('health-blood-scan-btn');
+    const scanStatus = document.getElementById('health-blood-scan-status');
+    if (!container) return;
+
+    if (bloodPhotoDraft) {
+      container.innerHTML = `
+      <div class="health-photo-preview-wrap">
+        <img class="health-report-photo" src="${escAttr(bloodPhotoDraft)}" alt="Blood report preview">
+        <button class="btn btn-secondary health-photo-remove-btn" type="button" onclick="clearBloodReportPhoto()">Remove</button>
+      </div>
+    `;
+      if (scanBtn) scanBtn.classList.remove('hidden');
+      if (scanStatus) scanStatus.textContent = '';
+    } else {
+      container.innerHTML = '';
+      if (scanBtn) scanBtn.classList.add('hidden');
+      if (scanStatus) scanStatus.textContent = '';
     }
-    container.innerHTML = bloodPhotoDraft
-      ? `<img class="health-report-photo" src="${escAttr(bloodPhotoDraft)}" alt="Blood report preview"><button class="btn btn-secondary" type="button" onclick="clearBloodReportPhoto()">Remove photo</button>`
-      : '';
   }
 
   function clearBloodReportPhoto() {
     bloodPhotoDraft = '';
     renderBloodPhotoPreview();
+  }
+
+  async function scanBloodReportPhoto() {
+    if (!bloodPhotoDraft) return;
+
+    const scanBtn = document.getElementById('health-blood-scan-btn');
+    const statusNode = document.getElementById('health-blood-scan-status');
+
+    if (scanBtn) {
+      scanBtn.disabled = true;
+      scanBtn.textContent = 'Scanning…';
+    }
+    if (statusNode) {
+      statusNode.textContent = '';
+      statusNode.className = 'api-status';
+    }
+
+    try {
+      const response = await fetch(HEALTH_SCAN_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_data_url: bloodPhotoDraft })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Scan failed.');
+      }
+
+      if (!data.markers || !data.markers.length) {
+        if (statusNode) statusNode.textContent = 'No markers could be read from this image. Please enter values manually.';
+        return;
+      }
+
+      if (data.labName) {
+        const labInput = document.getElementById('health-blood-lab');
+        if (labInput && !labInput.value.trim()) labInput.value = data.labName;
+      }
+      if (data.reportDate) {
+        const dateInput = document.getElementById('health-blood-date');
+        if (dateInput && (!dateInput.value || dateInput.value === todayStr())) {
+          const parsedDate = parseReportDate(data.reportDate);
+          if (parsedDate) dateInput.value = parsedDate;
+        }
+      }
+
+      prefillMarkerEditor(data.markers);
+      setBloodFormStep(2);
+
+      const count = data.markers.length;
+      if (statusNode) {
+        statusNode.textContent = `${count} marker${count !== 1 ? 's' : ''} extracted. Review and correct below.`;
+        statusNode.className = 'api-status success';
+      }
+    } catch (error) {
+      if (statusNode) {
+        statusNode.textContent = error.message || 'Scan failed. Please enter values manually.';
+        statusNode.className = 'api-status error';
+      }
+    } finally {
+      if (scanBtn) {
+        scanBtn.disabled = false;
+        scanBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;vertical-align:-2px"><path d="M3 7V5a2 2 0 012-2h2"/><path d="M17 3h2a2 2 0 012 2v2"/><path d="M21 17v2a2 2 0 01-2 2h-2"/><path d="M7 21H5a2 2 0 01-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>Scan &amp; Prefill`;
+      }
+    }
+  }
+
+  function parseReportDate(raw) {
+    if (!raw) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const attempt = new Date(raw);
+    if (!isNaN(attempt.getTime())) {
+      return attempt.toISOString().slice(0, 10);
+    }
+    const ddmm = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (ddmm) {
+      const [, d, m, y] = ddmm;
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    return '';
+  }
+
+  function prefillMarkerEditor(scannedMarkers) {
+    if (!Array.isArray(scannedMarkers) || !scannedMarkers.length) return;
+
+    const BUILTIN_NAME_MAP = buildBuiltinNameMap();
+
+    scannedMarkers.forEach((scanned) => {
+      const matched = matchToBuiltin(scanned.name, BUILTIN_NAME_MAP);
+
+      if (matched) {
+        const row = document.querySelector(`.health-marker-editor-row[data-id="${matched.id}"]`);
+        if (row) {
+          const valueInput = row.querySelector('.health-marker-value-input');
+          if (valueInput) valueInput.value = scanned.value;
+
+          if (scanned.referenceMin != null) {
+            const refMinInput = row.querySelector('.health-marker-refmin-input');
+            if (refMinInput) refMinInput.value = scanned.referenceMin;
+          }
+          if (scanned.referenceMax != null) {
+            const refMaxInput = row.querySelector('.health-marker-refmax-input');
+            if (refMaxInput) refMaxInput.value = scanned.referenceMax;
+          }
+
+          updateMarkerStatusBadge(row, normalizeBloodMarker({
+            id: matched.id,
+            category: matched.category,
+            name: matched.name,
+            value: scanned.value,
+            unit: matched.unit,
+            referenceMin: scanned.referenceMin ?? matched.referenceMin,
+            referenceMax: scanned.referenceMax ?? matched.referenceMax
+          }));
+        }
+      } else {
+        appendCustomMarkerRow(scanned);
+      }
+    });
+  }
+
+  function buildBuiltinNameMap() {
+    const map = new Map();
+    BUILTIN_BLOOD_MARKERS.forEach((def) => {
+      map.set(normaliseMarkerName(def.name), def);
+      const aliases = MARKER_ALIASES[def.id] || [];
+      aliases.forEach((alias) => map.set(normaliseMarkerName(alias), def));
+    });
+    return map;
+  }
+
+  function normaliseMarkerName(name) {
+    return String(name || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .trim();
+  }
+
+  function matchToBuiltin(scannedName, nameMap) {
+    const key = normaliseMarkerName(scannedName);
+    if (nameMap.has(key)) return nameMap.get(key);
+
+    for (const [builtinKey, def] of nameMap.entries()) {
+      if (key.includes(builtinKey) || builtinKey.includes(key)) {
+        return def;
+      }
+    }
+    return null;
+  }
+
+  function appendCustomMarkerRow(scanned) {
+    const editor = document.getElementById('health-blood-marker-editor');
+    if (!editor) return;
+
+    let customSection = editor.querySelector('.health-marker-category[data-category="custom"]');
+    if (!customSection) {
+      customSection = document.createElement('div');
+      customSection.className = 'health-marker-category';
+      customSection.dataset.category = 'custom';
+      customSection.innerHTML = '<div class="health-marker-category-label">Custom (from report)</div>';
+      editor.appendChild(customSection);
+    }
+
+    const rowId = 'scan-' + normaliseMarkerName(scanned.name) + '-' + Date.now();
+    const row = document.createElement('div');
+    row.className = 'health-marker-editor-row custom';
+    row.dataset.id = rowId;
+    row.dataset.category = 'custom';
+    row.innerHTML = `
+    <div class="health-marker-editor-header">
+      <input class="form-input health-inline-input health-marker-name-input" type="text" placeholder="Marker name" value="${escAttr(scanned.name)}" oninput="updateBloodMarkerEditorStatus(this)">
+      <span class="health-inline-status ${scanned.status}">${scanned.status}</span>
+    </div>
+    <div class="health-marker-editor-grid">
+      <input class="form-input health-inline-input health-marker-value-input" type="number" step="any" placeholder="Value" value="${scanned.value}" oninput="updateBloodMarkerEditorStatus(this)">
+      <input class="form-input health-inline-input health-marker-unit-input" type="text" placeholder="Unit" value="${escAttr(scanned.unit)}" oninput="updateBloodMarkerEditorStatus(this)">
+      <input class="form-input health-inline-input health-marker-refmin-input" type="number" step="any" placeholder="Min" value="${scanned.referenceMin ?? ''}">
+      <input class="form-input health-inline-input health-marker-refmax-input" type="number" step="any" placeholder="Max" value="${scanned.referenceMax ?? ''}">
+      <button class="btn btn-secondary" type="button" onclick="removeCustomBloodMarkerRow('${rowId}')">Remove</button>
+    </div>
+  `;
+    customSection.appendChild(row);
+  }
+
+  function updateMarkerStatusBadge(row, marker) {
+    const statusNode = row.querySelector('.health-inline-status');
+    if (!statusNode) return;
+    statusNode.textContent = marker.status;
+    statusNode.className = `health-inline-status ${marker.status}`;
   }
 
   function collectBloodMarkersFromForm() {
@@ -1950,6 +2189,7 @@
   window.goBloodFormStep = goBloodFormStep;
   window.handleBloodReportPhoto = handleBloodReportPhoto;
   window.clearBloodReportPhoto = clearBloodReportPhoto;
+  window.scanBloodReportPhoto = scanBloodReportPhoto;
   window.addCustomBloodMarkerRow = addCustomBloodMarkerRow;
   window.removeCustomBloodMarkerRow = removeCustomBloodMarkerRow;
   window.updateBloodMarkerEditorStatus = updateBloodMarkerEditorStatus;
