@@ -29,6 +29,43 @@
     health: { icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`, color: "#dc2626" }
   };
 
+  function getAvailableLearnTabs() {
+    if (!learnCache) {
+      return [];
+    }
+    const tabs = [];
+    if (Array.isArray(learnCache.articles) && learnCache.articles.length) {
+      tabs.push("articles");
+    }
+    if (Array.isArray(learnCache.videos) && learnCache.videos.length) {
+      tabs.push("videos");
+    }
+    return tabs;
+  }
+
+  function syncLearnTabsUi() {
+    const availableTabs = getAvailableLearnTabs();
+    const tabRow = document.querySelector(".learn-tabs");
+    if (tabRow) {
+      tabRow.classList.toggle("hidden", availableTabs.length <= 1);
+    }
+    document.querySelectorAll(".learn-tab").forEach((btn) => {
+      const isAvailable = availableTabs.includes(btn.dataset.tab);
+      btn.classList.toggle("hidden", !isAvailable);
+      btn.disabled = !isAvailable;
+    });
+    if (!availableTabs.length) {
+      learnTab = "articles";
+      return;
+    }
+    if (!availableTabs.includes(learnTab)) {
+      learnTab = availableTabs[0];
+    }
+    document.querySelectorAll(".learn-tab").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.tab === learnTab);
+    });
+  }
+
   function initLearn() {
     try {
       const cached = JSON.parse(localStorage.getItem("hale_learn_cache") || "null");
@@ -50,6 +87,7 @@
 
   function onLearnPageShow() {
     if (learnCache) {
+      syncLearnTabsUi();
       renderLearnFeed();
     } else {
       loadLearnContent();
@@ -87,6 +125,7 @@
 
       learnCache = { ...data, generatedAt: new Date().toISOString() };
       localStorage.setItem("hale_learn_cache", JSON.stringify(learnCache));
+      syncLearnTabsUi();
       renderLearnFeed();
     } catch (err) {
       showLearnError(err.message || "Could not load content. Please try again.");
@@ -145,6 +184,15 @@
   function renderLearnFeed() {
     const feed = document.getElementById("learn-feed");
     if (!feed || !learnCache) return;
+
+    syncLearnTabsUi();
+    if (!getAvailableLearnTabs().length) {
+      feed.innerHTML = `<div class="learn-empty">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+        <p>No Learn content is available right now.<br>Refresh to try again.</p>
+      </div>`;
+      return;
+    }
 
     const isArticles = learnTab === "articles";
     const items = isArticles ? (learnCache.articles || []) : (learnCache.videos || []);
@@ -405,6 +453,9 @@
   }
 
   function switchLearnTab(tab) {
+    if (!getAvailableLearnTabs().includes(tab)) {
+      return;
+    }
     learnTab = tab;
     document.querySelectorAll(".learn-tab").forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.tab === tab);
