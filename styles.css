@@ -4449,6 +4449,40 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   margin-top: 12px;
 }
 
+.meals-subtab-row {
+  display: flex;
+  gap: 4px;
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 4px;
+  margin: 0 16px 16px;
+  border: 1px solid var(--border);
+}
+.meals-subtab {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.meals-subtab.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.meals-view {
+  display: none;
+}
+.meals-view.active {
+  display: block;
+}
+
 .bottom-nav {
   gap: 0;
 }

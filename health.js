@@ -2210,4 +2210,5 @@
   window.removeVisitAttachment = removeVisitAttachment;
   window.saveDoctorVisit = saveDoctorVisit;
   window.deleteDoctorVisit = deleteDoctorVisit;
+  window.renderHealthPage = renderHealthPage;
 })();

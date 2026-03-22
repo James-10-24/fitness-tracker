@@ -1694,6 +1694,33 @@ function isCountBasedFoodUnit(unit) {
   return !!normalized && !["g", "kg", "oz", "lb", "ml", "l", "cup"].includes(normalized);
 }
 
+function switchMealsSubtab(subtab) {
+  document.querySelectorAll(".meals-subtab").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.subtab === subtab);
+  });
+  document.querySelectorAll(".meals-view").forEach((view) => {
+    view.classList.toggle("active", view.id === `meals-view-${subtab}`);
+  });
+  const titleEl = document.getElementById("meals-page-title");
+  const subtitleEl = document.getElementById("meals-page-subtitle");
+  if (subtab === "add") {
+    if (titleEl) titleEl.textContent = "Meals";
+    if (subtitleEl) subtitleEl.textContent = "Log food or review your history";
+    updateLogTabs();
+    switchLogTab("ai-estimate");
+    renderFoodPicker();
+  } else {
+    if (titleEl) titleEl.textContent = "History";
+    if (subtitleEl) subtitleEl.textContent = "Your past nutrition logs";
+    renderHistory();
+  }
+}
+
+function goToMealsHistory() {
+  showPage("log");
+  switchMealsSubtab("history");
+}
+
 function showPage(page) {
   closeFabMenu();
   document.querySelectorAll(".page").forEach((node) => node.classList.remove("active"));
@@ -1706,12 +1733,10 @@ function showPage(page) {
     renderToday();
   }
   if (page === "log") {
-    updateLogTabs();
-    switchLogTab("ai-estimate");
-    renderFoodPicker();
+    switchMealsSubtab("add");
   }
-  if (page === "history") {
-    renderHistory();
+  if (page === "health") {
+    if (typeof renderHealthPage === "function") renderHealthPage();
   }
   if (page === "learn") {
     if (typeof onLearnPageShow === "function") onLearnPageShow();
@@ -3985,8 +4010,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  document.getElementById("page-history")?.addEventListener("touchstart", handleHistoryTouchStart, { passive: true });
-  document.getElementById("page-history")?.addEventListener("touchend", handleHistoryTouchEnd, { passive: true });
+  document.getElementById("meals-view-history")?.addEventListener("touchstart", handleHistoryTouchStart, { passive: true });
+  document.getElementById("meals-view-history")?.addEventListener("touchend", handleHistoryTouchEnd, { passive: true });
 
   document.getElementById("ai-quantity")?.addEventListener("input", syncEstimateFromQuantity);
   document.getElementById("ai-grams")?.addEventListener("input", syncEstimateFromGrams);
