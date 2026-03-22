@@ -2716,6 +2716,13 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   cursor: pointer;
 }
 
+.estimate-actions.sticky-meal-action {
+  position: static;
+  bottom: auto;
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
 .checkbox-row input {
   width: 18px;
   height: 18px;
