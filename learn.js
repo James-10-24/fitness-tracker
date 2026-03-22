@@ -32,10 +32,19 @@
   function initLearn() {
     try {
       const cached = JSON.parse(localStorage.getItem("hale_learn_cache") || "null");
-      if (cached && cached.generatedAt && Date.now() - new Date(cached.generatedAt).getTime() < CACHE_TTL_MS) {
+      const hasVideoIds = cached && Array.isArray(cached.videos) && cached.videos.length > 0 && cached.videos[0].youtubeVideoId !== undefined;
+      if (
+        cached &&
+        cached.generatedAt &&
+        hasVideoIds &&
+        Date.now() - new Date(cached.generatedAt).getTime() < CACHE_TTL_MS
+      ) {
         learnCache = cached;
+      } else if (cached && !hasVideoIds) {
+        localStorage.removeItem("hale_learn_cache");
       }
     } catch (_e) {
+      localStorage.removeItem("hale_learn_cache");
     }
   }
 
@@ -173,14 +182,31 @@
 
   function renderVideoCard(video) {
     const meta = CATEGORY_META[video.category] || CATEGORY_META.fitness;
-    const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(video.searchQuery)}`;
+    const hasId = Boolean(video.youtubeVideoId);
+    const thumbnailUrl = hasId
+      ? `https://img.youtube.com/vi/${encodeURIComponent(video.youtubeVideoId)}/hqdefault.jpg`
+      : "";
+    const fallbackUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(video.searchQuery)}`;
+    const clickHandler = hasId
+      ? `openVideoPlayer('${escAttr(video.id)}')`
+      : `window.open('${escAttr(fallbackUrl)}', '_blank', 'noopener')`;
+
     return `
-      <a class="learn-card learn-card--video" href="${escAttr(youtubeUrl)}" target="_blank" rel="noopener noreferrer">
-        <div class="learn-video-thumbnail">
-          <div class="learn-video-play">
+      <button class="learn-card learn-card--video" type="button" onclick="${clickHandler}">
+        <div class="learn-video-thumbnail ${hasId ? "has-thumb" : "no-thumb"}">
+          ${hasId
+            ? `<img class="learn-video-thumb-img" src="${escAttr(thumbnailUrl)}"
+               alt="${escAttr(video.title)}"
+               onerror="this.style.display='none';this.parentElement.classList.add('no-thumb');this.parentElement.classList.remove('has-thumb')">`
+            : ""}
+          <div class="learn-video-play-btn">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
           </div>
-          <div class="learn-video-duration">${escHtml(video.durationEstimate)}</div>
+          <div class="learn-video-duration-badge">${escHtml(video.durationEstimate)}</div>
+          ${!hasId ? `<div class="learn-video-search-badge">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Opens YouTube
+          </div>` : ""}
         </div>
         <div class="learn-card-body">
           <div class="learn-card-meta">
@@ -194,7 +220,7 @@
           </div>
           <div class="learn-card-tags">${(video.tags || []).slice(0, 3).map((tag) => `<span class="learn-tag">${escHtml(tag)}</span>`).join("")}</div>
         </div>
-      </a>`;
+      </button>`;
   }
 
   function openArticleReader(articleId) {
@@ -265,6 +291,82 @@
     };
     overlay.addEventListener("transitionend", onEnd);
     // Fallback in case transitionend doesn't fire
+    setTimeout(() => {
+      if (overlay.classList.contains("closing")) {
+        overlay.classList.remove("closing");
+        overlay.classList.add("hidden");
+      }
+    }, 380);
+  }
+
+  function openVideoPlayer(videoId) {
+    if (!learnCache) return;
+    const video = (learnCache.videos || []).find((v) => v.id === videoId);
+    if (!video || !video.youtubeVideoId) return;
+
+    const meta = CATEGORY_META[video.category] || CATEGORY_META.fitness;
+    const categoryEl = document.getElementById("video-player-category");
+    if (categoryEl) {
+      categoryEl.innerHTML = `<span class="learn-category-pill" style="--cat-color:${meta.color}">${meta.icon}${escHtml(capitalise(video.category))}</span>`;
+    }
+
+    const embedEl = document.getElementById("video-player-embed");
+    if (embedEl) {
+      embedEl.innerHTML = `
+        <iframe
+          src="https://www.youtube.com/embed/${encodeURIComponent(video.youtubeVideoId)}?autoplay=1&rel=0&modestbranding=1&playsinline=1"
+          title="${escAttr(video.title)}"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen
+          class="video-player-iframe">
+        </iframe>`;
+    }
+
+    const metaEl = document.getElementById("video-player-meta");
+    if (metaEl) {
+      metaEl.innerHTML = `
+        <h3 class="video-player-title">${escHtml(video.title)}</h3>
+        <div class="video-player-channel">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 001.46 6.42 29 29 0 001 12a29 29 0 00.46 5.58A2.78 2.78 0 003.41 19.54C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 001.95-1.96A29 29 0 0023 12a29 29 0 00-.46-5.58z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02"/></svg>
+          ${escHtml(video.channelSuggestion)}
+          <span class="video-player-dot">·</span>
+          ${escHtml(video.durationEstimate)}
+        </div>
+        <p class="video-player-description">${escHtml(video.description)}</p>
+        <div class="video-player-tags">${(video.tags || []).map((t) => `<span class="learn-tag">${escHtml(t)}</span>`).join("")}</div>
+        <a class="video-player-yt-link" href="https://www.youtube.com/watch?v=${encodeURIComponent(video.youtubeVideoId)}" target="_blank" rel="noopener noreferrer">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Open in YouTube
+        </a>
+      `;
+    }
+
+    const overlay = document.getElementById("overlay-video-player");
+    if (overlay) {
+      overlay.classList.remove("hidden", "closing");
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => overlay.classList.add("open"));
+      });
+    }
+  }
+
+  function closeVideoPlayer() {
+    const overlay = document.getElementById("overlay-video-player");
+    if (!overlay) return;
+
+    const embedEl = document.getElementById("video-player-embed");
+    if (embedEl) embedEl.innerHTML = "";
+
+    overlay.classList.add("closing");
+    overlay.classList.remove("open");
+
+    const onEnd = () => {
+      overlay.classList.remove("closing");
+      overlay.classList.add("hidden");
+      overlay.removeEventListener("transitionend", onEnd);
+    };
+    overlay.addEventListener("transitionend", onEnd);
     setTimeout(() => {
       if (overlay.classList.contains("closing")) {
         overlay.classList.remove("closing");
@@ -354,4 +456,6 @@
   window.filterLearnContent = filterLearnContent;
   window.openArticleReader = openArticleReader;
   window.closeArticleReader = closeArticleReader;
+  window.openVideoPlayer = openVideoPlayer;
+  window.closeVideoPlayer = closeVideoPlayer;
 })();

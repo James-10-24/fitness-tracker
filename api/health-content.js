@@ -114,10 +114,11 @@ async function generateHealthContent({ userContext, openAiApiKey, model }) {
                   channelSuggestion: { type: "string" },
                   description: { type: "string" },
                   searchQuery: { type: "string" },
+                  youtubeVideoId: { type: "string" },
                   durationEstimate: { type: "string" },
                   tags: { type: "array", items: { type: "string" } }
                 },
-                required: ["id", "title", "category", "channelSuggestion", "description", "searchQuery", "durationEstimate", "tags"]
+                required: ["id", "title", "category", "channelSuggestion", "description", "searchQuery", "youtubeVideoId", "durationEstimate", "tags"]
               }
             }
           },
@@ -163,10 +164,13 @@ ARTICLES must:
 - readTimeMinutes should be 2–4 (based on body length)
 
 VIDEO RECOMMENDATIONS must:
-- Suggest a real type of educational fitness/health video with a specific, searchable YouTube query
-- channelSuggestion should be a real well-known channel (e.g. "Jeff Nippard", "Renaissance Periodization", "Andrew Huberman Lab", "Athlean-X", "Thomas DeLauer", "Yoga With Adriene")
-- durationEstimate should reflect a realistic video length for the topic (e.g. "~8 min", "~20 min")
-- description should clearly describe what the user will learn from the video
+- Suggest a REAL, well-known YouTube fitness/health video with a REAL YouTube video ID
+- youtubeVideoId must be the actual 11-character YouTube video ID (e.g. "dQw4w9WgXcQ") for a specific video you are confident exists on YouTube
+- Prioritise evergreen, highly-viewed videos from established channels: Jeff Nippard, Renaissance Periodization, Athlean-X, Andrew Huberman (Huberman Lab), Thomas DeLauer, Yoga With Adriene, Alan Thrall, Stronger By Science, Mike Israetel, Layne Norton, Abbey Sharp, Natacha Océane
+- channelSuggestion must be the real channel name that hosts this video
+- searchQuery is a fallback search string in case the video ID is unavailable
+- durationEstimate should be realistic for the topic (e.g. "~12 min", "~25 min")
+- description tells the user clearly what they will learn
 
 TONE: Warm, motivating, science-backed. Write like a knowledgeable personal trainer who genuinely cares.
 VARIETY: Ensure no two articles share the same category. Mix practical tips with deeper insights.`;
@@ -217,6 +221,7 @@ function normaliseContent(raw) {
     channelSuggestion: String(v.channelSuggestion || "").trim(),
     description: String(v.description || "").trim(),
     searchQuery: String(v.searchQuery || "").trim(),
+    youtubeVideoId: String(v.youtubeVideoId || "").trim().slice(0, 20),
     durationEstimate: String(v.durationEstimate || "").trim(),
     tags: Array.isArray(v.tags) ? v.tags.map((t) => String(t)) : []
   }));
