@@ -3111,6 +3111,21 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   max-width: min(100%, 540px);
 }
 
+#overlay-workout-summary {
+  padding: 0 var(--app-gutter);
+}
+
+#overlay-workout-summary .workout-sheet {
+  width: min(100%, var(--app-width));
+  max-width: var(--app-width);
+  max-height: min(90dvh, calc(100dvh - 16px));
+}
+
+#workout-summary-root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .workout-sheet-fullscreen {
   max-width: var(--app-width);
   min-height: 100dvh;
