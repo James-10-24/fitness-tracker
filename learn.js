@@ -1,6 +1,20 @@
 (function () {
   "use strict";
 
+  // ─── HTML helpers (scoped fallbacks if app.js globals aren't accessible) ──
+  function escHtmlLocal(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+    );
+  }
+  function escAttr(value) {
+    return escHtmlLocal(value);
+  }
+  // Use global escHtml from app.js if available, otherwise use local version
+  function escHtml(value) {
+    return typeof window.escHtml === "function" ? window.escHtml(value) : escHtmlLocal(value);
+  }
+
   const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
   let learnCache = null;
   let learnTab = "articles";
@@ -28,7 +42,6 @@
   function onLearnPageShow() {
     if (learnCache) {
       renderLearnFeed();
-      showRefreshRow();
     } else {
       loadLearnContent();
     }
@@ -66,7 +79,6 @@
       learnCache = { ...data, generatedAt: new Date().toISOString() };
       localStorage.setItem("hale_learn_cache", JSON.stringify(learnCache));
       renderLearnFeed();
-      showRefreshRow();
     } catch (err) {
       showLearnError(err.message || "Could not load content. Please try again.");
     } finally {
@@ -215,6 +227,7 @@
 
     const overlay = document.getElementById("overlay-article-reader");
     if (overlay) {
+      overlay.classList.add("open");
       overlay.classList.remove("hidden");
       overlay.scrollTop = 0;
     }
@@ -222,7 +235,10 @@
 
   function closeArticleReader() {
     const overlay = document.getElementById("overlay-article-reader");
-    if (overlay) overlay.classList.add("hidden");
+    if (overlay) {
+      overlay.classList.remove("open");
+      overlay.classList.add("hidden");
+    }
   }
 
   function renderArticleBody(body) {
@@ -267,13 +283,6 @@
     });
   }
 
-  async function refreshLearnContent() {
-    learnCache = null;
-    localStorage.removeItem("hale_learn_cache");
-    document.getElementById("learn-refresh-row")?.classList.add("hidden");
-    await loadLearnContent();
-  }
-
   function setLearnLoading(on) {
     document.getElementById("learn-loading")?.classList.toggle("hidden", !on);
     document.getElementById("learn-feed")?.classList.toggle("hidden", on);
@@ -292,10 +301,6 @@
     document.getElementById("learn-error")?.classList.add("hidden");
   }
 
-  function showRefreshRow() {
-    document.getElementById("learn-refresh-row")?.classList.remove("hidden");
-  }
-
   function capitalise(str) {
     return str ? str[0].toUpperCase() + str.slice(1) : "";
   }
@@ -304,7 +309,6 @@
   window.onLearnPageShow = onLearnPageShow;
   window.switchLearnTab = switchLearnTab;
   window.filterLearnContent = filterLearnContent;
-  window.refreshLearnContent = refreshLearnContent;
   window.openArticleReader = openArticleReader;
   window.closeArticleReader = closeArticleReader;
 })();
