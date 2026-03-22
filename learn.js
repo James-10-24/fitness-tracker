@@ -227,8 +227,8 @@
 
     const overlay = document.getElementById("overlay-article-reader");
     if (overlay) {
-      overlay.classList.add("open");
       overlay.classList.remove("hidden");
+      overlay.classList.add("open");
       overlay.scrollTop = 0;
     }
   }
@@ -236,8 +236,8 @@
   function closeArticleReader() {
     const overlay = document.getElementById("overlay-article-reader");
     if (overlay) {
-      overlay.classList.remove("open");
       overlay.classList.add("hidden");
+      overlay.classList.remove("open");
     }
   }
 

@@ -1625,6 +1625,14 @@ h2,
   padding: 0 var(--app-gutter);
 }
 
+#overlay-article-reader {
+  z-index: 300;
+  background: rgba(15, 23, 42, 0.55);
+  padding: 0;
+  align-items: flex-end;
+  justify-content: center;
+}
+
 .overlay.open {
   display: flex;
 }
@@ -4383,11 +4391,33 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .overlay-sheet--full {
-  max-height: 95dvh;
+  background: var(--bg, #fff7ef);
+  width: 100%;
+  max-width: var(--app-width, 430px);
+  max-height: 96dvh;
+  height: 96dvh;
+  border-radius: 24px 24px 0 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.14);
 }
+
+#overlay-article-reader .overlay-header {
+  position: sticky;
+  top: 0;
+  background: var(--bg, #fff7ef);
+  z-index: 10;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
 .article-reader-content {
-  padding: 0 20px 40px;
+  padding: 20px 20px calc(40px + env(safe-area-inset-bottom));
+  flex: 1;
+  min-height: 0;
 }
 .article-reader-title {
   font-family: var(--font-heading);
