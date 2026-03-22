@@ -1,4 +1,4 @@
-const CACHE_NAME = "viva-ai-shell-v7";
+const CACHE_NAME = "hale-shell-v8";
 const ASSETS = [
   "./",
   "./index.html",
