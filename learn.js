@@ -40,14 +40,28 @@
 
     try {
       const context = buildUserContext();
+      const requestMethod = "POST";
       const response = await fetch("/api/health-content", {
-        method: "POST",
+        method: requestMethod,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ context })
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Content generation failed.");
+      const rawText = await response.text();
+      let data = {};
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch (_e) {
+        data = {};
+      }
+      if (!response.ok) {
+        const debugParts = [
+          `Request method: ${requestMethod}`,
+          `Endpoint response status: ${response.status}`,
+          `Raw backend error: ${rawText || data.error || "No response body"}`
+        ];
+        throw new Error(debugParts.join("\n"));
+      }
 
       learnCache = { ...data, generatedAt: new Date().toISOString() };
       localStorage.setItem("hale_learn_cache", JSON.stringify(learnCache));
@@ -267,7 +281,11 @@
 
   function showLearnError(msg) {
     const el = document.getElementById("learn-error");
-    if (el) { el.textContent = msg; el.classList.remove("hidden"); }
+    if (el) {
+      el.textContent = msg;
+      el.style.whiteSpace = "pre-wrap";
+      el.classList.remove("hidden");
+    }
   }
 
   function hideLearnError() {
