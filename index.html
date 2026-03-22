@@ -398,7 +398,43 @@
     <div class="workout-view" id="workout-view-progress"></div>
   </div>
 
-  <nav class="nav">
+  <div id="page-learn" class="page">
+    <div class="page-header">
+      <h1 class="page-title">Learn</h1>
+      <p class="page-subtitle" id="learn-subtitle">Personalised for you today</p>
+    </div>
+
+    <div class="learn-tabs">
+      <button class="learn-tab active" data-tab="articles" onclick="switchLearnTab('articles')">Articles</button>
+      <button class="learn-tab" data-tab="videos" onclick="switchLearnTab('videos')">Videos</button>
+    </div>
+
+    <div class="learn-filter-row" id="learn-filter-row">
+      <button class="learn-filter active" data-cat="all" onclick="filterLearnContent('all')">All</button>
+      <button class="learn-filter" data-cat="nutrition" onclick="filterLearnContent('nutrition')">Nutrition</button>
+      <button class="learn-filter" data-cat="fitness" onclick="filterLearnContent('fitness')">Fitness</button>
+      <button class="learn-filter" data-cat="recovery" onclick="filterLearnContent('recovery')">Recovery</button>
+      <button class="learn-filter" data-cat="mindset" onclick="filterLearnContent('mindset')">Mindset</button>
+      <button class="learn-filter" data-cat="sleep" onclick="filterLearnContent('sleep')">Sleep</button>
+      <button class="learn-filter" data-cat="health" onclick="filterLearnContent('health')">Health</button>
+    </div>
+
+    <div id="learn-feed" class="learn-feed"></div>
+
+    <div id="learn-loading" class="learn-loading hidden">
+      <div class="learn-loading-spinner"></div>
+      <p>Generating content for you…</p>
+    </div>
+
+    <div id="learn-error" class="learn-error hidden"></div>
+
+    <div id="learn-refresh-row" class="learn-refresh-row hidden">
+      <p class="learn-refresh-label">Content refreshes daily</p>
+      <button class="btn btn-secondary" type="button" onclick="refreshLearnContent()">Refresh now</button>
+    </div>
+  </div>
+
+  <nav class="nav bottom-nav">
     <button class="nav-btn active" id="nav-today" onclick="showPage('today')">
       <div class="nav-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
@@ -423,7 +459,29 @@
       </div>
       History
     </button>
+    <button class="nav-btn" id="nav-learn" onclick="showPage('learn')" aria-label="Learn">
+      <div class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+          <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+        </svg>
+      </div>
+      Learn
+    </button>
   </nav>
+
+  <div id="overlay-article-reader" class="overlay hidden" role="dialog" aria-modal="true">
+    <div class="overlay-sheet overlay-sheet--full">
+      <div class="overlay-header">
+        <button class="overlay-back-btn" type="button" onclick="closeArticleReader()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="overlay-title" id="article-reader-category"></span>
+        <div style="width:32px"></div>
+      </div>
+      <div class="article-reader-content" id="article-reader-content"></div>
+    </div>
+  </div>
 
   <div class="overlay" id="overlay-food" onclick="closeModal('food')">
     <div class="sheet" onclick="event.stopPropagation()">
@@ -909,5 +967,6 @@
   <script src="app.js" onerror="window.__showStartupBootFailure('app.js failed to load. Hard refresh the page or reinstall the PWA to refresh cached files.')"></script>
   <script src="workouts.js" onerror="window.__showStartupBootFailure('workouts.js failed to load. Hard refresh the page or reinstall the PWA to refresh cached files.')"></script>
   <script src="health.js" onerror="window.__showStartupBootFailure('health.js failed to load. Hard refresh the page or reinstall the PWA to refresh cached files.')"></script>
+  <script src="learn.js"></script>
 </body>
 </html>

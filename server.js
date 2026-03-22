@@ -50,6 +50,11 @@ const server = http.createServer(async (req, res) => {
       await handleSuggestGoals(req, res);
       return;
     }
+    if (requestUrl.pathname === "/api/health-content" && req.method === "POST") {
+      const handler = require("./api/health-content.js");
+      await handler(req, res);
+      return;
+    }
 
     if (req.method !== "GET" && req.method !== "HEAD") {
       sendJson(res, 405, { error: "Method not allowed" });

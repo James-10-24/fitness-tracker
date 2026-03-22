@@ -1713,6 +1713,9 @@ function showPage(page) {
   if (page === "history") {
     renderHistory();
   }
+  if (page === "learn") {
+    if (typeof onLearnPageShow === "function") onLearnPageShow();
+  }
 
   updateFab();
 }
@@ -3930,6 +3933,7 @@ document.addEventListener("DOMContentLoaded", () => {
   isGuestMode = getSavedAuthPreference() === "guest";
   setStartupStatus("Loading your data...");
   loadState();
+  if (typeof initLearn === "function") initLearn();
   renderApp();
   updateAuthUi();
   window.setTimeout(() => {
