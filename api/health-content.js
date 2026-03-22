@@ -148,7 +148,8 @@ async function generateHealthContent({ userContext, openAiApiKey, model }) {
   let parsed;
   try { parsed = JSON.parse(outputText); } catch (_e) { throw new Error("Invalid JSON from content generator."); }
 
-  return normaliseContent(parsed);
+  const content = normaliseContent(parsed);
+  return await validateAndRepairContentVideos({ content, userContext, openAiApiKey, model });
 }
 
 function buildSystemPrompt() {
@@ -227,6 +228,181 @@ function normaliseContent(raw) {
   }));
 
   return { articles, videos };
+}
+
+async function validateAndRepairContentVideos({ content, userContext, openAiApiKey, model }) {
+  const videos = Array.isArray(content.videos) ? content.videos.slice(0, 8) : [];
+  if (!videos.length) {
+    return content;
+  }
+
+  const validity = await Promise.all(videos.map((video) => validateYoutubeVideoId(video.youtubeVideoId)));
+  const invalidIndexes = validity
+    .map((isValid, index) => (isValid ? -1 : index))
+    .filter((index) => index >= 0);
+
+  if (!invalidIndexes.length) {
+    return { ...content, videos };
+  }
+
+  const repaired = videos.slice();
+  const regeneratedVideos = await regenerateInvalidVideos({
+    invalidVideos: invalidIndexes.map((index) => repaired[index]),
+    userContext,
+    openAiApiKey,
+    model
+  });
+
+  for (let i = 0; i < invalidIndexes.length; i += 1) {
+    const targetIndex = invalidIndexes[i];
+    const replacement = regeneratedVideos[i];
+    if (replacement) {
+      repaired[targetIndex] = replacement;
+    }
+  }
+
+  const repairedValidity = await Promise.all(repaired.map((video) => validateYoutubeVideoId(video.youtubeVideoId)));
+  const finalVideos = repaired.map((video, index) => {
+    if (repairedValidity[index]) {
+      return video;
+    }
+    return {
+      ...video,
+      youtubeVideoId: ""
+    };
+  });
+
+  return {
+    ...content,
+    videos: finalVideos
+  };
+}
+
+async function regenerateInvalidVideos({ invalidVideos, userContext, openAiApiKey, model }) {
+  if (!Array.isArray(invalidVideos) || !invalidVideos.length) {
+    return [];
+  }
+
+  const payload = {
+    model,
+    input: [
+      {
+        role: "system",
+        content: [{
+          type: "input_text",
+          text: [
+            buildSystemPrompt(),
+            "You are only regenerating replacement video recommendations.",
+            "Every returned youtubeVideoId must be a real, embeddable YouTube video ID you are highly confident about.",
+            "Do not return articles.",
+            "Return exactly the same number of videos requested."
+          ].join("\n")
+        }]
+      },
+      {
+        role: "user",
+        content: [{
+          type: "input_text",
+          text: buildVideoRepairPrompt(userContext, invalidVideos)
+        }]
+      }
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "health_video_repairs",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            videos: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  id: { type: "string" },
+                  title: { type: "string" },
+                  category: { type: "string", enum: ["nutrition", "fitness", "recovery", "mindset", "sleep", "health"] },
+                  channelSuggestion: { type: "string" },
+                  description: { type: "string" },
+                  searchQuery: { type: "string" },
+                  youtubeVideoId: { type: "string" },
+                  durationEstimate: { type: "string" },
+                  tags: { type: "array", items: { type: "string" } }
+                },
+                required: ["id", "title", "category", "channelSuggestion", "description", "searchQuery", "youtubeVideoId", "durationEstimate", "tags"]
+              }
+            }
+          },
+          required: ["videos"]
+        }
+      }
+    }
+  };
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${openAiApiKey}` },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const result = await response.json();
+  const outputText = extractOutputText(result);
+  if (!outputText) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(outputText);
+    const normalized = normaliseContent({ articles: [], videos: parsed.videos || [] });
+    return normalized.videos;
+  } catch (_e) {
+    return [];
+  }
+}
+
+function buildVideoRepairPrompt(ctx, invalidVideos) {
+  const lines = [
+    buildUserPrompt(ctx),
+    "",
+    `Replace these ${invalidVideos.length} invalid video recommendations with new ones.`
+  ];
+
+  invalidVideos.forEach((video, index) => {
+    lines.push(
+      `${index + 1}. Category: ${video.category || "fitness"} | Title theme: ${video.title || "Untitled"} | Channel hint: ${video.channelSuggestion || "Any strong fit"} | Fallback query: ${video.searchQuery || ""}`
+    );
+  });
+
+  lines.push("");
+  lines.push("Return only replacement videos. Preserve category fit. Prefer highly reliable evergreen uploads with embeddable IDs.");
+  return lines.join("\n");
+}
+
+async function validateYoutubeVideoId(videoId) {
+  const id = String(videoId || "").trim();
+  if (!/^[A-Za-z0-9_-]{11}$/.test(id)) {
+    return false;
+  }
+
+  try {
+    const url = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "User-Agent": "HalePWA/1.0"
+      }
+    });
+    return response.ok;
+  } catch (_e) {
+    return false;
+  }
 }
 
 function extractOutputText(responseJson) {
