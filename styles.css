@@ -5192,23 +5192,25 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 /* ── Article Reader — full-screen slide-in panel ───────────────────────── */
 .article-reader-panel {
   position: fixed;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  right: auto;
+  width: min(100vw, var(--app-width));
+  max-width: var(--app-width);
   background: var(--bg, #fff7ef);
   display: flex;
   flex-direction: column;
-  transform: translateX(100%);
+  transform: translate(-50%, 0) translateX(100%);
   transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
   will-change: transform;
-  /* Constrain to app width, centred on wide screens */
-  max-width: var(--app-width, 430px);
-  left: 50%;
-  translate: -50% 0;
+  overflow-x: hidden;
 }
 .article-reader-overlay.open .article-reader-panel {
-  transform: translateX(0);
+  transform: translate(-50%, 0) translateX(0);
 }
 .article-reader-overlay.closing .article-reader-panel {
-  transform: translateX(100%);
+  transform: translate(-50%, 0) translateX(100%);
 }
 
 /* ── Nav bar ─────────────────────────────────────────────────────────── */
@@ -5285,24 +5287,27 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .video-player-panel {
   position: fixed;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  right: auto;
+  width: min(100vw, var(--app-width));
+  max-width: var(--app-width);
   background: #000;
   display: flex;
   flex-direction: column;
-  transform: translateX(100%);
+  transform: translate(-50%, 0) translateX(100%);
   transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
   will-change: transform;
-  max-width: var(--app-width, 430px);
-  left: 50%;
-  translate: -50% 0;
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
 .video-player-overlay.open .video-player-panel {
-  transform: translateX(0);
+  transform: translate(-50%, 0) translateX(0);
 }
 .video-player-overlay.closing .video-player-panel {
-  transform: translateX(100%);
+  transform: translate(-50%, 0) translateX(100%);
 }
 
 .video-player-nav {
