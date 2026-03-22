@@ -234,7 +234,7 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-top: 6px;
+  margin-top: 10px;
 }
 
 .auth-guest-btn {
@@ -579,9 +579,9 @@ h2,
 }
 
 .card-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text2);
   margin-bottom: 14px;
@@ -615,8 +615,8 @@ h2,
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .progress-name-with-action {
@@ -645,13 +645,13 @@ h2,
 }
 
 .progress-nums {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--text2);
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .progress-nums span {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text);
 }
 
@@ -820,8 +820,8 @@ h2,
 .water-action-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 12px;
+  gap: 12px;
+  margin-top: 14px;
 }
 
 .water-action-btn {
@@ -1336,8 +1336,8 @@ h2,
 .today-meal-group-title {
   color: var(--text2);
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-weight: 500;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   margin-bottom: 10px;
 }
@@ -1357,7 +1357,7 @@ h2,
 
 .meal-name {
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .meal-meta {
@@ -1505,9 +1505,9 @@ h2,
 
 .fab-menu-title {
   font-family: "Barlow Condensed", sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   text-transform: uppercase;
 }
 
@@ -1564,8 +1564,8 @@ h2,
 .goals-bar-text {
   font-size: 14px;
   color: var(--accent);
-  font-weight: 700;
-  letter-spacing: 0.03em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 .goals-bar-link {
@@ -1590,6 +1590,8 @@ h2,
 
 .today-card-actions {
   margin-top: 16px;
+  display: grid;
+  gap: 10px;
 }
 
 .today-card-actions .btn {
@@ -1676,9 +1678,9 @@ h2,
 
 .sheet-title {
   font-family: "Barlow Condensed", sans-serif;
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   margin-bottom: 20px;
   text-transform: uppercase;
 }
@@ -1692,9 +1694,9 @@ h2,
 }
 
 .form-label {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text2);
   margin-bottom: 7px;
@@ -1779,16 +1781,15 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .btn {
   width: 100%;
-  padding: 16px 18px;
+  padding: 15px 18px;
   border: none;
   border-radius: var(--radius-sm);
   font-family: "Barlow", sans-serif;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
   transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.2s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.01em;
 }
 
 .btn:active {
@@ -1816,11 +1817,9 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   color: var(--danger);
 }
 
-/* Re-add spacing only where buttons stack inside sheets/forms */
-.sheet .btn + .btn,
-.auth-card .btn + .btn,
-.goals-helper-card .btn + .btn {
-  margin-top: 8px;
+/* Universal button gap — any two adjacent .btn elements get breathing room */
+.btn + .btn {
+  margin-top: 10px;
 }
 
 .search-wrap {
@@ -2244,7 +2243,7 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   flex: 0 0 auto;
   color: var(--text2);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -2321,13 +2320,13 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .tab-pill {
   flex: 1;
-  padding: 12px 12px;
+  padding: 10px 12px;
   border: none;
-  border-radius: 14px;
+  border-radius: 10px;
   background: transparent;
   font-family: "Barlow", sans-serif;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text2);
   cursor: pointer;
   text-align: center;
@@ -2564,7 +2563,7 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .estimate-actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   margin-top: 16px;
 }
 
@@ -2688,7 +2687,7 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .workout-inline-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
 .workout-inline-actions .btn {
@@ -2722,8 +2721,8 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .workout-session-name,
 .workout-summary-exercise-name,
 .workout-template-name {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 600;
 }
 
 .workout-assigned-meta,
@@ -2769,6 +2768,8 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .workout-home-actions {
   margin-top: 14px;
+  display: grid;
+  gap: 10px;
 }
 
 .workout-week-bar {
@@ -2821,7 +2822,7 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .workout-filter-pill {
   border: 1px solid var(--border);
   border-radius: 999px;
-  padding: 10px 12px;
+  padding: 9px 14px;
   background: rgba(255, 255, 255, 0.72);
   color: var(--text);
   font-size: 13px;
@@ -2973,7 +2974,7 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .workout-active-timer {
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .workout-current-title-row {
@@ -3035,9 +3036,9 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .workout-set-badge,
 .workout-rest-title,
 .workout-chart-title {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
@@ -3059,6 +3060,8 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .workout-session-actions {
   margin-top: 14px;
+  display: grid;
+  gap: 10px;
 }
 
 .workout-rest-banner {
@@ -3155,12 +3158,12 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   box-shadow: 0 -18px 48px rgba(17, 24, 39, 0.16);
   border-top: 1px solid var(--border);
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .action-sheet-title {
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 18px;
+  font-weight: 600;
   text-align: center;
   color: var(--text);
 }
@@ -3462,6 +3465,7 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .health-card-actions .btn,
@@ -3824,8 +3828,9 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   margin: 0 0 12px;
   color: var(--text2);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 12px;
+  letter-spacing: 0.07em;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .health-history-row .health-card-header {
