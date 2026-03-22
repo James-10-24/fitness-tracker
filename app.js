@@ -3639,35 +3639,50 @@ function toggleTodayNutritionInfo(key) {
 }
 
 function calculateGoalRecommendation({ gender, age, heightCm, weightKg, fitnessGoal, activity }) {
+  // ── Mifflin-St Jeor RMR ──────────────────────────────────────
   const sexOffset = gender === "male" ? 5 : -161;
   const rmr = (10 * weightKg) + (6.25 * heightCm) - (5 * age) + sexOffset;
+
   const activityMultiplier = {
     sedentary: 1.2,
     light: 1.375,
     moderate: 1.55,
     very: 1.725
   }[activity] || 1.55;
+
   const goalAdjustment = {
-    lose: -400,
+    lose: -500,   // ~0.5 kg/week deficit; was -400
     maintain: 0,
     build: 250,
     health: 0
   }[fitnessGoal] || 0;
 
-  const calories = Math.max(1200, roundToNearest((rmr * activityMultiplier) + goalAdjustment, 25));
+  // FIX 1 ── Gender-aware calorie floor.
+  // 1 200 kcal is the widely-cited minimum for women; men need at least 1 500 kcal.
+  const calorieFloor = gender === "male" ? 1500 : 1200;
+  const calories = Math.max(calorieFloor, roundToNearest((rmr * activityMultiplier) + goalAdjustment, 25));
 
-  const proteinMultiplier = {
+  // ── Protein ──────────────────────────────────────────────────
+  // FIX 3 ── Age-adjusted protein for older adults (65+).
+  // Evidence consistently shows 1.2–1.6 g/kg minimum regardless of goal to
+  // counter sarcopenia; apply a +0.2 g/kg boost across all goal multipliers.
+  const olderAdult = age >= 65;
+  const ageBump = olderAdult ? 0.2 : 0;
+
+  const proteinMultiplier = ({
     lose: 1.8,
     maintain: 1.4,
     build: 2.0,
     health: 1.2
-  }[fitnessGoal] || 1.4;
-  const minimumProteinMultiplier = {
+  }[fitnessGoal] || 1.4) + ageBump;
+
+  const minimumProteinMultiplier = ({
     lose: 1.4,
     maintain: 1.2,
     build: 1.6,
     health: 1.0
-  }[fitnessGoal] || 1.2;
+  }[fitnessGoal] || 1.2) + ageBump;
+
   const fatPercentTarget = {
     lose: 0.25,
     maintain: 0.28,
@@ -3675,15 +3690,22 @@ function calculateGoalRecommendation({ gender, age, heightCm, weightKg, fitnessG
     health: 0.3
   }[fitnessGoal] || 0.28;
 
+  // FIX 5 ── Raise the protein ceiling from 30 % to 35 % of calories.
+  // At aggressive deficits (e.g. 1 500 kcal) the old 30 % cap (= 112 g) was
+  // too low for heavier individuals who need 1.8+ g/kg to retain muscle.
   let protein = weightKg * proteinMultiplier;
-  protein = Math.min(protein, (calories * 0.3) / 4);
+  protein = Math.min(protein, (calories * 0.35) / 4);
   let proteinCalories = protein * 4;
 
   let fatCalories = calories * fatPercentTarget;
   fatCalories = clamp(fatCalories, calories * 0.2, calories * 0.35);
   let carbCalories = calories - proteinCalories - fatCalories;
 
-  const minimumCarbCalories = calories * 0.45;
+  // FIX 4 ── Lower the hard carb floor from 45 % to 30 % of calories.
+  // AMDR lower bound is 45 %, but clinically validated low-carb approaches
+  // use 30–40 %. Forcing 45 % silently crushed protein/fat without warning.
+  // 30 % still avoids physiological ketosis at normal calorie levels.
+  const minimumCarbCalories = calories * 0.30;
   if (carbCalories < minimumCarbCalories) {
     fatCalories = Math.max(calories * 0.2, fatCalories - (minimumCarbCalories - carbCalories));
     carbCalories = calories - proteinCalories - fatCalories;
@@ -3698,12 +3720,15 @@ function calculateGoalRecommendation({ gender, age, heightCm, weightKg, fitnessG
   const fat = fatCalories / 9;
   const carbs = Math.max(0, carbCalories / 4);
 
-  const waterBase = gender === "male" ? 3.7 : 2.7;
+  // FIX 2 ── Use drinking-water targets, not total adequate intake.
+  // National Academies values (3.7 L male / 2.7 L female) include ~20 % from
+  // food. Subtract that food contribution to get a realistic beverage goal.
+  const waterBase = gender === "male" ? 3.0 : 2.2;
   const water = roundToDecimal(waterBase + ({
     sedentary: 0,
     light: 0.3,
-    moderate: 0.6,
-    very: 0.9
+    moderate: 0.5,
+    very: 0.8
   }[activity] || 0.3), 1);
 
   const steps = {
@@ -3720,11 +3745,11 @@ function calculateGoalRecommendation({ gender, age, heightCm, weightKg, fitnessG
     fat: roundToDecimal(fat, 1),
     water,
     steps,
-    note: buildGoalRecommendationNote(fitnessGoal, activity)
+    note: buildGoalRecommendationNote(fitnessGoal, activity, olderAdult)
   };
 }
 
-function buildGoalRecommendationNote(fitnessGoal, activity) {
+function buildGoalRecommendationNote(fitnessGoal, activity, olderAdult = false) {
   const goalCopy = {
     lose: "fat loss with higher protein and a moderate calorie deficit",
     maintain: "steady maintenance with balanced macros",
@@ -3737,7 +3762,8 @@ function buildGoalRecommendationNote(fitnessGoal, activity) {
     moderate: "moderately active",
     very: "very active"
   }[activity] || "moderately active";
-  return `Suggested from NIH/National Academies guidance for a ${activityCopy} routine and ${goalCopy}. You can still edit any target manually.`;
+  const ageSuffix = olderAdult ? " Protein is set slightly higher to support muscle retention in adults 65+." : "";
+  return `Suggested from NIH/National Academies guidance for a ${activityCopy} routine and ${goalCopy}.${ageSuffix} You can still edit any target manually.`;
 }
 
 function clamp(value, min, max) {
