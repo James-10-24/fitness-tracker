@@ -150,6 +150,8 @@
   let workoutTouchStartX = 0;
   let workoutTouchStartY = 0;
   let workoutSetHoldHandle = null;
+  let workoutElapsedInterval = null;
+  let workoutRestInterval = null;
   let actionSheetActions = [];
 
   const originalCreateInitialState = createInitialState;
@@ -471,6 +473,7 @@
         ? session.exerciseLogs.map(normalizeExerciseLog).filter(Boolean)
         : [],
       personalBests: Array.isArray(session?.personalBests) ? session.personalBests.map(normalizeWorkoutPr) : [],
+      notes: String(session?.notes || ""),
       isFreeform: !!session?.isFreeform,
       created_at: session?.created_at || new Date().toISOString()
     };
@@ -653,7 +656,7 @@
         <div class="workout-routine-list">
           ${routines.length ? routines.map(renderRoutineCard).join("") : `
             <div class="empty-state">
-              <div class="empty-icon">Workout</div>
+              <div class="empty-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 5v14"/><path d="M18 5v14"/><path d="M2 9h4"/><path d="M2 15h4"/><path d="M18 9h4"/><path d="M18 15h4"/><path d="M6 12h12"/></svg></div>
               No routines yet.<br>Create your first routine or start a freeform workout.
             </div>
           `}
@@ -808,7 +811,7 @@
     `).join("");
 
     if (!workoutBuilderDraft.exercises.length) {
-      root.innerHTML = "<div class=\"empty-state\"><div class=\"empty-icon\">Lift</div>Add exercises to build your routine.</div>";
+      root.innerHTML = "<div class=\"empty-state\"><div class=\"empty-icon\"><svg width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M6 5v14\"/><path d=\"M18 5v14\"/><path d=\"M2 9h4\"/><path d=\"M2 15h4\"/><path d=\"M18 9h4\"/><path d=\"M18 15h4\"/><path d=\"M6 12h12\"/></svg></div>Add exercises to build your routine.</div>";
       return;
     }
 
@@ -840,6 +843,10 @@
                 <div class="form-group">
                   <label class="form-label">Default Sets</label>
                   <input class="form-input" type="number" min="1" step="1" value="${item.defaultSets}" oninput="updateWorkoutBuilderExercise(${index}, 'defaultSets', this.value)">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Rest (sec)</label>
+                  <input class="form-input" type="number" min="0" step="5" placeholder="Rest (sec)" value="${item.restSeconds || 90}" oninput="updateWorkoutBuilderExercise(${index}, 'restSeconds', this.value)">
                 </div>
               </div>
             ` : ""}
@@ -895,6 +902,10 @@
     }
     if (field === "defaultSets") {
       workoutBuilderDraft.exercises[index].defaultSets = normalizePositiveInteger(value, 1);
+      return;
+    }
+    if (field === "restSeconds") {
+      workoutBuilderDraft.exercises[index].restSeconds = normalizePositiveInteger(value, 90);
     }
   }
 
@@ -993,7 +1004,7 @@
     });
 
     if (!rows.length) {
-      list.innerHTML = "<div class=\"empty-state\"><div class=\"empty-icon\">Find</div>No exercises found.</div>";
+      list.innerHTML = "<div class=\"empty-state\"><div class=\"empty-icon\"><svg width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.35-4.35\"/></svg></div>No exercises found.</div>";
       return;
     }
 
@@ -1023,12 +1034,14 @@
   }
 
   function getExerciseInputTypeIcon(inputType) {
-    return {
-      reps_weight: "🏋️",
-      time: "⏱",
-      distance: "👣",
-      distance_time: "👣⏱"
-    }[inputType] || "🏋️";
+    const type = normalizeExerciseInputType(inputType);
+    if (type === "time") {
+      return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+    }
+    if (type === "distance" || type === "distance_time") {
+      return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18"/><path d="M3 6l9-3 9 3"/><path d="M3 18l9 3 9-3"/></svg>`;
+    }
+    return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 5v14"/><path d="M18 5v14"/><path d="M2 9h4"/><path d="M2 15h4"/><path d="M18 9h4"/><path d="M18 15h4"/><path d="M6 12h12"/></svg>`;
   }
 
   function handleExerciseLibraryPick(exerciseId) {
@@ -1261,6 +1274,10 @@
     if (!state.activeWorkoutDraft) {
       return;
     }
+    clearInterval(workoutElapsedInterval);
+    clearInterval(workoutRestInterval);
+    workoutElapsedInterval = null;
+    workoutRestInterval = null;
     openConfirmActionSheet(
       "Discard Workout",
       "Discard the unfinished workout?",
@@ -1300,7 +1317,9 @@
       <div class="workout-active-header">
         <div>
           <div class="workout-active-routine">${escHtml(draft.routineName || "Workout")}</div>
-          <div class="workout-active-timer">Manual tracking</div>
+          <div class="workout-active-timer" id="active-workout-elapsed">
+            ${formatElapsedTime(draft.startedAt)}
+          </div>
         </div>
         <div class="workout-inline-actions">
           <button class="btn btn-primary" type="button" onclick="finishActiveWorkoutPrompt()">Finish</button>
@@ -1314,6 +1333,16 @@
       </div>
       ${totalExercises ? renderCurrentWorkoutExercise(currentExerciseMeta, currentExercise, currentLog, lastExerciseLog) : renderEmptyActiveWorkoutState()}
     `;
+
+    clearInterval(workoutElapsedInterval);
+    workoutElapsedInterval = setInterval(() => {
+      const el = document.getElementById("active-workout-elapsed");
+      if (el && state.activeWorkoutDraft?.startedAt) {
+        el.textContent = formatElapsedTime(state.activeWorkoutDraft.startedAt);
+      } else {
+        clearInterval(workoutElapsedInterval);
+      }
+    }, 1000);
   }
 
   function renderCurrentWorkoutExercise(exercise, routineExercise, currentLog, lastExerciseLog) {
@@ -1385,7 +1414,7 @@
   function renderEmptyActiveWorkoutState() {
     return `
       <div class="empty-state">
-        <div class="empty-icon">Lift</div>
+        <div class="empty-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 5v14"/><path d="M18 5v14"/><path d="M2 9h4"/><path d="M2 15h4"/><path d="M18 9h4"/><path d="M18 15h4"/><path d="M6 12h12"/></svg></div>
         No exercises in this session yet.<br>Add exercises from the library to begin logging.
         <div class="today-card-actions">
           <button class="btn btn-primary" type="button" onclick="openExerciseLibrary('session', 0)">Add Exercise</button>
@@ -1481,11 +1510,17 @@
     const prHit = detectWorkoutPr(exercise, set);
     if (prHit) {
       set.isPersonalBest = true;
+      draft.personalBests = draft.personalBests.filter(
+        (pr) => !(pr.exerciseId === prHit.exerciseId && pr.type === prHit.type)
+      );
       draft.personalBests.push(prHit);
       showToast(`New PR: ${prHit.label}`);
     }
     saveState();
     renderActiveWorkout();
+
+    const restSeconds = routineExercise?.restSeconds || 90;
+    startRestTimer(restSeconds);
   }
 
   function isWorkoutSetFilled(exercise, set) {
@@ -1503,21 +1538,59 @@
   }
 
   function detectWorkoutPr(exercise, set) {
-    if (!exercise || set.weightKg <= 0) {
-      return null;
-    }
+    if (!exercise) return null;
+    const inputType = normalizeExerciseInputType(exercise.inputType);
     const currentBest = getExercisePersonalBest(exercise.id);
-    if (set.weightKg <= (currentBest.heaviestWeight || 0)) {
-      return null;
+
+    if (inputType === "reps_weight" && set.weightKg > 0) {
+      if (set.weightKg <= (currentBest.heaviestWeight || 0)) return null;
+      return {
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+        type: "weight",
+        value: set.weightKg,
+        label: `${exercise.name} ${roundNutrient(set.weightKg)}kg`,
+        achievedAt: new Date().toISOString()
+      };
     }
-    return {
-      exerciseId: exercise.id,
-      exerciseName: exercise.name,
-      type: "weight",
-      value: set.weightKg,
-      label: `${exercise.name} ${roundNutrient(set.weightKg)}kg`,
-      achievedAt: new Date().toISOString()
-    };
+    if (inputType === "time" && set.durationSeconds > 0) {
+      if (set.durationSeconds <= (currentBest.longestDuration || 0)) return null;
+      return {
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+        type: "duration",
+        value: set.durationSeconds,
+        label: `${exercise.name} ${formatDuration(set.durationSeconds)}`,
+        achievedAt: new Date().toISOString()
+      };
+    }
+    if (inputType === "distance" && set.distanceKm > 0) {
+      if (set.distanceKm <= (currentBest.longestDistance || 0)) return null;
+      return {
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+        type: "distance",
+        value: set.distanceKm,
+        label: `${exercise.name} ${roundNutrient(set.distanceKm)}km`,
+        achievedAt: new Date().toISOString()
+      };
+    }
+    if (inputType === "distance_time" && set.distanceKm > 0 && set.durationSeconds > 0) {
+      const paceSecondsPerKm = set.durationSeconds / set.distanceKm;
+      const bestPace = currentBest.bestPaceSecondsPerKm || Infinity;
+      if (paceSecondsPerKm >= bestPace) return null;
+      const paceMin = Math.floor(paceSecondsPerKm / 60);
+      const paceSec = Math.round(paceSecondsPerKm % 60);
+      return {
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+        type: "pace",
+        value: paceSecondsPerKm,
+        label: `${exercise.name} ${paceMin}:${String(paceSec).padStart(2, "0")}/km`,
+        achievedAt: new Date().toISOString()
+      };
+    }
+    return null;
   }
 
   function getExercisePersonalBest(exerciseId) {
@@ -1525,9 +1598,15 @@
       heaviestWeight: 0,
       mostReps: 0,
       bestEstimatedOneRepMax: 0,
+      longestDuration: 0,
+      longestDistance: 0,
+      bestPaceSecondsPerKm: Infinity,
       heaviestDate: "",
       repsDate: "",
-      oneRmDate: ""
+      oneRmDate: "",
+      durationDate: "",
+      distanceDate: "",
+      paceDate: ""
     };
 
     state.workoutSessions.forEach((session) => {
@@ -1549,6 +1628,21 @@
           result.bestEstimatedOneRepMax = estimatedOneRm;
           result.oneRmDate = session.date;
         }
+        if ((set.durationSeconds || 0) > result.longestDuration) {
+          result.longestDuration = set.durationSeconds || 0;
+          result.durationDate = session.date;
+        }
+        if ((set.distanceKm || 0) > result.longestDistance) {
+          result.longestDistance = set.distanceKm || 0;
+          result.distanceDate = session.date;
+        }
+        if (set.distanceKm > 0 && set.durationSeconds > 0) {
+          const pace = set.durationSeconds / set.distanceKm;
+          if (pace < result.bestPaceSecondsPerKm) {
+            result.bestPaceSecondsPerKm = pace;
+            result.paceDate = session.date;
+          }
+        }
       });
     });
 
@@ -1562,12 +1656,22 @@
     return `${mins}:${String(remainder).padStart(2, "0")}`;
   }
 
+  function formatElapsedTime(startedAt) {
+    if (!startedAt) return "0:00";
+    const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+    return formatDuration(Math.max(0, elapsed));
+  }
+
   function jumpWorkoutExercise(delta) {
     const draft = state.activeWorkoutDraft;
     if (!draft?.sessionExercises?.length) {
       finishActiveWorkoutPrompt();
       return;
     }
+    const banner = document.getElementById("rest-timer-banner");
+    if (banner) banner.remove();
+    clearInterval(workoutRestInterval);
+    workoutRestInterval = null;
     draft.currentExerciseIndex = clamp(draft.currentExerciseIndex + delta, 0, draft.sessionExercises.length - 1);
     saveState();
     renderActiveWorkout();
@@ -1604,6 +1708,10 @@
     if (!state.activeWorkoutDraft) {
       return;
     }
+    const banner = document.getElementById("rest-timer-banner");
+    if (banner) banner.remove();
+    clearInterval(workoutRestInterval);
+    workoutRestInterval = null;
     state.activeWorkoutDraft.currentExerciseIndex = clamp(index, 0, state.activeWorkoutDraft.sessionExercises.length - 1);
     saveState();
     closeModal("workout-jump");
@@ -1666,6 +1774,51 @@
       clearTimeout(workoutSetHoldHandle);
       workoutSetHoldHandle = null;
     }
+  }
+
+  function startRestTimer(seconds) {
+    clearInterval(workoutRestInterval);
+    if (!seconds || seconds <= 0) return;
+    const endsAt = Date.now() + seconds * 1000;
+    renderRestTimerBanner(Math.ceil((endsAt - Date.now()) / 1000));
+    workoutRestInterval = setInterval(() => {
+      const remaining = Math.ceil((endsAt - Date.now()) / 1000);
+      if (remaining <= 0) {
+        clearInterval(workoutRestInterval);
+        workoutRestInterval = null;
+        const banner = document.getElementById("rest-timer-banner");
+        if (banner) banner.remove();
+        showToast("Rest complete — next set!");
+        return;
+      }
+      renderRestTimerBanner(remaining);
+    }, 500);
+  }
+
+  function renderRestTimerBanner(remaining) {
+    const activeRoot = document.getElementById("overlay-active-workout");
+    if (!activeRoot) return;
+    let banner = document.getElementById("rest-timer-banner");
+    if (!banner) {
+      banner = document.createElement("div");
+      banner.id = "rest-timer-banner";
+      banner.className = "rest-timer-banner";
+      activeRoot.appendChild(banner);
+    }
+    banner.innerHTML = `
+      <div class="rest-timer-content">
+        <div class="rest-timer-label">Rest</div>
+        <div class="rest-timer-count">${formatDuration(remaining)}</div>
+        <button class="btn btn-secondary rest-timer-skip" type="button" onclick="skipRestTimer()">Skip</button>
+      </div>
+    `;
+  }
+
+  function skipRestTimer() {
+    clearInterval(workoutRestInterval);
+    workoutRestInterval = null;
+    const banner = document.getElementById("rest-timer-banner");
+    if (banner) banner.remove();
   }
 
   function changeWorkoutSetTypeOrDelete(setIndex) {
@@ -1775,9 +1928,7 @@
         if (set.weightKg > 0 && set.reps > 0) {
           return sum + (set.weightKg * set.reps);
         }
-        if (set.reps > 0) {
-          return sum + set.reps;
-        }
+        // Bodyweight exercises (no weight logged) — exclude from kg volume
         return sum;
       }, 0);
     }, 0);
@@ -1794,6 +1945,17 @@
     }
     const { session, durationSeconds, totalVolume, exerciseCount, completedSetCount, personalBests } = workoutSummaryDraft;
     root.innerHTML = `
+      <div class="workout-summary-name-row">
+        <input class="form-input" id="workout-summary-name"
+          type="text"
+          placeholder="Session name (optional)"
+          value="${escHtml(session.routineName || "Freeform Workout")}">
+      </div>
+      <div class="workout-summary-notes-row">
+        <textarea class="form-input" id="workout-summary-notes"
+          placeholder="Notes (optional — e.g. 'felt strong today')"
+          rows="2">${escHtml(session.notes || "")}</textarea>
+      </div>
       <div class="workout-summary-grid">
         <div class="history-summary-item">
           <div class="history-summary-label">Duration</div>
@@ -1850,10 +2012,18 @@
     if (!workoutSummaryDraft) {
       return;
     }
+    clearInterval(workoutElapsedInterval);
+    clearInterval(workoutRestInterval);
+    workoutElapsedInterval = null;
+    workoutRestInterval = null;
     const durationMinutes = Math.max(0, normalizePositiveInteger(document.getElementById("workout-summary-duration-minutes")?.value, 0));
+    const sessionName = document.getElementById("workout-summary-name")?.value?.trim() || "Freeform Workout";
+    const sessionNotes = document.getElementById("workout-summary-notes")?.value?.trim() || "";
     const session = normalizeWorkoutSession({
       ...workoutSummaryDraft.session,
-      durationSeconds: durationMinutes * 60
+      durationSeconds: durationMinutes * 60,
+      routineName: sessionName,
+      notes: sessionNotes
     });
     state.workoutSessions.push(session);
     state.workoutSessions.sort((a, b) => new Date(a.created_at || `${a.date}T12:00:00`).getTime() - new Date(b.created_at || `${b.date}T12:00:00`).getTime());
@@ -1867,6 +2037,10 @@
   }
 
   function discardFinishedWorkout() {
+    clearInterval(workoutElapsedInterval);
+    clearInterval(workoutRestInterval);
+    workoutElapsedInterval = null;
+    workoutRestInterval = null;
     workoutSummaryDraft = null;
     state.activeWorkoutDraft = null;
     saveState();
@@ -1883,7 +2057,7 @@
     }
     const sessions = state.workoutSessions.slice().sort((a, b) => new Date(b.created_at || `${b.date}T12:00:00`).getTime() - new Date(a.created_at || `${a.date}T12:00:00`).getTime());
     if (!sessions.length) {
-      root.innerHTML = "<div class=\"card\"><div class=\"empty-state\"><div class=\"empty-icon\">Log</div>No workout history yet.</div></div>";
+      root.innerHTML = "<div class=\"card\"><div class=\"empty-state\"><div class=\"empty-icon\"><svg width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z\"/><polyline points=\"14 2 14 8 20 8\"/><line x1=\"16\" y1=\"13\" x2=\"8\" y2=\"13\"/><line x1=\"16\" y1=\"17\" x2=\"8\" y2=\"17\"/><polyline points=\"10 9 9 9 8 9\"/></svg></div>No workout history yet.</div></div>";
       return;
     }
 
@@ -1930,7 +2104,14 @@
             <div class="workout-session-name">${escHtml(session.routineName || "Freeform Workout")}</div>
             <div class="workout-session-meta">${new Date(`${session.date}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} · ${session.durationSeconds > 0 ? formatDuration(session.durationSeconds) : "Manual"} · ${totalVolume} kg · ${session.exerciseLogs.length} exercises</div>
           </div>
-          <div>${expanded ? "−" : "+"}</div>
+          <div class="workout-session-head-actions">
+            <svg class="chevron-icon ${expanded ? "open" : ""}" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </button>
+        <button class="workout-session-delete" type="button"
+          onclick="promptDeleteWorkoutSession('${session.id}')"
+          aria-label="Delete session">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         </button>
         ${expanded ? `
           <div class="workout-session-breakdown">
@@ -1944,6 +2125,7 @@
               `;
             }).join("")}
           </div>
+          ${session.notes ? `<div class="workout-session-notes">${escHtml(session.notes)}</div>` : ""}
         ` : ""}
       </div>
     `;
@@ -1952,6 +2134,19 @@
   function toggleWorkoutHistorySession(sessionId) {
     workoutHistoryExpandedId = workoutHistoryExpandedId === sessionId ? null : sessionId;
     renderWorkoutHistory();
+  }
+
+  function promptDeleteWorkoutSession(sessionId) {
+    openConfirmActionSheet(
+      "Delete Workout",
+      "Delete this workout session? This cannot be undone.",
+      "Delete",
+      () => {
+        state.workoutSessions = state.workoutSessions.filter((s) => s.id !== sessionId);
+        saveState();
+        renderWorkoutHistory();
+      }
+    );
   }
 
   function renderWorkoutProgress() {
@@ -1975,7 +2170,7 @@
           <input class="search-input" id="workout-progress-search" placeholder="Search exercises..." oninput="renderWorkoutProgressSearchResults()" value="${escHtml(selectedExercise?.name || "")}">
         </div>
         <div class="workout-progress-search-results hidden" id="workout-progress-search-results"></div>
-        ${selectedExercise ? renderExerciseProgressPanel(selectedExercise) : `<div class="empty-state"><div class="empty-icon">PR</div>Select an exercise to see progress.</div>`}
+        ${selectedExercise ? renderExerciseProgressPanel(selectedExercise) : `<div class="empty-state"><div class="empty-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>Select an exercise to see progress.</div>`}
       </div>
     `;
     renderWorkoutProgressSearchResults();
@@ -2008,6 +2203,15 @@
   function selectWorkoutProgressExercise(exerciseId) {
     workoutProgressExerciseId = exerciseId;
     renderWorkoutProgress();
+  }
+
+  function showChartTooltip(el) {
+    const label = el.dataset.label;
+    const tooltip = document.getElementById("chart-tooltip") || document.getElementById("chart-tooltip-bar");
+    if (!tooltip || !label) return;
+    tooltip.textContent = label;
+    tooltip.classList.remove("hidden");
+    setTimeout(() => tooltip.classList.add("hidden"), 2500);
   }
 
   function renderExerciseProgressPanel(exercise) {
@@ -2095,42 +2299,97 @@
   }
 
   function renderLineChart(points, unit) {
+    if (!points.length) return "";
     const width = 320;
     const height = 140;
-    const max = Math.max(...points.map((point) => point.value), 1);
-    const stepX = points.length > 1 ? (width - 24) / (points.length - 1) : 0;
-    const polyline = points.map((point, index) => {
-      const x = 12 + (stepX * index);
-      const y = height - 20 - (((point.value || 0) / max) * (height - 36));
-      return `${x},${y}`;
-    }).join(" ");
+    const padLeft = 36;
+    const padBottom = 24;
+    const padTop = 12;
+    const padRight = 12;
+    const chartW = width - padLeft - padRight;
+    const chartH = height - padBottom - padTop;
+    const max = Math.max(...points.map((p) => p.value), 1);
+    const min = Math.min(...points.map((p) => p.value), 0);
+    const range = max - min || 1;
+    const stepX = points.length > 1 ? chartW / (points.length - 1) : 0;
+    const toY = (v) => padTop + chartH - ((v - min) / range) * chartH;
+    const toX = (i) => padLeft + stepX * i;
+    const polyline = points.map((p, i) => `${toX(i)},${toY(p.value)}`).join(" ");
+    const gridCount = 3;
+    const grids = Array.from({ length: gridCount + 1 }, (_, i) => {
+      const v = min + (range * i) / gridCount;
+      const y = toY(v);
+      return `
+      <line x1="${padLeft}" y1="${y}" x2="${width - padRight}" y2="${y}" stroke="var(--border)" stroke-width="1"/>
+      <text x="${padLeft - 4}" y="${y + 4}" text-anchor="end" font-size="10" fill="var(--text2)">${Math.round(v)}</text>
+    `;
+    });
+    const circles = points.map((p, i) => `
+    <circle cx="${toX(i)}" cy="${toY(p.value)}" r="4" fill="var(--accent)" class="chart-dot"
+      data-label="${escHtml(p.label)}: ${roundNutrient(p.value)} ${unit}"/>
+    <circle cx="${toX(i)}" cy="${toY(p.value)}" r="12" fill="transparent" class="chart-hit"
+      onmouseenter="showChartTooltip(this)" ontouchstart="showChartTooltip(this)"
+      data-label="${escHtml(p.label)}: ${roundNutrient(p.value)} ${unit}"/>
+  `);
     return `
-      <svg class="workout-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
-        <polyline fill="none" stroke="var(--accent)" stroke-width="3" points="${polyline}" />
-        ${points.map((point, index) => {
-          const x = 12 + (stepX * index);
-          const y = height - 20 - (((point.value || 0) / max) * (height - 36));
-          return `<circle cx="${x}" cy="${y}" r="3" fill="var(--accent)" />`;
-        }).join("")}
-      </svg>
+      <div class="workout-chart-wrap" id="chart-wrap-${Math.random().toString(36).slice(2)}">
+        <div class="chart-tooltip hidden" id="chart-tooltip"></div>
+        <svg class="workout-chart" viewBox="0 0 ${width} ${height}">
+          ${grids.join("")}
+          <polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" points="${polyline}"/>
+          ${circles.join("")}
+          ${points.map((p, i) => i === 0 || i === points.length - 1
+            ? `<text x="${toX(i)}" y="${height - 6}" text-anchor="${i === 0 ? "start" : "end"}" font-size="9" fill="var(--text2)">${escHtml(p.label)}</text>`
+            : "").join("")}
+        </svg>
+      </div>
       <div class="workout-chart-caption">Peak set weight by day (${unit})</div>
     `;
   }
 
   function renderBarChart(points, unit) {
+    if (!points.length) return "";
     const width = 320;
     const height = 140;
-    const max = Math.max(...points.map((point) => point.value), 1);
-    const barWidth = Math.max(16, Math.floor((width - 24) / Math.max(points.length, 1)) - 6);
+    const padLeft = 36;
+    const padBottom = 24;
+    const padTop = 12;
+    const padRight = 12;
+    const chartW = width - padLeft - padRight;
+    const chartH = height - padBottom - padTop;
+    const max = Math.max(...points.map((p) => p.value), 1);
+    const barCount = points.length;
+    const barW = Math.max(10, Math.floor(chartW / barCount) - 4);
+    const gridCount = 3;
+    const grids = Array.from({ length: gridCount + 1 }, (_, i) => {
+      const v = (max * i) / gridCount;
+      const y = padTop + chartH - (v / max) * chartH;
+      return `
+      <line x1="${padLeft}" y1="${y}" x2="${width - padRight}" y2="${y}" stroke="var(--border)" stroke-width="1"/>
+      <text x="${padLeft - 4}" y="${y + 4}" text-anchor="end" font-size="10" fill="var(--text2)">${Math.round(v)}</text>
+    `;
+    });
+    const bars = points.map((p, i) => {
+      const bh = ((p.value || 0) / max) * chartH;
+      const x = padLeft + i * (barW + 4);
+      const y = padTop + chartH - bh;
+      return `
+      <rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="4" fill="var(--accent2)"
+        onmouseenter="showChartTooltip(this)" ontouchstart="showChartTooltip(this)"
+        data-label="${escHtml(p.label)}: ${Math.round(p.value)} ${unit}"/>
+      ${i === 0 || i === points.length - 1
+        ? `<text x="${x + barW / 2}" y="${height - 6}" text-anchor="middle" font-size="9" fill="var(--text2)">${escHtml(p.label)}</text>`
+        : ""}
+    `;
+    });
     return `
-      <svg class="workout-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
-        ${points.map((point, index) => {
-          const x = 12 + index * (barWidth + 6);
-          const barHeight = ((point.value || 0) / max) * (height - 36);
-          const y = height - 20 - barHeight;
-          return `<rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="6" fill="var(--accent2)" />`;
-        }).join("")}
-      </svg>
+      <div class="workout-chart-wrap">
+        <div class="chart-tooltip hidden" id="chart-tooltip-bar"></div>
+        <svg class="workout-chart" viewBox="0 0 ${width} ${height}">
+          ${grids.join("")}
+          ${bars.join("")}
+        </svg>
+      </div>
       <div class="workout-chart-caption">Weekly working-set volume (${unit})</div>
     `;
   }
@@ -2209,6 +2468,7 @@
   window.jumpWorkoutExercise = jumpWorkoutExercise;
   window.openWorkoutJump = openWorkoutJump;
   window.jumpToWorkoutExercise = jumpToWorkoutExercise;
+  window.skipRestTimer = skipRestTimer;
   window.addSetToActiveWorkout = addSetToActiveWorkout;
   window.addExerciseToActiveWorkout = addExerciseToActiveWorkout;
   window.updateWorkoutSetField = updateWorkoutSetField;
@@ -2220,8 +2480,10 @@
   window.saveFinishedWorkout = saveFinishedWorkout;
   window.discardFinishedWorkout = discardFinishedWorkout;
   window.toggleWorkoutHistorySession = toggleWorkoutHistorySession;
+  window.promptDeleteWorkoutSession = promptDeleteWorkoutSession;
   window.renderWorkoutProgressSearchResults = renderWorkoutProgressSearchResults;
   window.selectWorkoutProgressExercise = selectWorkoutProgressExercise;
+  window.showChartTooltip = showChartTooltip;
   window.openActionSheet = openActionSheet;
   window.closeActionSheet = closeActionSheet;
 })();
