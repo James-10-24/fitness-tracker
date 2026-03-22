@@ -804,6 +804,16 @@
     };
   }
 
+  function syncWorkoutBuilderName() {
+    if (!workoutBuilderDraft) {
+      return;
+    }
+    const input = document.getElementById("workout-builder-name");
+    if (input) {
+      workoutBuilderDraft.name = input.value;
+    }
+  }
+
   function renderWorkoutBuilder() {
     const root = document.getElementById("workout-builder-exercises");
     const weekdayRow = document.getElementById("workout-builder-weekdays");
@@ -813,6 +823,7 @@
     }
 
     document.getElementById("workout-builder-name").value = workoutBuilderDraft.name;
+    document.getElementById("workout-builder-name").oninput = syncWorkoutBuilderName;
     weekdayRow.innerHTML = WORKOUT_DAY_KEYS.map((day) => `
       <button class="workout-weekday-pill ${workoutBuilderDraft.weekdays.includes(day) ? "active" : ""}" type="button" onclick="toggleWorkoutBuilderDay('${day}')">${WORKOUT_DAY_LABELS[day]}</button>
     `).join("");
@@ -872,6 +883,7 @@
   }
 
   function toggleWorkoutTemplatePicker() {
+    syncWorkoutBuilderName();
     workoutTemplatePickerOpen = !workoutTemplatePickerOpen;
     renderWorkoutBuilder();
   }
@@ -897,6 +909,7 @@
     if (!workoutBuilderDraft) {
       return;
     }
+    syncWorkoutBuilderName();
     const index = workoutBuilderDraft.weekdays.indexOf(day);
     if (index >= 0) {
       workoutBuilderDraft.weekdays.splice(index, 1);
@@ -908,6 +921,7 @@
   }
 
   function toggleWorkoutBuilderExercise(index) {
+    syncWorkoutBuilderName();
     workoutBuilderExpandedIndex = workoutBuilderExpandedIndex === index ? -1 : index;
     renderWorkoutBuilder();
   }
@@ -938,6 +952,7 @@
       workoutDragIndex = -1;
       return;
     }
+    syncWorkoutBuilderName();
     const items = workoutBuilderDraft.exercises.slice().sort((a, b) => a.order - b.order);
     const [moved] = items.splice(workoutDragIndex, 1);
     items.splice(index, 0, moved);
@@ -1069,6 +1084,7 @@
       if (!workoutBuilderDraft) {
         return;
       }
+      syncWorkoutBuilderName();
       workoutBuilderDraft.exercises.push({
         exerciseId: exercise.id,
         order: workoutBuilderDraft.exercises.length + 1,
