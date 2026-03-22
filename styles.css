@@ -2781,7 +2781,30 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .workout-tab-row {
-  margin-bottom: 12px;
+  margin: 0 16px 16px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(24, 33, 47, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(24, 33, 47, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  display: flex;
+  gap: 4px;
+}
+
+.workout-tab-row .tab-pill {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  color: var(--text2);
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+}
+
+.workout-tab-row .tab-pill.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(249, 115, 22, 0.3);
 }
 
 .workout-view {
@@ -2794,12 +2817,14 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .workout-resume-banner {
   margin: 0 16px 14px;
-  padding: 14px;
+  padding: 16px;
   border-radius: 18px;
-  background: rgba(255, 107, 53, 0.1);
-  border: 1px solid rgba(255, 107, 53, 0.18);
+  background: linear-gradient(135deg, rgba(249,115,22,0.1) 0%, rgba(251,146,60,0.06) 100%);
+  border: 1.5px solid rgba(249, 115, 22, 0.22);
+  border-left: 4px solid var(--accent);
   display: grid;
   gap: 12px;
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.1);
 }
 
 .workout-home-card,
@@ -2856,12 +2881,14 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .workout-routine-card {
-  padding: 14px;
+  padding: 16px;
   border-left: 3px solid var(--accent);
-  transition: box-shadow 0.15s;
+  background: linear-gradient(to right, rgba(249, 115, 22, 0.03), rgba(255,255,255,0.78));
+  transition: box-shadow 0.18s, transform 0.18s;
 }
 .workout-routine-card:hover {
-  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.1);
+  box-shadow: 0 6px 20px rgba(249, 115, 22, 0.12);
+  transform: translateY(-1px);
 }
 
 .workout-template-card,
@@ -2893,16 +2920,18 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 /* Hero title for Today's Routine */
 .workout-assigned-title {
   font-family: var(--font-heading);
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
   color: var(--text);
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 
 .workout-assigned-meta {
-  margin-bottom: 2px;
+  margin-bottom: 4px;
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
 .workout-routine-name,
@@ -2910,8 +2939,11 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .workout-session-name,
 .workout-summary-exercise-name,
 .workout-template-name {
-  font-size: 16px;
-  font-weight: 600;
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
 }
 
 .workout-assigned-meta,
@@ -2946,7 +2978,34 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+/* Summary stat cells */
+.workout-summary-grid > div {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(24, 33, 47, 0.07);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 2px;
+}
+
+.workout-summary-grid .history-summary-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text2);
+}
+
+.workout-summary-grid .history-summary-value {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.1;
 }
 
 .workout-summary-prs {
@@ -3046,13 +3105,15 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .workout-weekday-pill,
 .workout-filter-pill {
-  border: 1px solid var(--border);
+  border: 1.5px solid rgba(24, 33, 47, 0.1);
   border-radius: 999px;
-  padding: 9px 14px;
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--text);
-  font-size: 13px;
+  padding: 7px 14px;
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--text2);
+  font-size: 12.5px;
+  font-weight: 600;
   white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .workout-weekday-pill.active,
@@ -3060,6 +3121,7 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+  box-shadow: 0 3px 10px rgba(249, 115, 22, 0.3);
 }
 
 .workout-template-picker {
@@ -3076,12 +3138,19 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   width: 100%;
   border: none;
   background: transparent;
-  padding: 14px;
+  padding: 13px 14px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
   text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-radius: inherit;
+}
+
+.workout-builder-row-main:hover {
+  background: rgba(249, 115, 22, 0.03);
 }
 
 .workout-builder-row-meta,
@@ -3129,20 +3198,31 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .workout-jump-row,
 .workout-search-row {
   width: 100%;
-  padding: 14px;
+  padding: 13px 14px;
   text-align: left;
   display: flex;
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  border-radius: 16px;
+  border-radius: 14px;
+  transition: background 0.15s;
+}
+
+.workout-library-row:hover,
+.workout-jump-row:hover,
+.workout-search-row:hover {
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .workout-library-row-main {
   min-width: 0;
 }
 
-.workout-library-row-name,
+.workout-library-row-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .workout-jump-row,
 .workout-search-row {
   font-size: 15px;
@@ -3170,7 +3250,7 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .workout-active-root {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .workout-active-header,
@@ -3179,10 +3259,22 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .workout-chart-block,
 .workout-pr-badge,
 .workout-streak-card {
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.94), rgba(255,247,239,0.86));
-  padding: 14px;
+  border: 1px solid rgba(24, 33, 47, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 16px;
+  box-shadow: 0 2px 12px rgba(24, 33, 47, 0.04);
+}
+
+/* Active workout header has a subtle orange glow */
+.workout-active-header {
+  background: linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(255,247,239,0.9) 100%);
+  border-color: rgba(249, 115, 22, 0.14);
+}
+
+/* Current exercise card feels focused and immersive */
+.workout-current-exercise {
+  border-left: 4px solid var(--accent);
 }
 
 .workout-active-header,
@@ -3199,23 +3291,38 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .workout-active-timer {
-  font-size: 28px;
-  font-weight: 600;
+  font-family: var(--font-heading);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--text);
+  /* Monospace-like tabular numerals */
+  font-variant-numeric: tabular-nums;
 }
 
 .rest-timer-banner {
   position: fixed;
-  bottom: calc(var(--nav-h) + 16px);
+  bottom: calc(var(--nav-h) + 12px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 200;
-  background: var(--surface);
-  border: 1.5px solid var(--accent);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
-  padding: 12px 20px;
-  min-width: 200px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1.5px solid rgba(249, 115, 22, 0.3);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(249, 115, 22, 0.18), 0 2px 8px rgba(24,33,47,0.08);
+  padding: 12px 22px;
+  min-width: 220px;
+  max-width: calc(var(--app-width) - 40px);
   text-align: center;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: restBannerIn 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes restBannerIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px) scale(0.95); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 }
 
 .rest-timer-content {
@@ -3235,11 +3342,13 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .rest-timer-count {
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 28px;
-  font-weight: 600;
+  font-family: var(--font-heading);
+  font-size: 36px;
+  font-weight: 700;
   color: var(--accent);
-  min-width: 60px;
+  min-width: 64px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .rest-timer-skip {
@@ -3252,9 +3361,9 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .workout-current-title-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .workout-current-title-block {
@@ -3263,7 +3372,22 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .workout-current-tag {
-  margin-top: 4px;
+  margin-top: 3px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+/* Navigation arrows for exercise nav */
+.workout-current-title-row > button {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  font-size: 18px;
 }
 
 .workout-set-list,
@@ -3274,15 +3398,24 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .workout-set-row {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(24, 33, 47, 0.08);
+  border-left: 3px solid rgba(24, 33, 47, 0.12);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.8);
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
 }
 
 .workout-set-row.done {
-  border-color: rgba(43, 122, 82, 0.35);
-  background: rgba(43, 122, 82, 0.08);
+  border-color: rgba(22, 163, 74, 0.2);
+  border-left-color: var(--accent-green);
+  background: linear-gradient(to right, rgba(22, 163, 74, 0.05), rgba(255, 255, 255, 0.8));
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.08);
+}
+
+.workout-set-row.is-pr {
+  border-left-color: var(--accent);
+  background: linear-gradient(to right, rgba(249, 115, 22, 0.05), rgba(255,255,255,0.8));
 }
 
 .workout-set-head,
@@ -3308,10 +3441,11 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .workout-set-badge,
 .workout-rest-title,
 .workout-chart-title {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.05em;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--text2);
 }
 
 .workout-set-badge {
@@ -3320,15 +3454,28 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .workout-set-inputs {
   margin-top: 10px;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
   gap: 8px;
   align-items: center;
 }
 
-.workout-set-check {
-  min-height: 44px;
+.workout-set-inputs .form-input {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-weight: 600;
+  font-size: 15px;
 }
+
+.workout-set-check {
+  flex: 0 0 auto;
+  min-width: 0;
+  width: auto;
+  padding: 10px 16px;
+}
+
+
+/* .workout-set-check overridden above in flex context */
 
 .workout-session-actions {
   margin-top: 14px;
@@ -3343,20 +3490,25 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  border-radius: 18px;
-  padding: 14px;
-  background: rgba(255, 107, 53, 0.12);
-  border: 1px solid rgba(255, 107, 53, 0.2);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(249,115,22,0.1), rgba(251,146,60,0.06));
+  border: 1.5px solid rgba(249, 115, 22, 0.22);
+  box-shadow: 0 4px 16px rgba(249, 115, 22, 0.12);
 }
 
 .workout-rest-banner.done {
-  background: rgba(43, 122, 82, 0.12);
-  border-color: rgba(43, 122, 82, 0.2);
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.1), rgba(22,163,74,0.05));
+  border-color: rgba(22, 163, 74, 0.25);
+  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.1);
 }
 
 .workout-rest-time {
-  font-size: 20px;
+  font-family: var(--font-heading);
+  font-size: 26px;
   font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .workout-session-head {
@@ -3368,11 +3520,17 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   gap: 12px;
   align-items: flex-start;
   text-align: left;
-  padding: 14px;
+  padding: 14px 16px;
 }
 
 .workout-session-card {
   position: relative;
+  border-left: 3px solid rgba(249, 115, 22, 0.35);
+  transition: box-shadow 0.15s;
+}
+
+.workout-session-card:hover {
+  box-shadow: 0 4px 16px rgba(24, 33, 47, 0.08);
 }
 
 .workout-session-delete {
@@ -3445,8 +3603,8 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .workout-chart {
   width: 100%;
-  height: 140px;
-  margin-top: 10px;
+  height: 150px;
+  margin-top: 12px;
 }
 
 .workout-chart-wrap {
@@ -3480,7 +3638,25 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 
 .workout-pr-badge {
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  border-left: 4px solid var(--accent) !important;
+  background: linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(255,255,255,0.9) 100%) !important;
+}
+
+/* Inline PR badge on set row */
+.workout-pr-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid rgba(249, 115, 22, 0.2);
 }
 
 .workout-month-grid {
@@ -3491,15 +3667,18 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 }
 
 .workout-month-dot {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   margin: 0 auto;
-  border-radius: 50%;
-  background: rgba(26, 26, 46, 0.08);
+  border-radius: 3px;
+  background: rgba(26, 26, 46, 0.07);
+  transition: background 0.2s;
 }
 
 .workout-month-dot.done {
-  background: var(--accent2);
+  background: var(--accent);
+  box-shadow: 0 1px 4px rgba(249, 115, 22, 0.3);
+  border-radius: 3px;
 }
 
 .workout-archived-section {
@@ -3537,9 +3716,21 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .workout-undo-btn {
   width: auto;
   min-width: 0;
-  padding: 7px 14px;
-  font-size: 13px;
-  flex: 0 0 auto;
+  padding: 9px 14px;
+  font-size: 14px;
+  flex: 1;
+}
+
+.workout-active-header .workout-inline-actions {
+  margin-top: 0;
+}
+
+.workout-active-header .workout-inline-actions .btn {
+  flex: 1;
+  min-width: 110px;
+  min-height: 48px;
+  padding: 9px 14px;
+  font-size: 14px;
 }
 
 /* Swap exercise button */
