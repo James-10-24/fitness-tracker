@@ -3780,20 +3780,36 @@ function roundToDecimal(value, digits = 1) {
 }
 
 function closeModal(name) {
-  document.getElementById(`overlay-${name}`).classList.remove("open");
-  if (name === "goals") {
-    document.getElementById("goal-sources-popover").classList.add("hidden");
+  const overlay = document.getElementById(`overlay-${name}`);
+  if (!overlay) {
+    return;
   }
-  if (name === "edit-log") {
-    editingLogId = null;
-    editingLogDate = null;
-    document.getElementById("edit-log-status").textContent = "";
+  const finalizeClose = () => {
+    overlay.classList.remove("open");
+    if (name === "goals") {
+      document.getElementById("goal-sources-popover").classList.add("hidden");
+    }
+    if (name === "edit-log") {
+      editingLogId = null;
+      editingLogDate = null;
+      document.getElementById("edit-log-status").textContent = "";
+    }
+    if (name === "quick-track") {
+      quickTrackDate = null;
+      quickTrackEntryId = null;
+      document.getElementById("quick-track-status").textContent = "";
+    }
+  };
+  const sheet = overlay.querySelector(".sheet");
+  if (sheet && !sheet.classList.contains("closing")) {
+    sheet.classList.add("closing");
+    setTimeout(() => {
+      sheet.classList.remove("closing");
+      finalizeClose();
+    }, 200);
+    return;
   }
-  if (name === "quick-track") {
-    quickTrackDate = null;
-    quickTrackEntryId = null;
-    document.getElementById("quick-track-status").textContent = "";
-  }
+  finalizeClose();
 }
 
 function showToast(message) {
