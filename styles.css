@@ -1625,8 +1625,19 @@ h2,
   display: flex;
 }
 
+.overlay.overlay-suspended {
+  visibility: hidden;
+}
+
 #overlay-install {
   z-index: 340;
+}
+
+#overlay-action-sheet {
+  z-index: 360;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .sheet {
@@ -3283,11 +3294,12 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
 .action-sheet {
   width: min(100%, 520px);
   margin-top: auto;
-  background: var(--card);
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,248,242,0.98));
   border-radius: 28px 28px 0 0;
   padding: 18px 18px calc(18px + var(--safe-bottom));
-  box-shadow: 0 -18px 48px rgba(17, 24, 39, 0.16);
-  border-top: 1px solid var(--border);
+  box-shadow: 0 -18px 48px rgba(17, 24, 39, 0.24);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-bottom: none;
   display: grid;
   gap: 10px;
 }
@@ -3319,24 +3331,24 @@ select.form-input:not(.amount-unit-pill):not(.water-unit-select) {
   padding: 15px 16px;
   font-size: 15px;
   font-weight: 700;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.96);
   color: var(--text);
 }
 
 .action-sheet-btn--default {
-  background: rgba(255, 107, 53, 0.12);
-  border-color: rgba(255, 107, 53, 0.2);
+  background: rgba(255, 107, 53, 0.16);
+  border-color: rgba(255, 107, 53, 0.24);
   color: var(--accent);
 }
 
 .action-sheet-btn--destructive {
-  background: rgba(220, 38, 38, 0.08);
-  border-color: rgba(220, 38, 38, 0.16);
+  background: rgba(220, 38, 38, 0.12);
+  border-color: rgba(220, 38, 38, 0.22);
   color: #c2410c;
 }
 
 .action-sheet-btn--muted {
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.96);
   color: var(--text2);
 }
 

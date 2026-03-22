@@ -153,6 +153,7 @@
   let workoutElapsedInterval = null;
   let workoutRestInterval = null;
   let actionSheetActions = [];
+  let actionSheetOnClose = null;
 
   const originalCreateInitialState = createInitialState;
   createInitialState = function () {
@@ -227,6 +228,7 @@
 
     const safeActions = Array.isArray(actions) ? actions.filter(Boolean) : [];
     actionSheetActions = safeActions;
+    actionSheetOnClose = typeof options.onClose === "function" ? options.onClose : null;
     titleEl.textContent = title || "";
     bodyEl.innerHTML = `
       ${options.message ? `<div class="action-sheet-message">${escHtml(options.message)}</div>` : ""}
@@ -268,6 +270,11 @@
       bodyEl.innerHTML = "";
     }
     actionSheetActions = [];
+    const onClose = actionSheetOnClose;
+    actionSheetOnClose = null;
+    if (onClose) {
+      onClose();
+    }
   }
 
   function openConfirmActionSheet(title, message, confirmLabel, onConfirm, confirmStyle = "default") {
@@ -760,13 +767,20 @@
   function openWorkoutBuilder(editId = null) {
     workoutTemplatePickerOpen = false;
     workoutBuilderExpandedIndex = -1;
+    const deleteBtn = document.getElementById("workout-builder-delete-btn");
     if (editId) {
       const routine = getRoutineById(editId);
       workoutBuilderDraft = routine ? cloneRoutineDraft(routine) : createRoutineDraft();
       document.getElementById("workout-builder-title").textContent = "Edit Routine";
+      if (deleteBtn) {
+        deleteBtn.classList.toggle("hidden", !routine);
+      }
     } else {
       workoutBuilderDraft = createRoutineDraft();
       document.getElementById("workout-builder-title").textContent = "New Routine";
+      if (deleteBtn) {
+        deleteBtn.classList.add("hidden");
+      }
     }
     document.getElementById("overlay-workout-builder").classList.add("open");
     renderWorkoutBuilder();
@@ -1157,6 +1171,38 @@
     closeModal("workout-builder");
     renderWorkoutPage();
     showToast("Routine saved");
+  }
+
+  function promptDeleteWorkoutRoutine() {
+    if (!workoutBuilderDraft) {
+      return;
+    }
+    const routineId = workoutBuilderDraft.id;
+    const routineName = workoutBuilderDraft.name || "this routine";
+    const builderOverlay = document.getElementById("overlay-workout-builder");
+    if (builderOverlay) {
+      builderOverlay.classList.add("overlay-suspended");
+    }
+    openActionSheet("Delete Routine", [
+      {
+        label: "Delete Routine",
+        style: "destructive",
+        onClick: () => {
+          state.routines = state.routines.filter((routine) => routine.id !== routineId);
+          saveState();
+          closeModal("workout-builder");
+          renderWorkoutPage();
+          showToast("Routine deleted");
+        }
+      }
+    ], {
+      message: `Delete ${routineName}? This cannot be undone.`,
+      onClose: () => {
+        if (builderOverlay) {
+          builderOverlay.classList.remove("overlay-suspended");
+        }
+      }
+    });
   }
 
   function startRoutineWorkout(routineId) {
@@ -2445,6 +2491,7 @@
 
   window.switchWorkoutTab = switchWorkoutTab;
   window.openWorkoutBuilder = openWorkoutBuilder;
+  window.promptDeleteWorkoutRoutine = promptDeleteWorkoutRoutine;
   window.toggleWorkoutTemplatePicker = toggleWorkoutTemplatePicker;
   window.applyWorkoutTemplate = applyWorkoutTemplate;
   window.toggleWorkoutBuilderDay = toggleWorkoutBuilderDay;
