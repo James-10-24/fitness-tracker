@@ -1694,7 +1694,17 @@ function isCountBasedFoodUnit(unit) {
   return !!normalized && !["g", "kg", "oz", "lb", "ml", "l", "cup"].includes(normalized);
 }
 
+function ensureMealsHistoryMount() {
+  const host = document.getElementById("meals-view-history");
+  const content = document.getElementById("history-content");
+  if (!host || !content || content.parentElement === host) {
+    return;
+  }
+  host.appendChild(content);
+}
+
 function switchMealsSubtab(subtab) {
+  ensureMealsHistoryMount();
   document.querySelectorAll(".meals-subtab").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.subtab === subtab);
   });
@@ -4012,6 +4022,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("meals-view-history")?.addEventListener("touchstart", handleHistoryTouchStart, { passive: true });
   document.getElementById("meals-view-history")?.addEventListener("touchend", handleHistoryTouchEnd, { passive: true });
+  ensureMealsHistoryMount();
 
   document.getElementById("ai-quantity")?.addEventListener("input", syncEstimateFromQuantity);
   document.getElementById("ai-grams")?.addEventListener("input", syncEstimateFromGrams);

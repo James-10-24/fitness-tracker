@@ -216,179 +216,176 @@
     </div>
 
     <div class="meals-view active" id="meals-view-add">
-    <div class="tab-row">
-      <button class="tab-pill active" data-tab="from-foods" id="log-tab-my-foods" onclick="switchLogTab('from-foods')">My Foods</button>
-      <button class="tab-pill" data-tab="ai-estimate" id="log-tab-ai" onclick="switchLogTab('ai-estimate')">AI</button>
-      <button class="tab-pill" data-tab="custom" id="log-tab-custom" onclick="switchLogTab('custom')">Custom</button>
-    </div>
+      <div class="tab-row">
+        <button class="tab-pill active" data-tab="from-foods" id="log-tab-my-foods" onclick="switchLogTab('from-foods')">My Foods</button>
+        <button class="tab-pill" data-tab="ai-estimate" id="log-tab-ai" onclick="switchLogTab('ai-estimate')">AI</button>
+        <button class="tab-pill" data-tab="custom" id="log-tab-custom" onclick="switchLogTab('custom')">Custom</button>
+      </div>
 
-    <div class="tab-content active" id="tab-from-foods">
-      <div class="search-wrap">
-        <span class="search-icon">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        </span>
-        <input class="search-input" id="food-search" placeholder="Search your foods..." oninput="renderFoodPicker()">
+      <div class="tab-content active" id="tab-from-foods">
+        <div class="search-wrap">
+          <span class="search-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </span>
+          <input class="search-input" id="food-search" placeholder="Search your foods..." oninput="renderFoodPicker()">
+        </div>
+        <div id="food-picker-list"></div>
+        <div class="helper-text">
+          Missing a food item? <span class="helper-link" onclick="switchLogTab('ai-estimate')">Let AI take a guess for you</span>. After saving it, you can log it by grams or quantity in just a tap.
+        </div>
+        <div class="sticky-meal-action">
+          <div class="form-group hidden" id="log-amount-group">
+            <label class="form-label" for="log-amount" id="log-amount-label">Enter how many you had</label>
+            <div class="amount-input-row">
+              <input class="form-input amount-input" id="log-amount" type="number" min="0.1" step="0.1" value="100" placeholder="100">
+              <select class="form-input amount-unit-pill" id="log-unit" onchange="handleLogUnitChange()"></select>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="logFromFood()">Add to Today</button>
+        </div>
       </div>
-      <div id="food-picker-list"></div>
-      <div class="helper-text">
-        Missing a food item? <span class="helper-link" onclick="switchLogTab('ai-estimate')">Let AI take a guess for you</span>. After saving it, you can log it by grams or quantity in just a tap.
-      </div>
-      <div class="sticky-meal-action">
-        <div class="form-group hidden" id="log-amount-group">
-          <label class="form-label" for="log-amount" id="log-amount-label">Enter how many you had</label>
-          <div class="amount-input-row">
-            <input class="form-input amount-input" id="log-amount" type="number" min="0.1" step="0.1" value="100" placeholder="100">
-            <select class="form-input amount-unit-pill" id="log-unit" onchange="handleLogUnitChange()"></select>
+
+      <div class="tab-content" id="tab-ai-estimate">
+        <div class="card card-tight estimate-card">
+          <div class="card-label">AI Food Estimate</div>
+          <div class="api-note">Describe the food in plain language. Example: chicken rice, 2 fried eggs, tuna sandwich.</div>
+          <div class="form-group" style="margin-top: 14px;">
+            <label class="form-label" for="ai-food-input">Food Description</label>
+            <input class="form-input" id="ai-food-input" placeholder="e.g. grilled chicken breast with rice">
+          </div>
+          <div class="ai-photo-actions">
+            <button class="btn btn-secondary" id="ai-photo-camera-btn" type="button" onclick="openAiPhotoPicker('camera')">Take Photo</button>
+            <button class="btn btn-secondary" id="ai-photo-library-btn" type="button" onclick="openAiPhotoPicker('library')">Upload Image</button>
+          </div>
+          <div class="helper-text helper-left ai-photo-warning">Photo-based estimates are usually less accurate than direct text descriptions. Use them with caution.</div>
+          <input class="hidden" id="ai-photo-camera-input" type="file" accept="image/*" capture="environment" onchange="handleAiPhotoSelected(event)">
+          <input class="hidden" id="ai-photo-library-input" type="file" accept="image/*" onchange="handleAiPhotoSelected(event)">
+          <div class="ai-photo-preview hidden" id="ai-photo-preview">
+            <img class="ai-photo-preview-image" id="ai-photo-preview-image" alt="Meal preview">
+            <div class="ai-photo-preview-meta">
+              <div class="ai-photo-preview-title" id="ai-photo-preview-title">Meal image ready</div>
+              <div class="ai-photo-preview-copy" id="ai-photo-preview-copy">AI can turn this photo into a food description before estimating nutrition.</div>
+            </div>
+            <button class="icon-btn ai-photo-clear-btn" type="button" onclick="clearAiPhotoSelection()" aria-label="Remove meal image" title="Remove meal image">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 6 6 18"/>
+                <path d="m6 6 12 12"/>
+              </svg>
+            </button>
+          </div>
+          <button class="btn btn-primary" id="ai-estimate-btn" onclick="requestAiEstimate()">Estimate Nutrition</button>
+          <div class="ai-status-row">
+            <div id="ai-estimate-status" class="api-status" aria-live="polite"></div>
+            <button class="info-icon-btn hidden" id="ai-estimate-info-btn" type="button" onclick="toggleAiEstimateSourcesInfo()" aria-label="How AI nutrition estimates are generated" title="How AI nutrition estimates are generated">i</button>
+          </div>
+          <div class="goal-sources-popover hidden" id="ai-estimate-sources-popover">
+            <div class="goal-sources-title">Estimate Basis</div>
+            <div class="goal-sources-copy" id="ai-estimate-sources-copy">Waiting for the AI estimate basis.</div>
+          </div>
+
+          <div id="ai-estimate-editor" class="estimate-editor hidden">
+            <div class="estimate-note" id="ai-estimate-note"></div>
+            <div class="form-group">
+              <label class="form-label" for="ai-name">Meal Name</label>
+              <input class="form-input" id="ai-name" placeholder="e.g. Grilled chicken wrap">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="ai-calories">Calories (kcal)</label>
+                <input class="form-input" id="ai-calories" type="number" min="0" step="1" placeholder="0">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="ai-protein">Protein (g)</label>
+                <input class="form-input" id="ai-protein" type="number" min="0" step="0.1" placeholder="0">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="ai-carb">Carbs (g)</label>
+                <input class="form-input" id="ai-carb" type="number" min="0" step="0.1" placeholder="0">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="ai-fat">Fat (g)</label>
+                <input class="form-input" id="ai-fat" type="number" min="0" step="0.1" placeholder="0">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group" id="ai-quantity-group">
+                <label class="form-label" for="ai-quantity" id="ai-quantity-label">Quantity</label>
+                <input class="form-input" id="ai-quantity" type="number" min="0.1" step="0.1" placeholder="1">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="ai-serving-label">Portion Name</label>
+                <input class="form-input" id="ai-serving-label" placeholder="e.g. cups, pcs, oz">
+              </div>
+            </div>
+            <div class="form-group hidden" id="ai-grams-group">
+              <label class="form-label" for="ai-grams">Total Grams</label>
+              <input class="form-input" id="ai-grams" type="number" min="1" step="1" placeholder="0">
+            </div>
+            <div class="helper-text helper-left" id="ai-estimate-helper" style="margin-top: -4px;">Change any value if it looks off. Editing quantity will auto-update the rest.</div>
+            <div class="estimate-actions sticky-meal-action">
+              <button class="btn btn-primary estimate-action" onclick="logAiEstimate()">Add to Today</button>
+            </div>
+            <label class="checkbox-row" for="ai-save-to-foods">
+              <input id="ai-save-to-foods" type="checkbox">
+              <span>Save to My Foods</span>
+            </label>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="logFromFood()">Add to Today</button>
       </div>
-    </div>
 
-    <div class="tab-content" id="tab-ai-estimate">
-      <div class="card card-tight estimate-card">
-        <div class="card-label">AI Food Estimate</div>
-        <div class="api-note">Describe the food in plain language. Example: chicken rice, 2 fried eggs, tuna sandwich.</div>
-        <div class="form-group" style="margin-top: 14px;">
-          <label class="form-label" for="ai-food-input">Food Description</label>
-          <input class="form-input" id="ai-food-input" placeholder="e.g. grilled chicken breast with rice">
+      <div class="tab-content" id="tab-custom">
+        <div class="form-group">
+          <label class="form-label" for="custom-name">Meal Name</label>
+          <input class="form-input" id="custom-name" placeholder="e.g. Grilled chicken wrap">
         </div>
-        <div class="ai-photo-actions">
-          <button class="btn btn-secondary" id="ai-photo-camera-btn" type="button" onclick="openAiPhotoPicker('camera')">Take Photo</button>
-          <button class="btn btn-secondary" id="ai-photo-library-btn" type="button" onclick="openAiPhotoPicker('library')">Upload Image</button>
-        </div>
-        <div class="helper-text helper-left ai-photo-warning">Photo-based estimates are usually less accurate than direct text descriptions. Use them with caution.</div>
-        <input class="hidden" id="ai-photo-camera-input" type="file" accept="image/*" capture="environment" onchange="handleAiPhotoSelected(event)">
-        <input class="hidden" id="ai-photo-library-input" type="file" accept="image/*" onchange="handleAiPhotoSelected(event)">
-        <div class="ai-photo-preview hidden" id="ai-photo-preview">
-          <img class="ai-photo-preview-image" id="ai-photo-preview-image" alt="Meal preview">
-          <div class="ai-photo-preview-meta">
-            <div class="ai-photo-preview-title" id="ai-photo-preview-title">Meal image ready</div>
-            <div class="ai-photo-preview-copy" id="ai-photo-preview-copy">AI can turn this photo into a food description before estimating nutrition.</div>
-          </div>
-          <button class="icon-btn ai-photo-clear-btn" type="button" onclick="clearAiPhotoSelection()" aria-label="Remove meal image" title="Remove meal image">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 6 6 18"/>
-              <path d="m6 6 12 12"/>
-            </svg>
-          </button>
-        </div>
-        <button class="btn btn-primary" id="ai-estimate-btn" onclick="requestAiEstimate()">Estimate Nutrition</button>
-        <div class="ai-status-row">
-          <div id="ai-estimate-status" class="api-status" aria-live="polite"></div>
-          <button class="info-icon-btn hidden" id="ai-estimate-info-btn" type="button" onclick="toggleAiEstimateSourcesInfo()" aria-label="How AI nutrition estimates are generated" title="How AI nutrition estimates are generated">i</button>
-        </div>
-        <div class="goal-sources-popover hidden" id="ai-estimate-sources-popover">
-          <div class="goal-sources-title">Estimate Basis</div>
-          <div class="goal-sources-copy" id="ai-estimate-sources-copy">Waiting for the AI estimate basis.</div>
-        </div>
-
-        <div id="ai-estimate-editor" class="estimate-editor hidden">
-          <div class="estimate-note" id="ai-estimate-note"></div>
+        <div class="form-row">
           <div class="form-group">
-            <label class="form-label" for="ai-name">Meal Name</label>
-            <input class="form-input" id="ai-name" placeholder="e.g. Grilled chicken wrap">
+            <label class="form-label" for="custom-cal">Calories (kcal)</label>
+            <input class="form-input" id="custom-cal" type="number" placeholder="0">
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="ai-calories">Calories (kcal)</label>
-              <input class="form-input" id="ai-calories" type="number" min="0" step="1" placeholder="0">
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="ai-protein">Protein (g)</label>
-              <input class="form-input" id="ai-protein" type="number" min="0" step="0.1" placeholder="0">
-            </div>
+          <div class="form-group">
+            <label class="form-label" for="custom-pro">Protein (g)</label>
+            <input class="form-input" id="custom-pro" type="number" placeholder="0">
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label" for="ai-carb">Carbs (g)</label>
-              <input class="form-input" id="ai-carb" type="number" min="0" step="0.1" placeholder="0">
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="ai-fat">Fat (g)</label>
-              <input class="form-input" id="ai-fat" type="number" min="0" step="0.1" placeholder="0">
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group" id="ai-quantity-group">
-              <label class="form-label" for="ai-quantity" id="ai-quantity-label">Quantity</label>
-              <input class="form-input" id="ai-quantity" type="number" min="0.1" step="0.1" placeholder="1">
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="ai-serving-label">Portion Name</label>
-              <input class="form-input" id="ai-serving-label" placeholder="e.g. cups, pcs, oz">
-            </div>
-          </div>
-          <div class="form-group hidden" id="ai-grams-group">
-            <label class="form-label" for="ai-grams">Total Grams</label>
-            <input class="form-input" id="ai-grams" type="number" min="1" step="1" placeholder="0">
-          </div>
-          <div class="helper-text helper-left" id="ai-estimate-helper" style="margin-top: -4px;">Change any value if it looks off. Editing quantity will auto-update the rest.</div>
-          <div class="estimate-actions sticky-meal-action">
-            <button class="btn btn-primary estimate-action" onclick="logAiEstimate()">Add to Today</button>
-          </div>
-          <label class="checkbox-row" for="ai-save-to-foods">
-            <input id="ai-save-to-foods" type="checkbox">
-            <span>Save to My Foods</span>
-          </label>
         </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="custom-carb">Carbs (g)</label>
+            <input class="form-input" id="custom-carb" type="number" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="custom-fat">Fat (g)</label>
+            <input class="form-input" id="custom-fat" type="number" placeholder="0">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="custom-quantity">Quantity</label>
+            <input class="form-input" id="custom-quantity" type="number" min="0.1" step="0.1" placeholder="2">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="custom-portion-name">Portion Name</label>
+            <input class="form-input" id="custom-portion-name" placeholder="e.g. cups, pcs, oz">
+          </div>
+        </div>
+        <div class="estimate-actions sticky-meal-action">
+          <button class="btn btn-primary estimate-action" onclick="logCustom()">Add to Today</button>
+        </div>
+        <label class="checkbox-row" for="custom-save-to-foods">
+          <input id="custom-save-to-foods" type="checkbox" checked>
+          <span>Save to My Foods</span>
+        </label>
       </div>
     </div>
 
-    <div class="tab-content" id="tab-custom">
-      <div class="form-group">
-        <label class="form-label" for="custom-name">Meal Name</label>
-        <input class="form-input" id="custom-name" placeholder="e.g. Grilled chicken wrap">
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label" for="custom-cal">Calories (kcal)</label>
-          <input class="form-input" id="custom-cal" type="number" placeholder="0">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="custom-pro">Protein (g)</label>
-          <input class="form-input" id="custom-pro" type="number" placeholder="0">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label" for="custom-carb">Carbs (g)</label>
-          <input class="form-input" id="custom-carb" type="number" placeholder="0">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="custom-fat">Fat (g)</label>
-          <input class="form-input" id="custom-fat" type="number" placeholder="0">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label" for="custom-quantity">Quantity</label>
-          <input class="form-input" id="custom-quantity" type="number" min="0.1" step="0.1" placeholder="2">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="custom-portion-name">Portion Name</label>
-          <input class="form-input" id="custom-portion-name" placeholder="e.g. cups, pcs, oz">
-        </div>
-      </div>
-      <div class="estimate-actions sticky-meal-action">
-        <button class="btn btn-primary estimate-action" onclick="logCustom()">Add to Today</button>
-      </div>
-      <label class="checkbox-row" for="custom-save-to-foods">
-        <input id="custom-save-to-foods" type="checkbox" checked>
-        <span>Save to My Foods</span>
-      </label>
+    <div class="meals-view" id="meals-view-history">
+      <div id="history-content"></div>
     </div>
   </div>
-  </div><!-- /meals-view-add -->
 
-  <div class="meals-view" id="meals-view-history">
-    <div id="history-content"></div>
-  </div>
-
-</div><!-- /page-log -->
-
-  <div class="page" id="page-history" style="display:none!important" aria-hidden="true">
-  </div>
+  <div class="page" id="page-history" style="display:none!important" aria-hidden="true"></div>
 
   <div class="page" id="page-workouts">
     <div class="page-header">
