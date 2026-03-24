@@ -36,6 +36,11 @@ let startupAuthReady = false;
 let activeAiPhoto = null;
 let editingLogId = null;
 let editingLogDate = null;
+let editLogBaseQuantity = 0;
+let editLogBaseCal = 0;
+let editLogBasePro = 0;
+let editLogBaseCarb = 0;
+let editLogBaseFat = 0;
 let quickTrackMode = "water";
 let quickTrackDate = null;
 let quickTrackEntryId = null;
@@ -2088,6 +2093,12 @@ function openEditLogModal(id) {
   document.getElementById("edit-log-carb").value = roundNutrient(log.carb || 0);
   document.getElementById("edit-log-fat").value = roundNutrient(log.fat || 0);
   document.getElementById("edit-log-quantity").value = parsed.quantity > 0 ? roundNutrient(parsed.quantity) : "";
+  const baseQty = parsed.quantity > 0 ? normalizePositiveNumber(parsed.quantity, 0) : 0;
+  editLogBaseQuantity = baseQty;
+  editLogBaseCal = normalizePositiveNumber(log.cal || 0, 0);
+  editLogBasePro = normalizePositiveNumber(log.pro || 0, 0);
+  editLogBaseCarb = normalizePositiveNumber(log.carb || 0, 0);
+  editLogBaseFat = normalizePositiveNumber(log.fat || 0, 0);
   document.getElementById("edit-log-portion").value = parsed.portionName || "";
   document.getElementById("edit-log-time").value = getLogTimeValue(log) || currentLocalTimeStr();
   document.getElementById("edit-log-section").value = normalizeMealSection(log.mealSection || "");
@@ -2096,9 +2107,37 @@ function openEditLogModal(id) {
   document.getElementById("overlay-edit-log").classList.add("open");
 }
 
+function onEditLogQuantityChange() {
+  if (editLogBaseQuantity <= 0) return;
+
+  const newQty = normalizePositiveNumber(
+    document.getElementById("edit-log-quantity").value,
+    0
+  );
+  if (newQty <= 0) return;
+
+  const ratio = newQty / editLogBaseQuantity;
+  const calEl = document.getElementById("edit-log-cal");
+  const proEl = document.getElementById("edit-log-pro");
+  const carbEl = document.getElementById("edit-log-carb");
+  const fatEl = document.getElementById("edit-log-fat");
+
+  if (!calEl || !proEl || !carbEl || !fatEl) return;
+
+  calEl.value = Math.round(editLogBaseCal * ratio);
+  proEl.value = roundNutrient(editLogBasePro * ratio);
+  carbEl.value = roundNutrient(editLogBaseCarb * ratio);
+  fatEl.value = roundNutrient(editLogBaseFat * ratio);
+}
+
 function openCreateLogModal(date = todayStr()) {
   editingLogId = null;
   editingLogDate = date;
+  editLogBaseQuantity = 0;
+  editLogBaseCal = 0;
+  editLogBasePro = 0;
+  editLogBaseCarb = 0;
+  editLogBaseFat = 0;
   document.getElementById("edit-log-title").textContent = "Add Meal";
   document.getElementById("edit-log-name").value = "";
   document.getElementById("edit-log-cal").value = "";
@@ -3944,6 +3983,11 @@ function closeModal(name) {
     if (name === "edit-log") {
       editingLogId = null;
       editingLogDate = null;
+      editLogBaseQuantity = 0;
+      editLogBaseCal = 0;
+      editLogBasePro = 0;
+      editLogBaseCarb = 0;
+      editLogBaseFat = 0;
       document.getElementById("edit-log-status").textContent = "";
     }
     if (name === "quick-track") {
